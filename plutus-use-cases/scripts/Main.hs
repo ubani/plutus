@@ -68,40 +68,24 @@ writeWhat Transactions{} = "transactions"
 pathParser :: Parser FilePath
 pathParser = strArgument (metavar "SCRIPT_PATH" <> help "output path")
 
-protocolParamsParser :: Parser FilePath
-protocolParamsParser = strOption (long "protocol-parameters" <> short 'p' <> help "Path to protocol parameters JSON file" <> showDefault <> value "protocol-parameters.json")
+modeParser :: Parser Mode
+modeParser = option auto (long "mode" <> showDefault <> value Scripts)
 
 networkIdParser :: Parser C.NetworkId
 networkIdParser =
     let p = C.Testnet . C.NetworkMagic <$> option auto (long "network-magic" <> short 'n' <> help "Cardano network magic. If none is specified, mainnet addresses are generated.")
     in p <|> pure C.Mainnet
 
-commandParser :: Parser Command
-commandParser = subparser $ mconcat [scriptsParser, transactionsParser]
-
-scriptsParser :: Mod CommandFields Command
-scriptsParser =
-    command "scripts" $
-    info
-        (pure Scripts)
-        (fullDesc <> progDesc "Write fully applied validator scripts")
-
-transactionsParser :: Mod CommandFields Command
-transactionsParser =
-    command "transactions" $
-    info
-        (Transactions <$> networkIdParser <*> protocolParamsParser)
-        (fullDesc <> progDesc "Write partial transactions")
-
 data ScriptsConfig =
     ScriptsConfig
-        { scPath    :: FilePath
-        , scCommand :: Command
+        { scPath      :: FilePath
+        , scMode      :: Mode
+        , scNetworkId :: C.NetworkId
         }
 
 progParser :: ParserInfo ScriptsConfig
 progParser =
-    let p = ScriptsConfig <$> pathParser <*> commandParser
+    let p = ScriptsConfig <$> pathParser <*> modeParser <*> networkIdParser
     in info
         (p <**> helper)
         (fullDesc
@@ -110,11 +94,12 @@ progParser =
         )
 
 main :: IO ()
-main = execParser progParser >>= uncurry writeScripts
+main = execParser progParser >>= writeScripts
 
 writeScripts :: ScriptsConfig -> IO ()
 writeScripts config = do
-    putStrLn $ "Writing " <> writeWhat (scCommand config) <> " to: " <> (scPath config)
+    putStrLn $ "Writing " <> writeWhat (scMode config) <> " to: " <> (scPath config)
+    putStrLn $ "Network ID: " <> show (scNetworkId config)
     traverse_ (uncurry3 (writeScriptsTo config))
         [ ("auction_1", Auction.auctionTrace1, Auction.auctionEmulatorCfg)
         , ("auction_2", Auction.auctionTrace2, Auction.auctionEmulatorCfg)
@@ -146,13 +131,12 @@ writeScripts config = do
     using the name as a prefix.
 -}
 writeScriptsTo
-    :: Mode
-    -> FilePath
+    :: ScriptsConfig
     -> String
     -> EmulatorTrace a
     -> EmulatorConfig
     -> IO ()
-writeScriptsTo ScriptsConfig{scPath, scCommand} prefix trace emulatorCfg = do
+writeScriptsTo ScriptsConfig{scMode, scPath, scNetworkId} prefix trace emulatorCfg = do
     let (scriptEvents, balanceEvents) =
             S.fst'
             $ run
@@ -160,14 +144,10 @@ writeScriptsTo ScriptsConfig{scPath, scCommand} prefix trace emulatorCfg = do
             $ Trace.runEmulatorStream emulatorCfg def trace
 
     createDirectoryIfMissing True scPath
-    case scCommand of
-        Scripts -> do
-            traverse_ (uncurry $ writeScript scPath prefix) (zip [1::Int ..] scriptEvents)
-        Transactions{networkId, protocolParamsJSON} -> do
-            bs <- BSL.readFile protocolParamsJSON
-            case Aeson.eitherDecode bs of
-                Left err -> putStrLn err
-                Right params -> traverse_ (uncurry $ writeTransaction params networkId scPath prefix) (zip [1::Int ..] balanceEvents)
+    when (Scripts <= scMode) $
+        traverse_ (uncurry $ writeScript scPath prefix) (zip [1::Int ..] (sveScript <$> scriptEvents))
+    when (Transactions <= scMode) $
+        traverse_ (uncurry $ writeTransaction scNetworkId scPath prefix) (zip [1::Int ..] balanceEvents)
 
 {- There's an instance of Codec.Serialise for
     Script in Scripts.hs (see Note [Using Flat inside CBOR instance of Script]),
@@ -181,12 +161,12 @@ writeScript fp prefix idx script = do
     putStrLn $ "Writing script: " <> filename
     BSL.writeFile filename (BSL.fromStrict . flat . unScript $ script)
 
-writeTransaction :: C.ProtocolParameters -> C.NetworkId -> FilePath -> String -> Int -> UnbalancedTx -> IO ()
-writeTransaction params networkId fp prefix idx tx = do
+writeTransaction :: C.NetworkId -> FilePath -> String -> Int -> UnbalancedTx -> IO ()
+writeTransaction networkId fp prefix idx tx = do
     let filename1 = fp </> prefix <> "-" <> show idx <> ".json"
     putStrLn $ "Writing partial transaction JSON: " <> filename1
     BSL.writeFile filename1 (encodePretty tx)
-    case export params networkId tx of
+    case export networkId tx of
         Left err -> putStrLn $ "Export tx failed for " <> filename1 <> ". Reason: " <> show (pretty err)
         Right exportTx -> do
             let filename2 = fp </> prefix <> "-" <> show idx <> ".cbor"
@@ -228,18 +208,18 @@ instance C.HasTypeProxy ExportTx where
     data AsType ExportTx = AsExportTx
     proxyToAsType _ = AsExportTx
 
-export :: C.ProtocolParameters -> C.NetworkId -> UnbalancedTx -> Either CardanoAPI.ToCardanoError ExportTx
-export params networkId UnbalancedTx{unBalancedTxTx, unBalancedTxUtxoIndex, unBalancedTxRequiredSignatories} =
+export :: C.NetworkId -> UnbalancedTx -> Either CardanoAPI.ToCardanoError ExportTx
+export networkId UnbalancedTx{unBalancedTxTx, unBalancedTxUtxoIndex, unBalancedTxRequiredSignatories} =
     ExportTx
-        <$> mkTx params networkId unBalancedTxTx
+        <$> mkTx networkId unBalancedTxTx
         <*> mkLookups networkId unBalancedTxUtxoIndex
         <*> mkSignatories unBalancedTxRequiredSignatories
 
-mkTx :: C.ProtocolParameters -> C.NetworkId -> Plutus.Tx -> Either CardanoAPI.ToCardanoError (C.Tx C.AlonzoEra)
-mkTx params networkId = fmap (C.makeSignedTransaction []) . CardanoAPI.toCardanoTxBody (Just params) networkId
+mkTx :: C.NetworkId -> Plutus.Tx -> Either CardanoAPI.ToCardanoError (C.Tx C.AlonzoEra)
+mkTx networkId = fmap (C.makeSignedTransaction []) . CardanoAPI.toCardanoTxBody networkId
 
-mkLookups :: Map Plutus.TxOutRef Plutus.TxOut -> Either CardanoAPI.ToCardanoError [(C.TxIn, C.TxOut C.AlonzoEra)]
-mkLookups = traverse (bitraverse CardanoAPI.toCardanoTxIn CardanoAPI.toCardanoTxOut) . Map.toList
+mkLookups :: C.NetworkId -> Map Plutus.TxOutRef Plutus.TxOut -> Either CardanoAPI.ToCardanoError [(C.TxIn, C.TxOut C.AlonzoEra)]
+mkLookups networkId = traverse (bitraverse CardanoAPI.toCardanoTxIn (CardanoAPI.toCardanoTxOut networkId)) . Map.toList
 
 mkSignatories :: Set Plutus.PubKeyHash -> Either CardanoAPI.ToCardanoError [C.Hash C.PaymentKey]
 mkSignatories = traverse CardanoAPI.toCardanoPaymentKeyHash . Set.toList
