@@ -1,5 +1,4 @@
 {-# LANGUAGE GADTs             #-}
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE ViewPatterns      #-}
@@ -80,7 +79,7 @@ toCardanoTxBody ::
 toCardanoTxBody protocolParams networkId P.Tx{..} = do
     txIns <- traverse toCardanoTxInBuild $ Set.toList txInputs
     txInsCollateral <- toCardanoTxInsCollateral txCollateral
-    txOuts <- traverse toCardanoTxOut txOutputs
+    txOuts <- traverse (toCardanoTxOut networkId) txOutputs
     txFee' <- toCardanoFee txFee
     txValidityRange <- toCardanoValidityRange txValidRange
     txMintValue <- toCardanoMintValue txMint txMintScripts
@@ -171,8 +170,11 @@ fromCardanoTxOut (C.TxOut addr value datumHash) =
     <*> pure (fromCardanoTxOutValue value)
     <*> pure (fromCardanoTxOutDatumHash datumHash)
 
-toCardanoTxOut :: P.TxOut -> Either ToCardanoError (C.TxOut C.AlonzoEra)
-toCardanoTxOut (P.TxOut addr value datumHash) = C.TxOut <$> toCardanoAddress addr <*> toCardanoTxOutValue value <*> toCardanoTxOutDatumHash datumHash
+toCardanoTxOut :: C.NetworkId -> P.TxOut -> Either ToCardanoError (C.TxOut C.AlonzoEra)
+toCardanoTxOut networkId (P.TxOut addr value datumHash) =
+    C.TxOut <$> toCardanoAddress networkId addr
+            <*> toCardanoTxOutValue value
+            <*> toCardanoTxOutDatumHash datumHash
 
 fromCardanoAddress :: C.AddressInEra era -> Either FromCardanoError P.Address
 fromCardanoAddress (C.AddressInEra C.ByronAddressInAnyEra _) = Left ByronAddressesNotSupported
@@ -180,10 +182,10 @@ fromCardanoAddress (C.AddressInEra _ (C.ShelleyAddress _ paymentCredential stake
     P.Address (fromCardanoPaymentCredential (C.fromShelleyPaymentCredential paymentCredential))
         <$> fromCardanoStakeAddressReference (C.fromShelleyStakeReference stakeAddressReference)
 
-toCardanoAddress :: P.Address -> Either ToCardanoError (C.AddressInEra C.AlonzoEra)
-toCardanoAddress (P.Address addressCredential addressStakingCredential) =
+toCardanoAddress :: C.NetworkId -> P.Address -> Either ToCardanoError (C.AddressInEra C.AlonzoEra)
+toCardanoAddress networkId (P.Address addressCredential addressStakingCredential) =
     C.AddressInEra (C.ShelleyAddressInEra C.ShelleyBasedEraAlonzo) <$>
-        (C.makeShelleyAddress C.Mainnet -- TODO: use actual network id
+        (C.makeShelleyAddress networkId
             <$> toCardanoPaymentCredential addressCredential
             <*> toCardanoStakeAddressReference addressStakingCredential)
 
@@ -386,7 +388,7 @@ instance Pretty FromCardanoError where
 
 data ToCardanoError
     = EvaluationError Api.EvaluationError
-    | TxBodyError (C.TxBodyError C.AlonzoEra)
+    | TxBodyError C.TxBodyError
     | DeserialisationError
     | InvalidValidityRange
     | ValueNotPureAda

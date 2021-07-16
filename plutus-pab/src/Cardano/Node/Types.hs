@@ -127,6 +127,8 @@ data MockServerConfig =
         , mscFeeConfig        :: FeeConfig
         -- ^ Configure constant fee per transaction and ratio by which to
         -- multiply size-dependent scripts fee.
+        , mscNetworkId        :: NetworkIdWrapper
+        -- ^ NetworkId that's used with the CardanoAPI.
         }
     deriving (Show, Eq, Generic, FromJSON)
 
