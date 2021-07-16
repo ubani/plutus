@@ -1,4 +1,4 @@
-cabal-version: 2.4
+cabal-version: 3.0
 name: plutus-core
 version: 0.1.0.0
 license: Apache-2.0
@@ -144,14 +144,10 @@ library
         UntypedPlutusCore.Check.Uniques
         UntypedPlutusCore.Core.Type
 
-        Common
         Crypto
         Data.ByteString.Hash
         Data.SatInt
         Data.Text.Prettyprint.Doc.Custom
-        ErrorCode
-        PlcTestUtils
-        PlutusPrelude
         Universe
     build-tool-depends: alex:alex -any, happy:happy >=1.17.1
     hs-source-dirs:
@@ -161,8 +157,6 @@ library
         plutus-ir/src
         untyped-plutus-core/src
         generators
-        prelude
-        common
     other-modules:
         PlutusCore.Analysis.Definitions
         PlutusCore.Constant.Function
@@ -257,7 +251,6 @@ library
         cardano-crypto,
         cassava -any,
         cborg -any,
-        composition-prelude >=1.1.0.1,
         containers -any,
         cryptonite -any,
         data-default-class -any,
@@ -276,16 +269,17 @@ library
         integer-gmp -any,
         lazy-search -any,
         lens -any,
+        mtl -any,
         megaparsec -any,
         memory -any,
         mmorph -any,
         monoidal-containers,
-        mtl -any,
         nonempty-containers -any,
         parser-combinators >= 0.4.0,
         prettyprinter >=1.1.0.1,
         prettyprinter-configurable -any,
         primitive -any,
+        plutus-core:common -any,
         recursion-schemes -any,
         semigroupoids -any,
         semigroups -any,
@@ -294,7 +288,6 @@ library
         some < 1.0.3,
         sop-core -any,
         tasty -any,
-        tasty-golden -any,
         tasty-hunit -any,
         template-haskell -any,
         text -any,
@@ -305,6 +298,54 @@ library
         unordered-containers -any,
         witherable -any,
         word-array -any
+
+library common
+  import: lang
+  visibility: public
+  hs-source-dirs: common, prelude
+  exposed-modules:
+        Common
+        ErrorCode
+        PlutusPrelude
+  build-depends:
+        array -any,
+        base >=4.9 && <5,
+        bytestring -any,
+        composition-prelude >=1.1.0.1,
+        deepseq -any,
+        filepath -any,
+        lens -any,
+        mtl -any,
+        tasty -any,
+        text -any,
+        tasty-golden -any,
+        prettyprinter -any,
+        prettyprinter-configurable -any,
+
+library testlib
+  import: lang
+  visibility: public
+  hs-source-dirs: common
+  exposed-modules:
+        PlcTestUtils
+  other-modules:
+        Common
+  build-depends:
+        array -any,
+        base >=4.9 && <5,
+        bytestring -any,
+        composition-prelude >=1.1.0.1,
+        deepseq -any,
+        filepath -any,
+        lens -any,
+        mtl -any,
+        tasty -any,
+        text -any,
+        tasty-golden -any,
+        plutus-core -any,
+        plutus-core:common -any,
+        prettyprinter -any,
+        prettyprinter-configurable -any,
 
 test-suite satint-test
   import: lang
@@ -345,6 +386,7 @@ test-suite plutus-core-test
         flat -any,
         hedgehog -any,
         plutus-core -any,
+        plutus-core:common -any,
         mmorph -any,
         mtl -any,
         prettyprinter -any,
@@ -369,6 +411,8 @@ test-suite plutus-ir-test
     build-depends:
         base >=4.9 && <5,
         plutus-core -any,
+        plutus-core:common -any,
+        plutus-core:testlib -any,
         filepath -any,
         flat -any,
         hedgehog -any,
@@ -400,6 +444,7 @@ test-suite untyped-plutus-core-test
         hedgehog -any,
         mtl -any,
         plutus-core -any,
+        plutus-core:common -any,
         prettyprinter -any,
         tasty -any,
         tasty-golden -any,
@@ -416,6 +461,7 @@ executable plc
         Parsers
     build-depends:
         plutus-core -any,
+        plutus-core:common -any,
         base <5,
         bytestring -any,
         deepseq -any,
@@ -436,6 +482,7 @@ executable uplc
         Parsers
     build-depends:
         plutus-core -any,
+        plutus-core:common -any,
         base <5,
         bytestring -any,
         deepseq -any,

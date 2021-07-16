@@ -28,7 +28,6 @@ import           Common
 
 import qualified PlutusCore                               as TPLC
 import           PlutusCore.DeBruijn
-import           PlutusCore.Default.Universe
 import qualified PlutusCore.Evaluation.Machine.Ck         as TPLC
 import           PlutusCore.Pretty
 
@@ -73,18 +72,18 @@ rethrow :: ExceptT SomeException IO a -> IO a
 rethrow = fmap (either throw id) . runExceptT
 
 runTPlc
-    :: ToTPlc a DefaultUni TPLC.DefaultFun
+    :: ToTPlc a TPLC.DefaultUni TPLC.DefaultFun
     => [a]
-    -> ExceptT SomeException IO (TPLC.EvaluationResult (TPLC.Term TPLC.TyName TPLC.Name DefaultUni TPLC.DefaultFun ()))
+    -> ExceptT SomeException IO (TPLC.EvaluationResult (TPLC.Term TPLC.TyName TPLC.Name TPLC.DefaultUni TPLC.DefaultFun ()))
 runTPlc values = do
     ps <- traverse toTPlc values
     let (TPLC.Program _ _ t) = foldl1 TPLC.applyProgram ps
     liftEither $ first toException $ TPLC.extractEvaluationResult $ TPLC.evaluateCkNoEmit TPLC.defaultBuiltinsRuntime t
 
 runUPlc
-    :: ToUPlc a DefaultUni TPLC.DefaultFun
+    :: ToUPlc a TPLC.DefaultUni TPLC.DefaultFun
     => [a]
-    -> ExceptT SomeException IO (UPLC.EvaluationResult (UPLC.Term TPLC.Name DefaultUni TPLC.DefaultFun ()))
+    -> ExceptT SomeException IO (UPLC.EvaluationResult (UPLC.Term TPLC.Name TPLC.DefaultUni TPLC.DefaultFun ()))
 runUPlc values = do
     ps <- traverse toUPlc values
     let (UPLC.Program _ _ t) = foldl1 UPLC.applyProgram ps
@@ -97,49 +96,49 @@ ppThrow :: PrettyPlc a => ExceptT SomeException IO a -> IO (Doc ann)
 ppThrow value = rethrow $ prettyPlcClassicDebug <$> value
 
 goldenTPlc
-    :: ToTPlc a DefaultUni TPLC.DefaultFun
+    :: ToTPlc a TPLC.DefaultUni TPLC.DefaultFun
     => String -> a -> TestNested
 goldenTPlc name value = nestedGoldenVsDocM name $ ppThrow $ do
     p <- toTPlc value
     withExceptT @_ @FreeVariableError toException $ deBruijnProgram p
 
 goldenTPlcCatch
-    :: ToTPlc a DefaultUni TPLC.DefaultFun
+    :: ToTPlc a TPLC.DefaultUni TPLC.DefaultFun
     => String -> a -> TestNested
 goldenTPlcCatch name value = nestedGoldenVsDocM name $ ppCatch $ do
     p <- toTPlc value
     withExceptT @_ @FreeVariableError toException $ deBruijnProgram p
 
 goldenUPlc
-    :: ToUPlc a DefaultUni TPLC.DefaultFun
+    :: ToUPlc a TPLC.DefaultUni TPLC.DefaultFun
      => String -> a -> TestNested
 goldenUPlc name value = nestedGoldenVsDocM name $ ppThrow $ do
     p <- toUPlc value
     withExceptT @_ @FreeVariableError toException $ UPLC.deBruijnProgram p
 
 goldenUPlcCatch
-    :: ToUPlc a DefaultUni TPLC.DefaultFun
+    :: ToUPlc a TPLC.DefaultUni TPLC.DefaultFun
     => String -> a -> TestNested
 goldenUPlcCatch name value = nestedGoldenVsDocM name $ ppCatch $ do
     p <- toUPlc value
     withExceptT @_ @FreeVariableError toException $ UPLC.deBruijnProgram p
 
 goldenTEval
-    :: ToTPlc a DefaultUni TPLC.DefaultFun
+    :: ToTPlc a TPLC.DefaultUni TPLC.DefaultFun
     => String -> [a] -> TestNested
 goldenTEval name values = nestedGoldenVsDocM name $ prettyPlcClassicDebug <$> (rethrow $ runTPlc values)
 
 goldenUEval
-    :: ToUPlc a DefaultUni TPLC.DefaultFun
+    :: ToUPlc a TPLC.DefaultUni TPLC.DefaultFun
     => String -> [a] -> TestNested
 goldenUEval name values = nestedGoldenVsDocM name $ prettyPlcClassicDebug <$> (rethrow $ runUPlc values)
 
 goldenTEvalCatch
-    :: ToTPlc a DefaultUni TPLC.DefaultFun
+    :: ToTPlc a TPLC.DefaultUni TPLC.DefaultFun
     => String -> [a] -> TestNested
 goldenTEvalCatch name values = nestedGoldenVsDocM name $ ppCatch $ runTPlc values
 
 goldenUEvalCatch
-    :: ToUPlc a DefaultUni TPLC.DefaultFun
+    :: ToUPlc a TPLC.DefaultUni TPLC.DefaultFun
     => String -> [a] -> TestNested
 goldenUEvalCatch name values = nestedGoldenVsDocM name $ ppCatch $ runUPlc values
