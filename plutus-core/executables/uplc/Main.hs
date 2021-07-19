@@ -13,6 +13,7 @@ import           PlutusCore.Evaluation.Machine.ExMemory   (ExCPU (..), ExMemory 
 import           Data.Foldable                            (asum)
 import           Data.Function                            ((&))
 import           Data.Functor                             (void)
+import qualified Data.IntMap                              as IntMap
 import           Data.List                                (nub)
 import           Data.List.Split                          (splitOn)
 
@@ -22,6 +23,7 @@ import qualified UntypedPlutusCore.Evaluation.Machine.Cek as Cek
 import           Control.DeepSeq                          (NFData, rnf)
 import           Options.Applicative
 import           System.Exit                              (exitFailure, exitSuccess)
+import           Text.Printf                              (printf)
 import           Text.Read                                (readMaybe)
 
 uplcHelpText :: String
@@ -36,6 +38,8 @@ data BudgetMode  = Silent
 
 data EvalOptions = EvalOptions Input Format PrintMode BudgetMode TimingMode CekModel
 
+data AnalysisOptions = AnalysisOptions Input Format
+
 ---------------- Main commands -----------------
 
 data Command = Apply     ApplyOptions
@@ -43,6 +47,7 @@ data Command = Apply     ApplyOptions
              | Print     PrintOptions
              | Example   ExampleOptions
              | Eval      EvalOptions
+             | Analyse   AnalysisOptions
 
 ---------------- Option parsers ----------------
 
@@ -55,7 +60,11 @@ cekmodel = flag Default Unit
 
 evalOpts :: Parser EvalOptions
 evalOpts =
-  EvalOptions <$> input <*> inputformat <*> printmode <*> budgetmode <*> timingmode <*> cekmodel
+    EvalOptions <$> input <*> inputformat <*> printmode <*> budgetmode <*> timingmode <*> cekmodel
+
+analysisOptions :: Parser AnalysisOptions
+analysisOptions =
+    AnalysisOptions <$> input <*> inputformat
 
 -- Reader for budget.  The --restricting option requires two integer arguments
 -- and the easiest way to do this is to supply a colon-separated pair of
@@ -135,6 +144,9 @@ plutusOpts = hsubparser (
     <> command "evaluate"
            (info (Eval <$> evalOpts)
             (progDesc "Evaluate an untyped Plutus Core program using the CEK machine."))
+    <> command "analyse"
+           (info (Analyse <$> analysisOptions)
+            (progDesc $ "Perform some analysis of an untyped Plutus Core AST"))
   )
 
 
@@ -215,6 +227,78 @@ runConvert (ConvertOptions inp ifmt outp ofmt mode) = do
     program <- (getProgram ifmt inp :: IO (UplcProg PLC.AlexPosn))
     writeProgram outp ofmt mode program
 
+
+---------------- Analysis ----------------
+analyseBindings :: UPLC.Term UPLC.Name uni fun ann -> IO ()
+analyseBindings term =
+    let countFreqs tm freqs =
+            case tm of
+              UPLC.Var _ name      ->
+                  let n = UPLC.unUnique $ UPLC.nameUnique name
+                  in case IntMap.lookup n freqs of
+                       Nothing -> error $ "Free variable: " ++ show name
+                       Just k  -> IntMap.insert n (k+1) freqs
+              UPLC.LamAbs _ name t ->
+                  let n = UPLC.unUnique $ UPLC.nameUnique name
+                  in case IntMap.lookup n freqs of
+                       Nothing -> countFreqs t (IntMap.insert n 0 freqs)
+                       Just _  -> error $ "Duplicate binding for " ++ show name
+              UPLC.Apply _ t1 t2   -> countFreqs t2 (countFreqs t1 freqs)
+              UPLC.Force _ t       -> countFreqs t freqs
+              UPLC.Delay _ t       -> countFreqs t freqs
+              UPLC.Constant {}     -> freqs
+              UPLC.Builtin {}      -> freqs
+              UPLC.Error _         -> freqs
+        frequencies = countFreqs term IntMap.empty  -- How often is each variable accessed?
+        incrCount k m = case IntMap.lookup k m of
+                          Nothing -> IntMap.insert k (1::Int) m
+                          Just n  -> IntMap.insert k (n+1) m
+        counts = IntMap.toList $ IntMap.foldr incrCount IntMap.empty frequencies
+        numVars = IntMap.size frequencies
+        percentage n = (fromIntegral n / fromIntegral numVars) * 100.0 :: Double
+    in do
+      putStrLn $ "There are " ++ show numVars ++ " variables in total"
+      putStrLn $ "This number of variables (left) are accessed this number of times (right): "
+      mapM_ (\(a,b) -> printf "%-6d %4d %8.2f%%\n" b a (percentage b)) counts
+      putStrLn ""
+      let (_,c0) = counts !! 0
+          (_,c1) = counts !! 1
+          cn = numVars - c0 -c1
+      putStrLn $ printf "# %d %d (%.1f%%) %d (%.1f%%) %d (%.1f%%)\n" numVars c0 (percentage c0) c1 (percentage c1) cn (percentage cn)
+
+analyseDelays :: UPLC.Term UPLC.Name uni fun ann -> IO ()
+analyseDelays term =
+    let isValue = \case
+                  UPLC.Var      {} -> True
+                  UPLC.LamAbs   {} -> True
+                  UPLC.Apply    {} -> False
+                  UPLC.Force    {} -> False
+                  UPLC.Delay    {} -> True
+                  UPLC.Constant {} -> True
+                  UPLC.Builtin  {} -> True
+                  UPLC.Error    {} -> False
+        doDelays tm (counts@(total1,values1)) =
+            case tm of
+              UPLC.Var _ _       -> counts
+              UPLC.LamAbs _ _ t  -> doDelays t counts
+              UPLC.Apply _ t1 t2 -> doDelays t2 (doDelays t1 counts)
+              UPLC.Force _ t     -> doDelays t counts
+              UPLC.Delay _ t     -> if isValue t then doDelays t (total1+1, values1+1) else doDelays t (total1+1, values1)
+              UPLC.Constant {}   -> counts
+              UPLC.Builtin {}    -> counts
+              UPLC.Error _       -> counts
+        (total, values) = doDelays term (0::Int,0::Int)
+    in do
+      putStrLn $ printf "Total = %d, values = %d, other = %d" total values (total-values)
+
+
+
+runAnalysis :: AnalysisOptions -> IO ()
+runAnalysis (AnalysisOptions inp ifmt) = do
+  program <- (getProgram ifmt inp :: IO (UplcProg PLC.AlexPosn))
+--  analyseBindings (UPLC.toTerm program)
+  analyseDelays (UPLC.toTerm program)
+
 main :: IO ()
 main = do
     options <- customExecParser (prefs showHelpOnEmpty) uplcInfoCommand
@@ -224,3 +308,4 @@ main = do
         Example   opts -> runUplcPrintExample opts
         Print     opts -> runPrint        opts
         Convert   opts -> runConvert      opts
+        Analyse   opts -> runAnalysis     opts
