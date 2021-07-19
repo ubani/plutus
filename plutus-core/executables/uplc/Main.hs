@@ -228,7 +228,8 @@ runConvert (ConvertOptions inp ifmt outp ofmt mode) = do
     writeProgram outp ofmt mode program
 
 
----------------- Analysis ----------------
+---------------- AST Analysis ----------------
+
 analyseBindings :: UPLC.Term UPLC.Name uni fun ann -> IO ()
 analyseBindings term =
     let countFreqs tm freqs =
