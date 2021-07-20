@@ -2,6 +2,8 @@
 let
   server-invoker = haskell.packages.plutus-pab.components.exes.plutus-pab;
   test-generator = haskell.packages.plutus-pab.components.exes.plutus-pab-test-psgenerator;
+  build-server-invoker = "$(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-invoker)";
+  build-test-generator = "$(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.test-generator)";
 
   generated-purescript = pkgs.runCommand "plutus-pab-purescript" { } ''
     mkdir $out
@@ -14,17 +16,13 @@ let
   generate-purescript = pkgs.writeShellScriptBin "plutus-pab-generate-purs" ''
     generatedDir=./generated
     rm -rf $generatedDir
-    # There might be local modifications so only copy when missing
-    ! test -f ./plutus-pab.yaml && cp ../plutus-pab/plutus-pab.yaml.sample plutus-pab.yaml
-    $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-invoker)/bin/plutus-pab psgenerator $generatedDir
-    $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.test-generator)/bin/plutus-pab-test-psgenerator $generatedDir
+    ${build-server-invoker}/bin/plutus-pab psgenerator $generatedDir
+    ${build-test-generator}/bin/plutus-pab-test-psgenerator $generatedDir
   '';
 
   # For dev usage
   migrate = pkgs.writeShellScriptBin "plutus-pab-migrate" ''
-    # There might be local modifications so only copy when missing
-    ! test -f ./plutus-pab.yaml && cp ../plutus-pab/plutus-pab.yaml.sample plutus-pab.yaml
-    $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-invoker)/bin/plutus-pab migrate
+    ${build-server-invoker}/bin/plutus-pab migrate
   '';
 
   # For dev usage
@@ -33,7 +31,7 @@ let
     export WEBGHC_URL=http://localhost:8080
     # There might be local modifications so only copy when missing
     ! test -f ./plutus-pab.yaml && cp ../plutus-pab/plutus-pab.yaml.sample plutus-pab.yaml
-    $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-invoker)/bin/plutus-pab --config=plutus-pab.yaml webserver
+    ${build-server-invoker}/bin/plutus-pab --config=plutus-pab.yaml webserver
   '';
 
   # For dev usage
@@ -42,7 +40,7 @@ let
     export WEBGHC_URL=http://localhost:8080
     # There might be local modifications so only copy when missing
     ! test -f ./plutus-pab.yaml && cp ../plutus-pab/plutus-pab.yaml.sample plutus-pab.yaml
-    $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-invoker)/bin/plutus-pab --config=plutus-pab.yaml all-servers
+    ${build-server-invoker}/bin/plutus-pab --config=plutus-pab.yaml all-servers
   '';
 
   # For dev usage
@@ -51,7 +49,7 @@ let
     export WEBGHC_URL=http://localhost:8080
     # There might be local modifications so only copy when missing
     ! test -f ./plutus-pab.yaml && cp ../plutus-pab/plutus-pab.yaml.sample plutus-pab.yaml
-    $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-invoker)/bin/plutus-pab --config=plutus-pab.yaml -m all-servers
+    ${build-server-invoker}/bin/plutus-pab --config=plutus-pab.yaml -m all-servers
   '';
 
   cleanSrc = gitignore-nix.gitignoreSource ./.;
@@ -90,5 +88,5 @@ let
 
 in
 {
-  inherit client demo-scripts server-invoker test-generator generated-purescript generate-purescript migrate start-backend start-all-servers start-all-servers-m mkConf pab-exes;
+  inherit client demo-scripts server-invoker test-generator build-server-invoker build-test-generator generated-purescript generate-purescript migrate start-backend start-all-servers start-all-servers-m mkConf pab-exes;
 }

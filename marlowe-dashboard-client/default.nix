@@ -1,5 +1,30 @@
-{ pkgs, gitignore-nix, webCommon, webCommonMarlowe, buildPursPackage, buildNodeModules, filterNpm, plutus-pab, marlowe-app, marlowe-companion-app, marlowe-follow-app }:
+{ pkgs, gitignore-nix, haskell, webCommon, webCommonMarlowe, buildPursPackage, buildNodeModules, filterNpm, plutus-pab, marlowe-app, marlowe-companion-app, marlowe-follow-app }:
 let
+  server-invoker = haskell.packages.marlowe-dashboard-server.components.exes.marlowe-dashboard-server;
+
+  build-server-invoker = "$(nix-build --quiet --no-build-output ../default.nix -A plutus.haskell.packages.marlowe-dashboard-server.components.exes.marlowe-dashboard-server)";
+
+  # output containing the purescript bridge code
+  generated-purescript = pkgs.runCommand "marlowe-dashboard-purescript" { } ''
+    mkdir $out
+    ${server-invoker}/bin/marlowe-dashboard-server psgenerator $out
+    ${plutus-pab.server-invoker}/bin/plutus-pab psgenerator $out
+  '';
+
+  # generate-purescript: script to create purescript bridge code
+  generate-purescript = pkgs.writeShellScriptBin "marlowe-dashboard-generate-purs" ''
+    rm -rf ./generated
+    ${build-server-invoker}/bin/marlowe-dashboard-server psgenerator generated
+    ${plutus-pab.build-server-invoker}/bin/plutus-pab psgenerator generated
+  '';
+
+  # start-backend: script to start the plutus-pab server
+  # note this should be changed soon - see the README
+  start-backend = pkgs.writeShellScriptBin "marlowe-pab-server" ''
+    echo "marlowe-pab-server: for development use only"
+    ${plutus-pab.server-invoker}/bin/plutus-pab --config=marlowe-pab.yaml -m all-servers
+  '';
+
   cleanSrc = gitignore-nix.gitignoreSource ./.;
 
   nodeModules = buildNodeModules {
@@ -39,6 +64,5 @@ let
   '';
 in
 {
-  inherit (plutus-pab) server-invoker generated-purescript generate-purescript start-backend;
-  inherit client contractsJSON install-marlowe-contracts;
+  inherit client contractsJSON generate-purescript install-marlowe-contracts start-backend;
 }

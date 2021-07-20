@@ -10,10 +10,7 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module PSGenerator
-  ( generate,
-  )
-where
+module PSGenerator (generate) where
 
 import           API                                        (HTTPAPI)
 import           Control.Applicative                        ((<|>))

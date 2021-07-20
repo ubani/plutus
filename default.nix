@@ -74,7 +74,7 @@ rec {
       inherit plutus-pab marlowe-app marlowe-companion-app marlowe-follow-app;
       inherit (plutus.lib) buildPursPackage buildNodeModules filterNpm gitignore-nix;
       inherit webCommon webCommonMarlowe;
-    }) client server-invoker generated-purescript generate-purescript contractsJSON install-marlowe-contracts;
+    }) client server-invoker generated-purescript generate-purescript start-backend contractsJSON install-marlowe-contracts;
   };
 
   marlowe-dashboard-fake-pab = pkgs.recurseIntoAttrs rec {
