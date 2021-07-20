@@ -59,6 +59,7 @@ let
         ps.plutus-core
         ps.plutus-tx
         ps.plutus-contract
+        ps.marlowe
         ps.plutus-ledger
         ps.playground-common
       ])

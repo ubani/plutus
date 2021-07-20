@@ -14,7 +14,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs?rev=7d71001b796340b219d1bfa8552c81995017544a";
-    haskell-nix.url = "github:input-output-hk/haskell.nix?rev=87084d65a476cc826a0e8c5d281d494254f5bc7a";
+    haskell-nix.url = "github:input-output-hk/haskell.nix?rev=3856d2d24dca0ecc71fcfc314253a2a2d07a3c4f";
     flake-utils.url = "github:numtide/flake-utils?rev=b543720b25df6ffdfcf9227afafc5b8c1fabfae8";
   };
 
@@ -37,6 +37,14 @@
           plutus-playground-server = topLevel.plutus-playground.server;
           marlowe-website = topLevel.marlowe-web;
           web-ghc-server = plutus.haskell.project.hsPkgs.web-ghc.components.exes.web-ghc-server;
+          web-ghc-backend = plutus.haskell.project.ghcWithPackages (ps: [
+            ps.plutus-core
+            ps.plutus-tx
+            ps.plutus-contract
+            ps.marlowe
+            ps.plutus-ledger
+            ps.playground-common
+          ]);
         };
       }));
 }
