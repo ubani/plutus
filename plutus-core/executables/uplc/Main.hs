@@ -355,7 +355,7 @@ analyseDelays term =
 runAnalysis :: AnalysisOptions -> IO ()
 runAnalysis (AnalysisOptions inp ifmt) = do
   program <- (getProgram ifmt inp :: IO (UplcProg PLC.AlexPosn))
-  analyseBindings2 (UPLC.toTerm program)
+  analyseBindings (UPLC.toTerm program)
 --  analyseDelays (UPLC.toTerm program)
 
 
