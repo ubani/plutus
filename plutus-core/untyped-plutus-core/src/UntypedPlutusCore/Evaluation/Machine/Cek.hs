@@ -32,6 +32,7 @@ module UntypedPlutusCore.Evaluation.Machine.Cek
     , unsafeRunCekNoEmit
     , evaluateCek
     , evaluateCekNoEmit
+    , evaluateCekNoEmit2
     , unsafeEvaluateCek
     , unsafeEvaluateCekNoEmit
     , readKnownCek
@@ -46,12 +47,14 @@ import           UntypedPlutusCore.Evaluation.Machine.Cek.CekMachineCosts
 import           UntypedPlutusCore.Evaluation.Machine.Cek.ExBudgetMode
 import           UntypedPlutusCore.Evaluation.Machine.Cek.Internal
 
+import           Data.IntSet
 import           PlutusCore.Constant
 import           PlutusCore.Evaluation.Machine.ExMemory
 import           PlutusCore.Evaluation.Machine.Exception
 import           PlutusCore.Evaluation.Machine.MachineParameters
 import           PlutusCore.Name
 import           PlutusCore.Pretty
+
 
 import           Data.Ix
 import           Universe
@@ -73,10 +76,20 @@ runCekNoEmit
     => MachineParameters CekMachineCosts CekValue uni fun
     -> ExBudgetMode cost uni fun
     -> Term Name uni fun ()
-    -> (Either (CekEvaluationException uni fun) (Term Name uni fun ()), cost)
+    -> (Either (CekEvaluationException uni fun ()) (Term Name uni fun ()), cost)
 runCekNoEmit params mode term =
     case runCek params mode False term of
         (errOrRes, cost', _) -> (errOrRes, cost')
+
+runCekNoEmit2
+    :: ( uni `Everywhere` ExMemoryUsage, Ix fun, PrettyUni uni fun)
+    => MachineParameters CekMachineCosts CekValue uni fun
+    -> ExBudgetMode cost uni fun
+    -> Term Name uni fun Int
+    -> (Either (CekEvaluationException uni fun Int) (Term Name uni fun Int, IntSet), cost)
+runCekNoEmit2 params mode term =
+    case runCek2 params mode False term of
+        (errOrRes, cost, _) -> (errOrRes, cost)
 
 -- | Unsafely evaluate a term using the CEK machine with logging disabled and keep track of costing.
 -- May throw a 'CekMachineException'.
@@ -97,7 +110,7 @@ evaluateCek
     :: ( uni `Everywhere` ExMemoryUsage, Ix fun, PrettyUni uni fun)
     => MachineParameters CekMachineCosts CekValue uni fun
     -> Term Name uni fun ()
-    -> (Either (CekEvaluationException uni fun) (Term Name uni fun ()), [String])
+    -> (Either (CekEvaluationException uni fun ()) (Term Name uni fun ()), [String])
 evaluateCek params term =
     case runCek params restrictingEnormous True term of
         (errOrRes, _, logs) -> (errOrRes, logs)
@@ -107,8 +120,15 @@ evaluateCekNoEmit
     :: ( uni `Everywhere` ExMemoryUsage, Ix fun, PrettyUni uni fun)
     => MachineParameters CekMachineCosts CekValue uni fun
     -> Term Name uni fun ()
-    -> Either (CekEvaluationException uni fun) (Term Name uni fun ())
+    -> Either (CekEvaluationException uni fun ()) (Term Name uni fun ())
 evaluateCekNoEmit params = fst . runCekNoEmit params restrictingEnormous
+
+evaluateCekNoEmit2
+    :: ( uni `Everywhere` ExMemoryUsage, Ix fun, PrettyUni uni fun)
+    => MachineParameters CekMachineCosts CekValue uni fun
+    -> Term Name uni fun Int
+    -> Either (CekEvaluationException uni fun Int) (Term Name uni fun Int, IntSet)
+evaluateCekNoEmit2 params = fst . runCekNoEmit2 params restrictingEnormous
 
 -- | Evaluate a term using the CEK machine with logging enabled. May throw a 'CekMachineException'.
 unsafeEvaluateCek
@@ -140,5 +160,5 @@ readKnownCek
        )
     => MachineParameters CekMachineCosts CekValue uni fun
     -> Term Name uni fun ()
-    -> Either (CekEvaluationException uni fun) a
+    -> Either (CekEvaluationException uni fun ()) a
 readKnownCek params = evaluateCekNoEmit params >=> readKnown

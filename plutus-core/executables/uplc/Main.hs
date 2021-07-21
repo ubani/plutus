@@ -14,7 +14,8 @@ import qualified PlutusCore.Pretty                        as PP
 import           Data.Foldable                            (asum)
 import           Data.Function                            ((&))
 import           Data.Functor                             (void)
-import qualified Data.IntMap                              as IntMap
+import qualified Data.IntMap                              as IM
+import qualified Data.IntSet                              as IS
 import           Data.List                                (nub)
 import           Data.List.Split                          (splitOn)
 
@@ -40,6 +41,7 @@ data BudgetMode  = Silent
 data EvalOptions = EvalOptions Input Format PrintMode BudgetMode TimingMode CekModel
 
 data AnalysisOptions = AnalysisOptions Input Format
+data PruneOptions    = PruneOptions Input Format Output Format PrintMode
 
 ---------------- Main commands -----------------
 
@@ -49,6 +51,7 @@ data Command = Apply     ApplyOptions
              | Example   ExampleOptions
              | Eval      EvalOptions
              | Analyse   AnalysisOptions
+             | Prune     PruneOptions
 
 ---------------- Option parsers ----------------
 
@@ -63,9 +66,13 @@ evalOpts :: Parser EvalOptions
 evalOpts =
     EvalOptions <$> input <*> inputformat <*> printmode <*> budgetmode <*> timingmode <*> cekmodel
 
-analysisOptions :: Parser AnalysisOptions
-analysisOptions =
+analysisOpts :: Parser AnalysisOptions
+analysisOpts =
     AnalysisOptions <$> input <*> inputformat
+
+pruneOpts :: Parser PruneOptions
+pruneOpts = PruneOptions <$> input <*> inputformat <*> output <*> outputformat <*> printmode
+
 
 -- Reader for budget.  The --restricting option requires two integer arguments
 -- and the easiest way to do this is to supply a colon-separated pair of
@@ -146,8 +153,11 @@ plutusOpts = hsubparser (
            (info (Eval <$> evalOpts)
             (progDesc "Evaluate an untyped Plutus Core program using the CEK machine."))
     <> command "analyse"
-           (info (Analyse <$> analysisOptions)
+           (info (Analyse <$> analysisOpts)
             (progDesc $ "Perform some analysis of an untyped Plutus Core AST"))
+    <> command "prune"
+           (info (Prune <$> pruneOpts)
+            (progDesc $ "Run a progam and replace unused subtrees of the AST with 'error'"))
   )
 
 
@@ -237,13 +247,13 @@ analyseBindings term =
             case tm of
               UPLC.Var _ name      ->
                   let n = UPLC.unUnique $ UPLC.nameUnique name
-                  in case IntMap.lookup n freqs of
+                  in case IM.lookup n freqs of
                        Nothing -> error $ "Free variable: " ++ show name
-                       Just k  -> IntMap.insert n (k+1) freqs
+                       Just k  -> IM.insert n (k+1) freqs
               UPLC.LamAbs _ name t ->
                   let n = UPLC.unUnique $ UPLC.nameUnique name
-                  in case IntMap.lookup n freqs of
-                       Nothing -> countFreqs t (IntMap.insert n 0 freqs)
+                  in case IM.lookup n freqs of
+                       Nothing -> countFreqs t (IM.insert n 0 freqs)
                        Just _  -> error $ "Duplicate binding for " ++ show name
               UPLC.Apply _ t1 t2   -> countFreqs t2 (countFreqs t1 freqs)
               UPLC.Force _ t       -> countFreqs t freqs
@@ -251,12 +261,12 @@ analyseBindings term =
               UPLC.Constant {}     -> freqs
               UPLC.Builtin {}      -> freqs
               UPLC.Error _         -> freqs
-        frequencies = countFreqs term IntMap.empty  -- How often is each variable accessed?
-        incrCount k m = case IntMap.lookup k m of
-                          Nothing -> IntMap.insert k (1::Int) m
-                          Just n  -> IntMap.insert k (n+1) m
-        counts = IntMap.toList $ IntMap.foldr incrCount IntMap.empty frequencies
-        numVars = IntMap.size frequencies
+        frequencies = countFreqs term IM.empty  -- How often is each variable accessed?
+        incrCount k m = case IM.lookup k m of
+                          Nothing -> IM.insert k (1::Int) m
+                          Just n  -> IM.insert k (n+1) m
+        counts = IM.toList $ IM.foldr incrCount IM.empty frequencies
+        numVars = IM.size frequencies
         percentage n = (fromIntegral n / fromIntegral numVars) * 100.0 :: Double
     in do
       putStrLn $ "There are " ++ show numVars ++ " variables in total"
@@ -359,13 +369,65 @@ runAnalysis (AnalysisOptions inp ifmt) = do
 --  analyseDelays (UPLC.toTerm program)
 
 
+type UProgram a = UPLC.Program PLC.Name PLC.DefaultUni PLC.DefaultFun a
+type UTerm a = UPLC.Term PLC.Name PLC.DefaultUni PLC.DefaultFun a
+
+type NumberedTerm = UTerm Int
+
+numberTerm :: UTerm a -> NumberedTerm
+numberTerm term = fst (number term 1)
+    where number tm count =
+              case tm of
+                UPLC.Var      _ name   -> (UPLC.Var count name, count+1)
+                UPLC.LamAbs   _ name t -> let (t', count') = number t (count+1)
+                                          in (UPLC.LamAbs count name t', count')
+                UPLC.Apply    _ t1 t2  -> let (t1',count1) = number t1 (count+1)
+                                          in let (t2',count2) = number t2 (count1+1)
+                                             in (UPLC.Apply count t1' t2', count2)
+                UPLC.Force    _ t      -> let (t', count') = number t (count+1)
+                                          in (UPLC.Force count t', count')
+                UPLC.Delay    _ t      -> let (t', count') = number t (count+1)
+                                          in (UPLC.Delay count t', count')
+                UPLC.Constant _ val    -> (UPLC.Constant count val, count+1)
+                UPLC.Builtin  _ name   -> (UPLC.Builtin count name, count+1)
+                UPLC.Error    _        -> (UPLC.Error count, count+1)
+
+pruneTerm :: NumberedTerm  -> IS.IntSet -> UTerm ()
+pruneTerm term used = prune term
+    where prune tm =
+              case tm of
+                UPLC.Var      n name   -> if IS.member n used then () <$ tm else UPLC.Error ()
+                UPLC.LamAbs   n name t -> if IS.member n used then UPLC.LamAbs () name (prune t) else UPLC.Error ()
+                UPLC.Apply    n t1 t2  -> if IS.member n used then UPLC.Apply  () (prune t1) (prune t2) else UPLC.Error ()
+                UPLC.Force    n t      -> if IS.member n used then UPLC.Force  () (prune t) else UPLC.Error ()
+                UPLC.Delay    n t      -> if IS.member n used then UPLC.Delay  () (prune t) else UPLC.Error ()
+                UPLC.Constant n _      -> if IS.member n used then () <$ tm else UPLC.Error ()
+                UPLC.Builtin  n _      -> if IS.member n used then () <$ tm else UPLC.Error ()
+                UPLC.Error    n        -> UPLC.Error ()
+
+
+pruneProgram :: UProgram a -> UProgram ()
+pruneProgram (UPLC.Program _ ver body) =
+    let numbered = numberTerm  body
+        used = case Cek.evaluateCekNoEmit2 PLC.defaultCekParameters numbered of
+                 Left _      -> error "Excution failed"
+                 Right (_,m) -> m
+    in UPLC.Program () (() <$ ver) (pruneTerm numbered used)
+
+runPrune :: PruneOptions -> IO ()
+runPrune (PruneOptions inp ifmt outp ofmt mode) = do
+    program <- (getProgram ifmt inp :: IO (UplcProg PLC.AlexPosn))
+    writeProgram outp ofmt mode (pruneProgram program)
+
+
 main :: IO ()
 main = do
     options <- customExecParser (prefs showHelpOnEmpty) uplcInfoCommand
     case options of
-        Apply     opts -> runApply        opts
-        Eval      opts -> runEval         opts
+        Apply     opts -> runApply            opts
+        Eval      opts -> runEval             opts
         Example   opts -> runUplcPrintExample opts
-        Print     opts -> runPrint        opts
-        Convert   opts -> runConvert      opts
-        Analyse   opts -> runAnalysis     opts
+        Print     opts -> runPrint            opts
+        Convert   opts -> runConvert          opts
+        Analyse   opts -> runAnalysis         opts
+        Prune     opts -> runPrune            opts
