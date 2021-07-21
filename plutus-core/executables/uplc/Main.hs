@@ -9,6 +9,7 @@ import           Parsers
 import qualified PlutusCore                               as PLC
 import           PlutusCore.Evaluation.Machine.ExBudget   (ExBudget (..), ExRestrictingBudget (..))
 import           PlutusCore.Evaluation.Machine.ExMemory   (ExCPU (..), ExMemory (..))
+import qualified PlutusCore.Pretty                        as PP
 
 import           Data.Foldable                            (asum)
 import           Data.Function                            ((&))
@@ -267,6 +268,63 @@ analyseBindings term =
           cn = numVars - c0 -c1
       putStrLn $ printf "# %d %d (%.1f%%) %d (%.1f%%) %d (%.1f%%)\n" numVars c0 (percentage c0) c1 (percentage c1) cn (percentage cn)
 
+
+
+analyseBindings2 :: UPLC.Term PLC.Name PLC.DefaultUni PLC.DefaultFun PLC.AlexPosn -> IO ()
+analyseBindings2 term =
+    let getUnique = UPLC.unUnique . UPLC.nameUnique
+        countUses ident tm (count::Int) =
+            case tm of
+              UPLC.Var _ name      ->
+                  let n = getUnique name
+                  in if n == ident then count+1 else count
+              UPLC.LamAbs _ _ t  -> countUses ident t count
+              UPLC.Apply _ t1 t2 -> countUses ident t2 (countUses ident t1 count)
+              UPLC.Force _ t     -> countUses ident t count
+              UPLC.Delay _ t     -> countUses ident t count
+              UPLC.Constant {}   -> count
+              UPLC.Builtin  {}   -> count
+              UPLC.Error    {}   -> count
+        typeOf tm = case tm of
+              UPLC.Var      {} -> "var"
+              UPLC.LamAbs   {} -> "lam"
+              UPLC.Apply    {} -> "apply"
+              UPLC.Force    {} -> "force"
+              UPLC.Delay    {} -> "delay"
+              UPLC.Constant {} -> "constant"
+              UPLC.Builtin  {} -> "builtin"
+              UPLC.Error    {} -> "error"
+        check desc ident parent = do
+          putStr $ printf "Found %s variable %d. " desc ident
+          case parent of
+              UPLC.Apply _ fun arg -> do
+                                    putStrLn $ printf "Lamba is applied to:"
+                                    print $ PP.prettyPlcClassicDef arg
+              UPLC.LamAbs _ _ _  -> putStrLn "Parent is lam"
+              UPLC.Delay _ _     -> putStrLn "Parent is delay"
+              _                  -> putStrLn $ printf "Unexpected parent of type %s" (typeOf parent)
+        analyse tm parent =
+            case tm of
+              UPLC.LamAbs _ name t -> do
+                  let ident = getUnique name
+                      count = countUses ident t 0
+                  case count of
+                    0 -> do
+                      check "unused" ident parent
+                      analyse t tm
+                    1 -> do
+                      check "single-use" ident parent
+                      analyse t tm
+                    _ -> analyse t tm
+              UPLC.Apply _ t1 t2   -> analyse t1 tm  >> analyse t2 tm
+              UPLC.Force _ t       -> analyse t tm
+              UPLC.Delay _ t       -> analyse t tm
+              UPLC.Var      {}     -> pure ()
+              UPLC.Constant {}     -> pure ()
+              UPLC.Builtin  {}     -> pure ()
+              UPLC.Error    {}     -> pure ()
+    in analyse term term
+
 analyseDelays :: UPLC.Term UPLC.Name uni fun ann -> IO ()
 analyseDelays term =
     let isValue = \case
@@ -297,8 +355,9 @@ analyseDelays term =
 runAnalysis :: AnalysisOptions -> IO ()
 runAnalysis (AnalysisOptions inp ifmt) = do
   program <- (getProgram ifmt inp :: IO (UplcProg PLC.AlexPosn))
-  analyseBindings (UPLC.toTerm program)
+  analyseBindings2 (UPLC.toTerm program)
 --  analyseDelays (UPLC.toTerm program)
+
 
 main :: IO ()
 main = do
