@@ -72,8 +72,12 @@ fromCardanoTx (C.Tx (C.TxBody C.TxBodyContent{..}) _keyWitnesses) = do
         , txRedeemers = mempty -- only available with a Build Tx
         }
 
-toCardanoTxBody :: P.Tx -> Either ToCardanoError (C.TxBody C.AlonzoEra)
-toCardanoTxBody P.Tx{..} = do
+toCardanoTxBody ::
+    Maybe C.ProtocolParameters -- ^ Protocol parameters to use. Building Plutus transactions will fail if this is 'Nothing'
+    -> C.NetworkId -- ^ Network ID
+    -> P.Tx
+    -> Either ToCardanoError (C.TxBody C.AlonzoEra)
+toCardanoTxBody protocolParams networkId P.Tx{..} = do
     txIns <- traverse toCardanoTxInBuild $ Set.toList txInputs
     txInsCollateral <- toCardanoTxInsCollateral txCollateral
     txOuts <- traverse toCardanoTxOut txOutputs
@@ -92,7 +96,7 @@ toCardanoTxBody P.Tx{..} = do
         , txMetadata = C.TxMetadataNone
         , txAuxScripts = C.TxAuxScriptsNone
         , txExtraKeyWits = C.TxExtraKeyWitnessesNone
-        , txProtocolParams = C.BuildTxWith Nothing
+        , txProtocolParams = C.BuildTxWith protocolParams
         , txWithdrawals = C.TxWithdrawalsNone
         , txCertificates = C.TxCertificatesNone
         , txUpdateProposal = C.TxUpdateProposalNone
