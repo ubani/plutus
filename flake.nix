@@ -36,8 +36,10 @@
           plutus-playground-client = topLevel.plutus-playground.client;
           plutus-playground-server = topLevel.plutus-playground.server;
           marlowe-website = topLevel.marlowe-web;
+          # handles compile requests coming from plutus-playground-server, does not need to be public
           web-ghc-server = plutus.haskell.project.hsPkgs.web-ghc.components.exes.web-ghc-server;
-          web-ghc-backend = plutus.haskell.project.ghcWithPackages (ps: [
+          # must be in $PATH of web-ghc-server
+          ghcWithPlutus = plutus.haskell.project.ghcWithPackages (ps: [
             ps.plutus-core
             ps.plutus-tx
             ps.plutus-contract
