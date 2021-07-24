@@ -32,7 +32,6 @@ import           Wallet.Effects                   (ChainIndexEffect (..))
 import           Wallet.Emulator.ChainIndex.Index (ChainIndex, ChainIndexItem (..))
 import qualified Wallet.Emulator.ChainIndex.Index as Index
 import           Wallet.Emulator.NodeClient       (ChainClientNotification (..))
-import           Wallet.Types                     (AddressChangeRequest (..), AddressChangeResponse (..), slotRange)
 
 import           Ledger.Address                   (Address)
 import           Ledger.AddressMap                (AddressMap)
@@ -49,7 +48,6 @@ makeEffect ''ChainIndexControlEffect
 data ChainIndexEvent =
     AddressStartWatching Address
     | ReceiveBlockNotification Int
-    | HandlingAddressChangeRequest AddressChangeRequest [ChainIndexItem]
     deriving stock (Eq, Show, Generic)
     deriving anyclass (FromJSON, ToJSON)
 
@@ -59,13 +57,6 @@ instance Pretty ChainIndexEvent where
     pretty = \case
         AddressStartWatching addr  -> "StartWatching:" <+> pretty addr
         ReceiveBlockNotification i -> "ReceiveBlockNotification:" <+> pretty i <+> "transactions."
-        HandlingAddressChangeRequest req itms ->
-            let prettyItem ChainIndexItem{ciSlot, ciTxId} = pretty ciSlot <+> pretty ciTxId
-            in hang 2 $ vsep
-                [ "AddressChangeRequest:"
-                , pretty req
-                , vsep (fmap prettyItem itms)
-                ]
 
 data ChainIndexState =
     ChainIndexState
@@ -108,14 +99,3 @@ handleChainIndex = interpret $ \case
         s & idxWatchedAddresses %~ AM.addAddress addr)
     WatchedAddresses -> gets _idxWatchedAddresses
     ConfirmedBlocks -> gets _idxConfirmedBlocks
-    TransactionConfirmed txid ->
-        Map.member txid <$> gets _idxConfirmedTransactions
-    AddressChanged r@AddressChangeRequest{acreqAddress} -> do
-        idx <- gets _idxIdx
-        let itms = Index.transactionsAt idx (slotRange r) acreqAddress
-        logDebug $ HandlingAddressChangeRequest r itms
-        pure $ AddressChangeResponse
-            { acrAddress=acreqAddress
-            , acrSlotRange=slotRange r
-            , acrTxns = fmap ciTx itms
-            }

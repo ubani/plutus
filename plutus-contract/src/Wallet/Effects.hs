@@ -25,25 +25,20 @@ module Wallet.Effects(
     , getClientSlot
     -- * Chain index
     , ChainIndexEffect(..)
-    , AddressChangeRequest(..)
-    , AddressChangeResponse(..)
     , startWatching
     , watchedAddresses
     , confirmedBlocks
-    , transactionConfirmed
-    , addressChanged
     -- * Contract runtime
     , ContractRuntimeEffect(..)
     , sendNotification
     ) where
 
 import           Control.Monad.Freer.TH      (makeEffect)
-import           Ledger                      (Address, Block, PubKey, Slot, Tx, TxId, Value)
+import           Ledger                      (Address, Block, PubKey, Slot, Tx, Value)
 import           Ledger.AddressMap           (AddressMap)
 import           Ledger.Constraints.OffChain (UnbalancedTx)
 import           Wallet.Emulator.Error       (WalletAPIError)
-import           Wallet.Types                (AddressChangeRequest (..), AddressChangeResponse (..), Notification,
-                                              NotificationError)
+import           Wallet.Types                (Notification, NotificationError)
 
 data WalletEffect r where
     SubmitTxn :: Tx -> WalletEffect ()
@@ -63,13 +58,11 @@ makeEffect ''NodeClientEffect
     are of interest need to be added with 'startWatching' before their outputs
     show up in the 'AddressMap' returned by 'watchedAddresses'.
 -}
+-- TODO: This needs to go (replaced by Plutus.ChainIndex.Effects.ChainIndexQueryEffect)
 data ChainIndexEffect r where
     StartWatching :: Address -> ChainIndexEffect ()
     WatchedAddresses :: ChainIndexEffect AddressMap
     ConfirmedBlocks :: ChainIndexEffect [Block]
-    -- TODO: In the future we should have degrees of confirmation
-    TransactionConfirmed :: TxId -> ChainIndexEffect Bool
-    AddressChanged :: AddressChangeRequest -> ChainIndexEffect AddressChangeResponse
 makeEffect ''ChainIndexEffect
 
 {-| Interact with other contracts.

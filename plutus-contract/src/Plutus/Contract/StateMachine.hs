@@ -232,28 +232,34 @@ waitForUpdateUntilSlot ::
     => StateMachineClient state i
     -> Slot
     -> Contract w schema e (WaitingResult state)
-waitForUpdateUntilSlot StateMachineClient{scInstance, scChooser} timeoutSlot = do
+waitForUpdateUntilSlot client@StateMachineClient{scInstance, scChooser} timeoutSlot = do
     let addr = Scripts.validatorAddress $ typedValidator scInstance
-    let go sl = do
-            txns <- acrTxns <$> addressChangeRequest AddressChangeRequest
-                { acreqSlotRangeFrom = sl
-                , acreqSlotRangeTo = sl
-                , acreqAddress = addr
-                }
-            if null txns && sl < timeoutSlot
-                then go (succ sl)
-                else pure txns
+    currentState <- getOnChainState client
+    case currentState of
+        Nothing -> do
+            undefined -- TODO: Wait until an output is produced
+        Just ((_, ref), _) -> do
+            undefined -- TODO: Wait until the ref is spent
+    -- let go sl = do
+    --         txns <- acrTxns <$> addressChangeRequest AddressChangeRequest
+    --             { acreqSlotRangeFrom = sl
+    --             , acreqSlotRangeTo = sl
+    --             , acreqAddress = addr
+    --             }
+    --         if null txns && sl < timeoutSlot
+    --             then go (succ sl)
+    --             else pure txns
 
-    initial <- currentSlot
-    txns <- go initial
-    slot <- currentSlot -- current slot, can be after timeout
-    let states = txns >>= getStates scInstance . outputsMapFromTxForAddress addr
-    case states of
-        [] | slot < timeoutSlot -> pure ContractEnded
-        [] | slot >= timeoutSlot -> pure $ Timeout timeoutSlot
-        xs -> case scChooser xs of
-                Left err         -> throwing _SMContractError err
-                Right (state, _) -> pure $ WaitingResult (tyTxOutData state)
+    -- initial <- currentSlot
+    -- txns <- go initial
+    -- slot <- currentSlot -- current slot, can be after timeout
+    -- let states = txns >>= getStates scInstance . outputsMapFromTxForAddress addr
+    -- case states of
+    --     [] | slot < timeoutSlot -> pure ContractEnded
+    --     [] | slot >= timeoutSlot -> pure $ Timeout timeoutSlot
+    --     xs -> case scChooser xs of
+    --             Left err         -> throwing _SMContractError err
+    --             Right (state, _) -> pure $ WaitingResult (tyTxOutData state)
 
 -- | Same as 'waitForUpdateUntilSlot', but works with 'POSIXTime' instead.
 waitForUpdateUntilTime ::

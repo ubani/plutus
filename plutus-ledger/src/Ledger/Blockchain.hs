@@ -2,6 +2,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts   #-}
 {-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE TemplateHaskell    #-}
 module Ledger.Blockchain (
     OnChainTx(..),
@@ -25,28 +27,35 @@ module Ledger.Blockchain (
     validValuesTx,
     ) where
 
-import           Codec.Serialise          (Serialise)
-import           Control.DeepSeq          (NFData)
-import           Control.Lens             (makePrisms, view)
-import           Control.Monad            (join)
-import           Data.Aeson               (FromJSON, ToJSON)
-import           Data.Map                 (Map)
-import qualified Data.Map                 as Map
-import           Data.Monoid              (First (..))
-import qualified Data.Set                 as Set
-import           GHC.Generics             (Generic)
+import           Codec.Serialise           (Serialise)
+import           Control.DeepSeq           (NFData)
+import           Control.Lens              (makePrisms, view)
+import           Control.Monad             (join)
+import           Data.Aeson                (FromJSON, ToJSON)
+import           Data.Map                  (Map)
+import qualified Data.Map                  as Map
+import           Data.Monoid               (First (..))
+import qualified Data.Set                  as Set
+import           Data.Text.Prettyprint.Doc (Pretty (..), (<+>))
+import           GHC.Generics              (Generic)
 
 import           Plutus.V1.Ledger.Crypto
 import           Plutus.V1.Ledger.Scripts
 import           Plutus.V1.Ledger.Tx
 import           Plutus.V1.Ledger.TxId
-import           Plutus.V1.Ledger.Value   (Value)
+import           Plutus.V1.Ledger.Value    (Value)
 
 -- | A transaction on the blockchain.
 -- Invalid transactions are still put on the chain to be able to collect fees.
 data OnChainTx = Invalid Tx | Valid Tx
     deriving stock (Eq, Show, Generic)
     deriving anyclass (ToJSON, FromJSON, Serialise, NFData)
+
+instance Pretty OnChainTx where
+    pretty = \case
+        Invalid tx -> "Invalid:" <+> pretty tx
+        Valid   tx -> "Valid:"   <+> pretty tx
+
 -- | A block on the blockchain. This is just a list of transactions
 -- following on from the chain so far.
 type Block = [OnChainTx]

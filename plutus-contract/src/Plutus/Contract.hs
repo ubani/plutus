@@ -29,10 +29,10 @@ module Plutus.Contract(
     , Request.endpointWithMeta
     , Schema.EmptySchema
     -- * Blockchain events
-    , Wallet.Types.AddressChangeRequest(..)
-    , Wallet.Types.AddressChangeResponse(..)
-    , Request.addressChangeRequest
-    , Request.nextTransactionsAt
+    , Request.awaitTxOutSpent
+    , Request.awaitUtxoProduced
+    , Request.TxStatus(..)
+    , Request.awaitTxStatusChange
     , Request.watchAddressUntilSlot
     , Request.watchAddressUntilTime
     , Request.fundsAtAddressGt
@@ -59,8 +59,6 @@ module Plutus.Contract(
     , Request.balanceTx
     -- ** Creating transactions
     , module Tx
-    -- ** Tx confirmation
-    , Request.awaitTxConfirmed
     -- * Checkpoints
     , checkpoint
     , checkpointLoop

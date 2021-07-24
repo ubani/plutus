@@ -25,15 +25,16 @@ module Plutus.Contract.Request(
     -- ** Querying the UTXO set
     , utxoAt
     -- ** Waiting for changes to the UTXO set
-    , addressChangeRequest
-    , nextTransactionsAt
+    , awaitTxOutSpent
+    , awaitUtxoProduced
     , fundsAtAddressGt
     , fundsAtAddressGeq
     , fundsAtAddressCondition
     , watchAddressUntilSlot
     , watchAddressUntilTime
-    -- ** Tx confirmation
-    , awaitTxConfirmed
+    -- ** Tx status
+    , TxStatus(..)
+    , awaitTxStatusChange
     -- ** Contract instances
     , ownInstanceId
     -- ** Exposing endpoints
@@ -76,7 +77,7 @@ import           Data.Void                   (Void)
 import           GHC.Natural                 (Natural)
 import           GHC.TypeLits                (Symbol, symbolVal)
 import           Ledger                      (Address, DiffMilliSeconds, OnChainTx (..), POSIXTime, PubKey, Slot, Tx,
-                                              TxId, TxOut (..), TxOutTx (..), Value, fromMilliSeconds, txId)
+                                              TxId, TxOut (..), TxOutRef, TxOutTx (..), Value, fromMilliSeconds, txId)
 import           Ledger.AddressMap           (UtxoMap)
 import           Ledger.Constraints          (TxConstraints)
 import           Ledger.Constraints.OffChain (ScriptLookups, UnbalancedTx)
@@ -86,11 +87,11 @@ import qualified Ledger.Value                as V
 import           Plutus.Contract.Util        (loopM)
 import qualified PlutusTx
 
-import           Plutus.Contract.Effects     (ActiveEndpoint (..), PABReq (..), PABResp (..), UtxoAtAddress (..))
+import           Plutus.Contract.Effects     (ActiveEndpoint (..), PABReq (..), PABResp (..), TxStatus (..),
+                                              UtxoAtAddress (..))
 import qualified Plutus.Contract.Effects     as E
 import           Plutus.Contract.Schema      (Input, Output)
-import           Wallet.Types                (AddressChangeRequest (..), AddressChangeResponse (..), ContractInstanceId,
-                                              EndpointDescription (..), EndpointValue (..), targetSlot)
+import           Wallet.Types                (ContractInstanceId, EndpointDescription (..), EndpointValue (..))
 
 import           Plutus.Contract.Resumable
 import           Plutus.Contract.Types
@@ -218,37 +219,25 @@ watchAddressUntilTime ::
     -> Contract w s e UtxoMap
 watchAddressUntilTime a time = awaitTime time >> utxoAt a
 
-{-| Get the transactions that modified an address in a specific slot.
+{-| Wait until the UTXO has been spent, returning the transaction that spends it.
 -}
-addressChangeRequest ::
-    forall w s e.
-    ( AsContractError e
-    )
-    => AddressChangeRequest
-    -> Contract w s e AddressChangeResponse
-addressChangeRequest r = do
-  _ <- awaitSlot (targetSlot r)
-  pabReq (AddressChangeReq r) E._AddressChangeResp
+awaitTxOutSpent ::
+  forall w s e.
+  ( AsContractError e
+  )
+  => TxOutRef
+  -> Contract w s e OnChainTx
+awaitTxOutSpent utxo = pabReq (AwaitUtxoSpentReq utxo) E._AwaitUtxoSpentResp
 
--- | Call 'addresssChangeRequest' for the address in each slot, until at least one
---   transaction is returned that modifies the address.
-nextTransactionsAt ::
-    forall w s e.
-    ( AsContractError e
-    )
-    => Address
-    -> Contract w s e [OnChainTx]
-nextTransactionsAt addr = do
-    initial <- currentSlot
-    let go :: Slot -> Contract w s ContractError (Either [OnChainTx] Slot)
-        go sl = do
-            let request = AddressChangeRequest{acreqSlotRangeFrom = sl, acreqSlotRangeTo = sl, acreqAddress=addr}
-            _ <- awaitSlot (targetSlot request)
-            txns <- acrTxns <$> addressChangeRequest request
-            if null txns
-                then pure $ Right (succ sl)
-                else pure $ Left txns
-    mapError (review _ContractError) (checkpointLoop go initial)
+{-| Wait until one or more unspent outputs are produced at an address.
+-}
+awaitUtxoProduced ::
+  forall w s e .
+  ( AsContractError e
+  )
+  => Address
+  -> Contract w s e [OnChainTx]
+awaitUtxoProduced address = pabReq (AwaitUtxoProducedReq address) E._AwaitUtxoProducedResp
 
 -- | Watch an address for changes, and return the outputs
 --   at that address when the total value at the address
@@ -292,11 +281,9 @@ fundsAtAddressGeq
 fundsAtAddressGeq addr vl =
     fundsAtAddressCondition (\presentVal -> presentVal `V.geq` vl) addr
 
--- TODO: Configurable level of confirmation (for example, as soon as the tx is
---       included in a block, or only when it can't be rolled back anymore)
--- | Wait until a transaction is confirmed (added to the ledger).
-awaitTxConfirmed :: forall w s e. (AsContractError e) => TxId -> Contract w s e ()
-awaitTxConfirmed i = void $ pabReq (AwaitTxConfirmedReq i) E._AwaitTxConfirmedResp
+-- | Wait until the status of a transaction changes
+awaitTxStatusChange :: forall w s e. (AsContractError e) => TxId -> Contract w s e TxStatus
+awaitTxStatusChange i = pabReq (AwaitTxStatusChangeReq i) E._AwaitTxStatusChangeResp
 
 -- | Get the 'ContractInstanceId' of this instance.
 ownInstanceId :: forall w s e. (AsContractError e) => Contract w s e ContractInstanceId
@@ -456,5 +443,13 @@ submitTxConstraintsWith sl constraints = do
 -- | A version of 'submitTx' that waits until the transaction has been
 --   confirmed on the ledger before returning.
 submitTxConfirmed :: forall w s e. (AsContractError e) => UnbalancedTx -> Contract w s e ()
-submitTxConfirmed t = submitUnbalancedTx t >>= awaitTxConfirmed . txId
+submitTxConfirmed t = do
+  txi <- txId <$> submitUnbalancedTx t
+  go txi where
+    go t = do
+      status <- awaitTxStatusChange t
+      case status of
+        OnChain{} -> pure ()
+        Committed -> pure ()
+        _         -> go t -- wait until the status is one of OnChain, Committed
 
