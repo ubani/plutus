@@ -1,3 +1,13 @@
+{-
+This module contains PureScript versions of types defined in the Haskell code, written by hand.
+This is not good: we should be using purescript-bridge to automatically generate all the types we
+need, so that we don't have to keep the types in sync manually, and to reduce the risk of
+communication bugs between the front and back ends. However, before work on this application
+started we had purescript-bridge generating a lot of the necessary types, but *not* generating any
+of the Marlowe.Semantics types. Two versions of Marlowe.Semantics are maintained, one in Haskell
+and one in PureScript, and both use custom encoding/decoding instances (designed to match up, of
+course). 
+-}
 module Marlowe.PAB
   ( PlutusApp(..)
   , plutusAppPath

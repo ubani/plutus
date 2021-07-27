@@ -1272,6 +1272,25 @@ derive instance eqTransactionOutput :: Eq TransactionOutput
 instance showTransactionOutput :: Show TransactionOutput where
   show = genericShow
 
+newtype MarloweData
+  = MarloweData
+  { marloweContract :: Contract
+  , marloweState :: State
+  }
+
+derive instance newtypeMarloweData :: Newtype MarloweData _
+
+newtype MarloweParams
+  = MarloweParams
+  { rolePayoutValidatorHash :: ValidatorHash
+  , rolesCurrency :: CurrencySymbol
+  }
+
+derive instance newtypeMarloweParams :: Newtype MarloweParams _
+
+type ValidatorHash
+  = String
+
 emptyState :: Slot -> State
 emptyState sn =
   State
