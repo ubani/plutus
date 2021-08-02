@@ -50,12 +50,12 @@
     };
     hackage-nix = {
       # We pin this revision to avoid unhelpful daily churn from the auto-update process.
-      url = "github:input-output-hk/hackage.nix?rev=afafb0104f1f5029155fcbb15bc1ce1bcd98ea6b";
+      url = "github:input-output-hk/hackage.nix?rev=d8e45c5ae00c01db79222249fd7128592c80d76d";
 
       flake = false;
     };
     haskell-language-server = {
-      url = "github:haskell/haskell-language-server?ref=1.1.0";
+      url = "github:haskell/haskell-language-server?ref=1.3.0";
 
       flake = false;
     };
