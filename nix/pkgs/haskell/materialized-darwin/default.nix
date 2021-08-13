@@ -188,8 +188,6 @@
         "quickcheck-text".revision = (((hackage."quickcheck-text")."0.1.2.1").revisions).default;
         "unix-compat".revision = (((hackage."unix-compat")."0.5.3").revisions).default;
         "unix-compat".flags.old-time = false;
-        "optparse-applicative".revision = (((hackage."optparse-applicative")."0.16.1.0").revisions).default;
-        "optparse-applicative".flags.process = true;
         "time-manager".revision = (((hackage."time-manager")."0.0.0").revisions).default;
         "hspec-discover".revision = (((hackage."hspec-discover")."2.8.2").revisions).default;
         "cborg".revision = (((hackage."cborg")."0.2.5.0").revisions).default;
@@ -779,6 +777,7 @@
         io-classes = ./.plan.nix/io-classes.nix;
         ouroboros-consensus-byron = ./.plan.nix/ouroboros-consensus-byron.nix;
         contra-tracer = ./.plan.nix/contra-tracer.nix;
+        optparse-applicative = ./.plan.nix/optparse-applicative.nix;
         shelley-spec-non-integral = ./.plan.nix/shelley-spec-non-integral.nix;
         plutus-ledger = ./.plan.nix/plutus-ledger.nix;
         cardano-ledger-alonzo = ./.plan.nix/cardano-ledger-alonzo.nix;
@@ -959,6 +958,9 @@
             flags = { "asserts" = lib.mkOverride 900 false; };
             };
           "contra-tracer" = { flags = {}; };
+          "optparse-applicative" = {
+            flags = { "process" = lib.mkOverride 900 true; };
+            };
           "shelley-spec-non-integral" = {
             flags = { "development" = lib.mkOverride 900 false; };
             };
