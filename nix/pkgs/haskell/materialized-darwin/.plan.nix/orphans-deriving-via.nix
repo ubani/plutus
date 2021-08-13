@@ -8,17 +8,17 @@
   , config
   , ... }:
   {
-    flags = {};
+    flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "contra-tracer"; version = "0.1.0.0"; };
+      identifier = { name = "orphans-deriving-via"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019 IOHK";
+      copyright = "IOHK";
       maintainer = "operations@iohk.io";
-      author = "Neil Davies, Alexander Diemand, Andreas Triantafyllos";
+      author = "IOHK";
       homepage = "";
       url = "";
-      synopsis = "A simple interface for logging, tracing or monitoring.";
+      synopsis = "Orphan instances for the base-deriving-via hooks";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -26,7 +26,7 @@
       licenseFiles = [ "LICENSE" "NOTICE" ];
       dataDir = ".";
       dataFiles = [];
-      extraSrcFiles = [ "README.md" ];
+      extraSrcFiles = [];
       extraTmpFiles = [];
       extraDocFiles = [];
       };
@@ -34,10 +34,13 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.5") (hsPkgs."contravariant" or (errorHandler.buildDepError "contravariant"));
+          (hsPkgs."base-deriving-via" or (errorHandler.buildDepError "base-deriving-via"))
+          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
+          ];
         buildable = true;
-        modules = [ "Control/Tracer" "Control/Tracer/Observe" ];
+        modules = [ "Data/DerivingVia/DeepSeq" "Data/DerivingVia/NoThunks" ];
         hsSourceDirs = [ "src" ];
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault .././.source-repository-packages/31; }
+    } // rec { src = (pkgs.lib).mkDefault .././.source-repository-packages/13; }

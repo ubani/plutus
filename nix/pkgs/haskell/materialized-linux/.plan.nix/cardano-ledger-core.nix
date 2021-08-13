@@ -80,10 +80,9 @@
           "Cardano/Ledger/SafeHash"
           "Cardano/Ledger/Serialization"
           "Cardano/Ledger/Slot"
-          "Cardano/Ledger/Tx"
           "Cardano/Ledger/Val"
           ];
         hsSourceDirs = [ "src" ];
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault .././.source-repository-packages/46; }
+    } // rec { src = (pkgs.lib).mkDefault .././.source-repository-packages/49; }

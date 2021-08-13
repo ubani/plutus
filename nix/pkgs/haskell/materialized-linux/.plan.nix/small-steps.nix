@@ -72,4 +72,4 @@
         hsSourceDirs = [ "src" ];
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault .././.source-repository-packages/40; }
+    } // rec { src = (pkgs.lib).mkDefault .././.source-repository-packages/43; }

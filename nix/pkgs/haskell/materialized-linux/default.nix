@@ -758,6 +758,7 @@
         marlowe-symbolic = ./.plan.nix/marlowe-symbolic.nix;
         plutus-metatheory = ./.plan.nix/plutus-metatheory.nix;
         marlowe-playground-server = ./.plan.nix/marlowe-playground-server.nix;
+        measures = ./.plan.nix/measures.nix;
         lobemo-scribe-systemd = ./.plan.nix/lobemo-scribe-systemd.nix;
         quickcheck-dynamic = ./.plan.nix/quickcheck-dynamic.nix;
         cardano-config = ./.plan.nix/cardano-config.nix;
@@ -780,6 +781,7 @@
         plutus-tx = ./.plan.nix/plutus-tx.nix;
         hedgehog-extras = ./.plan.nix/hedgehog-extras.nix;
         fake-pab = ./.plan.nix/fake-pab.nix;
+        base-deriving-via = ./.plan.nix/base-deriving-via.nix;
         plutus-contract = ./.plan.nix/plutus-contract.nix;
         iohk-monitoring = ./.plan.nix/iohk-monitoring.nix;
         io-sim = ./.plan.nix/io-sim.nix;
@@ -798,6 +800,7 @@
         io-classes = ./.plan.nix/io-classes.nix;
         ouroboros-consensus-byron = ./.plan.nix/ouroboros-consensus-byron.nix;
         contra-tracer = ./.plan.nix/contra-tracer.nix;
+        orphans-deriving-via = ./.plan.nix/orphans-deriving-via.nix;
         shelley-spec-non-integral = ./.plan.nix/shelley-spec-non-integral.nix;
         plutus-ledger = ./.plan.nix/plutus-ledger.nix;
         cardano-ledger-alonzo = ./.plan.nix/cardano-ledger-alonzo.nix;
@@ -874,6 +877,9 @@
           "marlowe-symbolic" = { flags = {}; };
           "plutus-metatheory" = { flags = {}; };
           "marlowe-playground-server" = { flags = {}; };
+          "measures" = {
+            flags = { "development" = lib.mkOverride 900 false; };
+            };
           "lobemo-scribe-systemd" = { flags = {}; };
           "quickcheck-dynamic" = { flags = {}; };
           "cardano-config" = {
@@ -927,6 +933,9 @@
           "plutus-tx" = { flags = {}; };
           "hedgehog-extras" = { flags = {}; };
           "fake-pab" = { flags = {}; };
+          "base-deriving-via" = {
+            flags = { "development" = lib.mkOverride 900 false; };
+            };
           "plutus-contract" = {
             flags = { "defer-plugin-errors" = lib.mkOverride 900 false; };
             };
@@ -978,6 +987,9 @@
             flags = { "asserts" = lib.mkOverride 900 false; };
             };
           "contra-tracer" = { flags = {}; };
+          "orphans-deriving-via" = {
+            flags = { "development" = lib.mkOverride 900 false; };
+            };
           "shelley-spec-non-integral" = {
             flags = { "development" = lib.mkOverride 900 false; };
             };
