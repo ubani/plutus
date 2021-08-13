@@ -1,7 +1,18 @@
+{-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE GADTs             #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE ViewPatterns      #-}
+-- Big hammer, but helps
+{-# OPTIONS_GHC -fno-specialise #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
+{-# OPTIONS_GHC -fno-strictness #-}
+{-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
+{-# OPTIONS_GHC -fno-warn-orphans       #-}
+{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
+{-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 {-|
 
 Interface to the transaction types from 'cardano-api'
@@ -35,14 +46,20 @@ module Plutus.Contract.CardanoAPI(
   , toCardanoPaymentKeyHash
   , toCardanoScriptHash
   , ToCardanoError(..)
+  -- * Debuggin
+  , myData
+  , myDatum
+  , myDatumHash
+  , myTxOutDatumHash
+  , myScriptHash
 ) where
 
 import qualified Cardano.Api                 as C
 import qualified Cardano.Api.Shelley         as C
-import qualified Cardano.Ledger.Era          as C
 import qualified Codec.Serialise             as Codec
 import           Data.Bifunctor              (first)
 import           Data.ByteString             as BS
+import qualified Data.ByteString             as BS
 import qualified Data.ByteString.Lazy        as BSL
 import           Data.ByteString.Short       as BSS
 import qualified Data.Map                    as Map
@@ -50,12 +67,20 @@ import qualified Data.Set                    as Set
 import           Data.Text.Prettyprint.Doc   (Pretty (..), colon, (<+>))
 import qualified Ledger                      as P
 import qualified Ledger.Ada                  as Ada
+import           Ledger.Typed.Scripts        (wrapValidator)
 import qualified Plutus.V1.Ledger.Api        as Api
 import qualified Plutus.V1.Ledger.Credential as Credential
 import qualified Plutus.V1.Ledger.Value      as Value
 import qualified PlutusCore.Data             as Data
+import qualified PlutusTx                    as PlutusTx
+import qualified PlutusTx.Prelude            as PlutusTx
 
-fromCardanoTx :: C.Era era => C.Tx era -> Either FromCardanoError P.Tx
+myValidator :: P.Validator
+myValidator = Api.mkValidatorScript $$(PlutusTx.compile [|| wrapValidator validator ||]) where
+    validator :: () -> () -> Api.ScriptContext -> Bool
+    validator _ _ _ = PlutusTx.traceError "I always fail everything"
+
+fromCardanoTx :: C.Tx era -> Either FromCardanoError P.Tx
 fromCardanoTx (C.Tx (C.TxBody C.TxBodyContent{..}) _keyWitnesses) = do
     txOutputs <- traverse fromCardanoTxOut txOuts
     pure $ P.Tx
@@ -201,13 +226,16 @@ fromCardanoPaymentKeyHash :: C.Hash C.PaymentKey -> P.PubKeyHash
 fromCardanoPaymentKeyHash paymentKeyHash = P.PubKeyHash $ C.serialiseToRawBytes paymentKeyHash
 
 toCardanoPaymentKeyHash :: P.PubKeyHash -> Either ToCardanoError (C.Hash C.PaymentKey)
-toCardanoPaymentKeyHash (P.PubKeyHash bs) = tag "toCardanoPaymentKeyHash" $ deserialiseFromRawBytes (C.AsHash C.AsPaymentKey) bs
+toCardanoPaymentKeyHash (P.PubKeyHash bs) = tag "toCardanoPaymentKeyHash" $ deserialiseFromRawBytes (C.AsHash C.AsPaymentKey) (id bs)
 
 fromCardanoScriptHash :: C.ScriptHash -> P.ValidatorHash
 fromCardanoScriptHash scriptHash = P.ValidatorHash $ C.serialiseToRawBytes scriptHash
 
+myScriptHash :: Either ToCardanoError C.ScriptHash
+myScriptHash = toCardanoScriptHash (Api.validatorHash myValidator)
+
 toCardanoScriptHash :: P.ValidatorHash -> Either ToCardanoError C.ScriptHash
-toCardanoScriptHash (P.ValidatorHash bs) = tag "toCardanoScriptHash" $ deserialiseFromRawBytes C.AsScriptHash bs
+toCardanoScriptHash (P.ValidatorHash bs) = tag "toCardanoScriptHash" $ deserialiseFromRawBytes C.AsScriptHash (id bs)
 
 fromCardanoStakeAddressReference :: C.StakeAddressReference -> Either FromCardanoError (Maybe Credential.StakingCredential)
 fromCardanoStakeAddressReference C.NoStakeAddress = pure Nothing
@@ -233,7 +261,7 @@ fromCardanoStakeKeyHash :: C.Hash C.StakeKey -> P.PubKeyHash
 fromCardanoStakeKeyHash stakeKeyHash = P.PubKeyHash $ C.serialiseToRawBytes stakeKeyHash
 
 toCardanoStakeKeyHash :: P.PubKeyHash -> Either ToCardanoError (C.Hash C.StakeKey)
-toCardanoStakeKeyHash (P.PubKeyHash bs) = tag "toCardanoStakeKeyHash" $ deserialiseFromRawBytes (C.AsHash C.AsStakeKey) bs
+toCardanoStakeKeyHash (P.PubKeyHash bs) = tag "toCardanoStakeKeyHash" $ deserialiseFromRawBytes (C.AsHash C.AsStakeKey) (id bs)
 
 fromCardanoTxOutValue :: C.TxOutValue era -> P.Value
 fromCardanoTxOutValue (C.TxOutAdaOnly _ lovelace) = fromCardanoLovelace lovelace
@@ -246,9 +274,21 @@ fromCardanoTxOutDatumHash :: C.TxOutDatumHash era -> Maybe P.DatumHash
 fromCardanoTxOutDatumHash C.TxOutDatumHashNone   = Nothing
 fromCardanoTxOutDatumHash (C.TxOutDatumHash _ h) = Just $ P.DatumHash (C.serialiseToRawBytes h)
 
+myData :: Data.Data
+myData = Api.toData (12 :: Integer)
+
+myDatum :: P.Datum
+myDatum = Api.Datum (Api.toBuiltinData False)
+
+myDatumHash :: P.DatumHash
+myDatumHash = Api.datumHash myDatum
+
+myTxOutDatumHash :: Either ToCardanoError (C.TxOutDatumHash C.AlonzoEra)
+myTxOutDatumHash = toCardanoTxOutDatumHash (Just myDatumHash)
+
 toCardanoTxOutDatumHash :: Maybe P.DatumHash -> Either ToCardanoError (C.TxOutDatumHash C.AlonzoEra)
 toCardanoTxOutDatumHash Nothing = pure C.TxOutDatumHashNone
-toCardanoTxOutDatumHash (Just (P.DatumHash bs)) = C.TxOutDatumHash C.ScriptDataInAlonzoEra <$> tag "toCardanoTxOutDatumHash" (deserialiseFromRawBytes (C.AsHash C.AsScriptData) bs)
+toCardanoTxOutDatumHash (Just (P.DatumHash bs)) = C.TxOutDatumHash C.ScriptDataInAlonzoEra <$> tag "toCardanoTxOutDatumHash" (deserialiseFromRawBytes (C.AsHash C.AsScriptData) (id bs))
 
 fromCardanoMintValue :: C.TxMintValue build era -> P.Value
 fromCardanoMintValue C.TxMintNone              = mempty
@@ -374,7 +414,7 @@ toCardanoExecutionUnits script datum = do
             pure $ C.ExecutionUnits (fromIntegral cpu) (fromIntegral memory)
 
 deserialiseFromRawBytes :: C.SerialiseAsRawBytes t => C.AsType t -> ByteString -> Either ToCardanoError t
-deserialiseFromRawBytes asType = maybe (Left DeserialisationError) Right . C.deserialiseFromRawBytes asType
+deserialiseFromRawBytes asType bs = maybe (Left $ DeserialisationError (BS.length bs)) Right $ C.deserialiseFromRawBytes asType bs
 
 tag :: String -> Either ToCardanoError t -> Either ToCardanoError t
 tag s = first (Tag s)
@@ -392,18 +432,19 @@ instance Pretty FromCardanoError where
 data ToCardanoError
     = EvaluationError Api.EvaluationError
     | TxBodyError C.TxBodyError
-    | DeserialisationError
+    | DeserialisationError Int
     | InvalidValidityRange
     | ValueNotPureAda
     | NoDefaultCostModelParams
     | StakingPointersNotSupported
     | MissingTxInType
     | Tag String ToCardanoError
+    deriving Show
 
 instance Pretty ToCardanoError where
     pretty (EvaluationError err)       = "EvaluationError" <> colon <+> pretty err
     pretty (TxBodyError err)           = "TxBodyError" <> colon <+> pretty (C.displayError err)
-    pretty DeserialisationError        = "ByteString deserialisation failed"
+    pretty (DeserialisationError i)    = "ByteString deserialisation failed. Length:" <+> pretty i
     pretty InvalidValidityRange        = "Invalid validity range"
     pretty ValueNotPureAda             = "Fee values should only contain Ada"
     pretty NoDefaultCostModelParams    = "Extracting default cost model failed"

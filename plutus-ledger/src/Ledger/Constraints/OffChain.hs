@@ -23,6 +23,7 @@ module Ledger.Constraints.OffChain(
     , otherScript
     , otherData
     , ownPubKeyHash
+    , pubKey
     -- * Constraints resolution
     , SomeLookupsAndConstraints(..)
     , UnbalancedTx(..)
@@ -51,7 +52,6 @@ import           Data.List                        (elemIndex)
 import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
 import           Data.Semigroup                   (First (..))
-import           Data.Set                         (Set)
 import qualified Data.Set                         as Set
 import           Data.Text.Prettyprint.Doc
 import           GHC.Generics                     (Generic)
@@ -70,7 +70,7 @@ import           Ledger.Typed.Tx                  (ConnectionError)
 import qualified Ledger.Typed.Tx                  as Typed
 import           Plutus.V1.Ledger.Address         (Address (..), pubKeyHashAddress)
 import qualified Plutus.V1.Ledger.Address         as Address
-import           Plutus.V1.Ledger.Crypto          (PubKeyHash)
+import           Plutus.V1.Ledger.Crypto          (PubKey, PubKeyHash, pubKeyHash)
 import           Plutus.V1.Ledger.Scripts         (Datum (..), DatumHash, MintingPolicy, MintingPolicyHash,
                                                    Redeemer (..), Validator, datumHash, mintingPolicyHash)
 import           Plutus.V1.Ledger.Tx              (RedeemerPtr (..), ScriptTag (..), Tx, TxOut (..), TxOutRef,
@@ -89,6 +89,8 @@ data ScriptLookups a =
         -- ^ Validators of scripts other than "our script"
         , slOtherData      :: Map DatumHash Datum
         -- ^ Datums that we might need
+        , slPubKeyHashes   :: Map PubKeyHash PubKey
+        -- ^ Public keys that we might need
         , slTypedValidator :: Maybe (TypedValidator a)
         -- ^ The script instance with the typed validator hash & actual compiled program
         , slOwnPubkey      :: Maybe PubKeyHash
@@ -103,6 +105,7 @@ instance Semigroup (ScriptLookups a) where
             , slTxOutputs = slTxOutputs l <> slTxOutputs r
             , slOtherScripts = slOtherScripts l <> slOtherScripts r
             , slOtherData = slOtherData l <> slOtherData r
+            , slPubKeyHashes = slPubKeyHashes l <> slPubKeyHashes r
             -- 'First' to match the semigroup instance of Map (left-biased)
             , slTypedValidator = fmap getFirst $ (First <$> slTypedValidator l) <> (First <$> slTypedValidator r)
             , slOwnPubkey = fmap getFirst $ (First <$> slOwnPubkey l) <> (First <$> slOwnPubkey r)
@@ -111,7 +114,7 @@ instance Semigroup (ScriptLookups a) where
 
 instance Monoid (ScriptLookups a) where
     mappend = (<>)
-    mempty  = ScriptLookups mempty mempty mempty mempty Nothing Nothing
+    mempty  = ScriptLookups mempty mempty mempty mempty mempty Nothing Nothing
 
 -- | A script lookups value with a script instance. For convenience this also
 --   includes the minting policy script that forwards all checks to the
@@ -123,6 +126,7 @@ typedValidatorLookups inst =
         , slTxOutputs = Map.empty
         , slOtherScripts = Map.empty
         , slOtherData = Map.empty
+        , slPubKeyHashes = Map.empty
         , slTypedValidator = Just inst
         , slOwnPubkey = Nothing
         }
@@ -150,6 +154,10 @@ otherData dt =
     let dh = datumHash dt in
     mempty { slOtherData = Map.singleton dh dt }
 
+-- | A script lookups value with a public key
+pubKey :: PubKey -> ScriptLookups a
+pubKey pk = mempty { slPubKeyHashes = Map.singleton (pubKeyHash pk) pk }
+
 ownPubKeyHash :: PubKeyHash -> ScriptLookups a
 ownPubKeyHash ph = mempty { slOwnPubkey = Just ph}
 
@@ -159,7 +167,7 @@ ownPubKeyHash ph = mempty { slOwnPubkey = Just ph}
 data UnbalancedTx =
     UnbalancedTx
         { unBalancedTxTx                  :: Tx
-        , unBalancedTxRequiredSignatories :: Set PubKeyHash
+        , unBalancedTxRequiredSignatories :: Map PubKeyHash (Maybe PubKey)
         , unBalancedTxUtxoIndex           :: Map TxOutRef TxOut
         }
     deriving stock (Eq, Generic, Show)
@@ -178,7 +186,7 @@ instance Pretty UnbalancedTx where
     pretty (UnbalancedTx utx rs utxo) =
         vsep
         [ hang 2 $ vsep ["Tx:", pretty utx]
-        , hang 2 $ vsep $ "Requires signatures:" : (pretty <$> Set.toList rs)
+        , hang 2 $ vsep $ "Requires signatures:" : (pretty . fst <$> Map.toList rs)
         , hang 2 $ vsep $ "Utxo index:" : (pretty <$> Map.toList utxo)
         ]
 
@@ -459,6 +467,17 @@ lookupValidator addr =
     let err = throwError (ValidatorHashNotFound addr) in
     asks slOtherScripts >>= maybe err pure . view (at addr)
 
+-- | Get the 'Map.Map PubKeyHash (Maybe PubKey)' for a pub key hash,
+--   associating the pub key hash with the public key (if known).
+--   This value that can be added to the
+--   'unBalancedTxRequiredSignatories' field
+getSignatories ::
+    ( MonadReader (ScriptLookups a) m)
+    => PubKeyHash
+    -> m (Map.Map PubKeyHash (Maybe PubKey))
+getSignatories pkh =
+    Map.singleton pkh <$> asks (Map.lookup pkh . slPubKeyHashes)
+
 -- | Modify the 'UnbalancedTx' so that it satisfies the constraints, if
 --   possible. Fails if a hash is missing from the lookups, or if an output
 --   of the wrong type is spent.
@@ -474,17 +493,17 @@ processConstraint = \case
         unbalancedTx . tx . Tx.datumWitnesses . at theHash .= Just dv
     MustValidateIn timeRange ->
         unbalancedTx . tx . Tx.validRange %= (TimeSlot.posixTimeRangeToSlotRange def timeRange /\)
-    MustBeSignedBy pk ->
-        unbalancedTx . requiredSignatories %= Set.insert pk
+    MustBeSignedBy pk -> do
+        sigs <- getSignatories pk
+        unbalancedTx . requiredSignatories <>= sigs
     MustSpendAtLeast vl -> valueSpentInputs <>= required vl
     MustProduceAtLeast vl -> valueSpentOutputs <>= required vl
     MustSpendPubKeyOutput txo -> do
         TxOutTx{txOutTxOut} <- lookupTxOutRef txo
         case Address.toPubKeyHash (Tx.txOutAddress txOutTxOut) of
-            Just pk -> do
+            Just{} -> do
                 unbalancedTx . tx . Tx.inputs %= Set.insert (Tx.pubKeyTxIn txo)
                 valueSpentInputs <>= provided (Tx.txOutValue txOutTxOut)
-                unbalancedTx . requiredSignatories %= Set.insert pk
             _                 -> throwError (TxOutRefWrongType txo)
     MustSpendScriptOutput txo red -> do
         txOutTx <- lookupTxOutRef txo

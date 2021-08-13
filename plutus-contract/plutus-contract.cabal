@@ -144,7 +144,8 @@ library
         streaming -any,
         IntervalMap -any,
         plutus-chain-index -any,
-        plutus-core -any
+        plutus-core -any,
+        cardano-crypto-class -any
 
     if !(impl(ghcjs) || os(ghcjs))
         build-depends: plutus-tx-plugin -any

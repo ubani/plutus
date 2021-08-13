@@ -1,41 +1,50 @@
 {-# LANGUAGE DeriveAnyClass     #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE NamedFieldPuns     #-}
 {-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TypeApplications   #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies       #-}
-module Main(main) where
+
+module Main(main, ExportTx(..)) where
 
 import qualified Cardano.Api                    as C
 import qualified Cardano.Api.Shelley            as C
-import qualified Cardano.Binary                 as Binary
 import qualified Control.Foldl                  as L
 import           Control.Monad.Freer            (run)
+import           Data.Aeson                     (FromJSON (..), ToJSON (..), Value (Object), object, (.:), (.=))
 import qualified Data.Aeson                     as Aeson
 import           Data.Aeson.Encode.Pretty       (encodePretty)
 import           Data.Bitraversable             (bitraverse)
+import           Data.ByteArray.Encoding        (Base (Base16), convertToBase)
 import qualified Data.ByteString.Lazy           as BSL
 import           Data.Default                   (Default (..))
 import           Data.Foldable                  (traverse_)
+import           Data.Int                       (Int64)
 import           Data.Map                       (Map)
 import qualified Data.Map                       as Map
+import           Data.Maybe                     (mapMaybe)
+import           Data.Monoid                    (Sum (..))
 import           Data.Proxy                     (Proxy (..))
-import           Data.Set                       (Set)
-import qualified Data.Set                       as Set
+import           Data.Text                      (Text)
+import qualified Data.Text.Encoding             as Text
 import           Data.Text.Prettyprint.Doc      (Pretty (..))
 import           Data.Typeable                  (Typeable)
 import           Flat                           (flat)
 import           GHC.Generics                   (Generic)
 import qualified Ledger                         as Plutus
+import           Ledger.Bytes                   (LedgerBytes (..))
 import           Ledger.Constraints.OffChain    (UnbalancedTx (..))
-import           Ledger.Index                   (ScriptValidationEvent (sveScript))
+import           Ledger.Crypto                  (PubKey (..))
+import           Ledger.Index                   (ScriptType (..), ScriptValidationEvent (..))
 import           Options.Applicative
 import qualified Plutus.Contract.CardanoAPI     as CardanoAPI
 import qualified Plutus.Contracts.Crowdfunding  as Crowdfunding
 import qualified Plutus.Contracts.Uniswap.Trace as Uniswap
 import           Plutus.Trace.Emulator          (EmulatorConfig, EmulatorTrace)
 import qualified Plutus.Trace.Emulator          as Trace
+import           Plutus.V1.Ledger.Api           (ExBudget (..))
 import           Plutus.V1.Ledger.Scripts       (Script (..))
 import qualified Spec.Auction                   as Auction
 import qualified Spec.Currency                  as Currency
@@ -53,39 +62,57 @@ import qualified Spec.Vesting                   as Vesting
 import qualified Streaming.Prelude              as S
 import           System.Directory               (createDirectoryIfMissing)
 import           System.FilePath                ((</>))
+import           Text.Printf                    (printf)
 import qualified Wallet.Emulator.Folds          as Folds
 import           Wallet.Emulator.Stream         (foldEmulatorStreamM)
 
 data Command =
-    Scripts
+    Scripts{ unappliedValidators :: ValidatorMode }
     | Transactions{ networkId :: C.NetworkId, protocolParamsJSON :: FilePath }
     deriving stock (Show, Eq)
 
 writeWhat :: Command -> String
-writeWhat Scripts        = "scripts"
-writeWhat Transactions{} = "transactions"
+writeWhat (Scripts FullyAppliedValidators) = "scripts (fully applied)"
+writeWhat (Scripts UnappliedValidators)    = "scripts (unapplied)"
+writeWhat Transactions{}                   = "transactions"
 
 pathParser :: Parser FilePath
 pathParser = strArgument (metavar "SCRIPT_PATH" <> help "output path")
 
-modeParser :: Parser Mode
-modeParser = option auto (long "mode" <> showDefault <> value Scripts)
+protocolParamsParser :: Parser FilePath
+protocolParamsParser = strOption (long "protocol-parameters" <> short 'p' <> help "Path to protocol parameters JSON file" <> showDefault <> value "protocol-parameters.json")
 
 networkIdParser :: Parser C.NetworkId
 networkIdParser =
     let p = C.Testnet . C.NetworkMagic <$> option auto (long "network-magic" <> short 'n' <> help "Cardano network magic. If none is specified, mainnet addresses are generated.")
     in p <|> pure C.Mainnet
 
+commandParser :: Parser Command
+commandParser = hsubparser $ mconcat [scriptsParser, transactionsParser]
+
+scriptsParser :: Mod CommandFields Command
+scriptsParser =
+    command "scripts" $
+    info
+        (Scripts <$> flag FullyAppliedValidators UnappliedValidators (long "unapplied-validators" <> short 'u' <> help "Write the unapplied validator scripts" <> showDefault))
+        (fullDesc <> progDesc "Write fully applied validator scripts")
+
+transactionsParser :: Mod CommandFields Command
+transactionsParser =
+    command "transactions" $
+    info
+        (Transactions <$> networkIdParser <*> protocolParamsParser)
+        (fullDesc <> progDesc "Write partial transactions")
+
 data ScriptsConfig =
     ScriptsConfig
-        { scPath      :: FilePath
-        , scMode      :: Mode
-        , scNetworkId :: C.NetworkId
+        { scPath    :: FilePath
+        , scCommand :: Command
         }
 
 progParser :: ParserInfo ScriptsConfig
 progParser =
-    let p = ScriptsConfig <$> pathParser <*> modeParser <*> networkIdParser
+    let p = ScriptsConfig <$> pathParser <*> commandParser
     in info
         (p <**> helper)
         (fullDesc
@@ -98,9 +125,8 @@ main = execParser progParser >>= writeScripts
 
 writeScripts :: ScriptsConfig -> IO ()
 writeScripts config = do
-    putStrLn $ "Writing " <> writeWhat (scMode config) <> " to: " <> (scPath config)
-    putStrLn $ "Network ID: " <> show (scNetworkId config)
-    traverse_ (uncurry3 (writeScriptsTo config))
+    putStrLn $ "Writing " <> writeWhat (scCommand config) <> " to: " <> scPath config
+    (Sum size, exBudget) <- foldMap (uncurry3 (writeScriptsTo config))
         [ ("auction_1", Auction.auctionTrace1, Auction.auctionEmulatorCfg)
         , ("auction_2", Auction.auctionTrace2, Auction.auctionEmulatorCfg)
         , ("crowdfunding-success", Crowdfunding.successfulCampaign, def)
@@ -126,6 +152,9 @@ writeScripts config = do
         , ("vesting", Vesting.retrieveFundsTrace, def)
         , ("uniswap", Uniswap.uniswapTrace, def)
         ]
+    if size > 0 then
+        putStrLn $ "Total " <> showStats size exBudget
+    else pure ()
 
 {-| Run an emulator trace and write the applied scripts to a file in Flat format
     using the name as a prefix.
@@ -135,8 +164,8 @@ writeScriptsTo
     -> String
     -> EmulatorTrace a
     -> EmulatorConfig
-    -> IO ()
-writeScriptsTo ScriptsConfig{scMode, scPath, scNetworkId} prefix trace emulatorCfg = do
+    -> IO (Sum Int64, ExBudget)
+writeScriptsTo ScriptsConfig{scPath, scCommand} prefix trace emulatorCfg = do
     let (scriptEvents, balanceEvents) =
             S.fst'
             $ run
@@ -144,10 +173,15 @@ writeScriptsTo ScriptsConfig{scMode, scPath, scNetworkId} prefix trace emulatorC
             $ Trace.runEmulatorStream emulatorCfg def trace
 
     createDirectoryIfMissing True scPath
-    when (Scripts <= scMode) $
-        traverse_ (uncurry $ writeScript scPath prefix) (zip [1::Int ..] (sveScript <$> scriptEvents))
-    when (Transactions <= scMode) $
-        traverse_ (uncurry $ writeTransaction scNetworkId scPath prefix) (zip [1::Int ..] balanceEvents)
+    case scCommand of
+        Scripts mode -> do
+            foldMap (uncurry $ writeScript scPath prefix mode) (zip [1::Int ..] scriptEvents)
+        Transactions{networkId, protocolParamsJSON} -> do
+            bs <- BSL.readFile protocolParamsJSON
+            case Aeson.eitherDecode bs of
+                Left err -> putStrLn err
+                Right params -> traverse_ (uncurry $ writeTransaction params networkId scPath prefix) (zip [1::Int ..] balanceEvents)
+            pure mempty
 
 {- There's an instance of Codec.Serialise for
     Script in Scripts.hs (see Note [Using Flat inside CBOR instance of Script]),
@@ -155,23 +189,29 @@ writeScriptsTo ScriptsConfig{scMode, scPath, scNetworkId} prefix trace emulatorC
     just use unwrapped Flat because that's more convenient for use with the
     `plc` command, for example.
 -}
-writeScript :: FilePath -> String -> Int -> Script -> IO ()
-writeScript fp prefix idx script = do
-    let filename = fp </> prefix <> "-" <> show idx <> ".flat"
+writeScript :: FilePath -> String -> ValidatorMode -> Int -> ScriptValidationEvent -> IO (Sum Int64, ExBudget)
+writeScript fp prefix mode idx event@ScriptValidationEvent{sveResult} = do
+    let filename = fp </> prefix <> "-" <> show idx <> filenameSuffix mode <> ".flat"
+        bytes = BSL.fromStrict . flat . unScript . getScript mode $ event
+        byteSize = BSL.length bytes
     putStrLn $ "Writing script: " <> filename
-    BSL.writeFile filename (BSL.fromStrict . flat . unScript $ script)
+    BSL.writeFile filename bytes
+    pure (Sum byteSize, mempty)
 
-writeTransaction :: C.NetworkId -> FilePath -> String -> Int -> UnbalancedTx -> IO ()
-writeTransaction networkId fp prefix idx tx = do
+showStats :: Int64 -> ExBudget -> String
+showStats byteSize (ExBudget exCPU exMemory) = "Size: " <> size <> "kB, Cost: " <> show exCPU <> ", " <> show exMemory
+    where
+        size = printf ("%.1f"::String) (fromIntegral byteSize / 1024.0 :: Double)
+
+writeTransaction :: C.ProtocolParameters -> C.NetworkId -> FilePath -> String -> Int -> UnbalancedTx -> IO ()
+writeTransaction params networkId fp prefix idx tx = do
     let filename1 = fp </> prefix <> "-" <> show idx <> ".json"
-    putStrLn $ "Writing partial transaction JSON: " <> filename1
-    BSL.writeFile filename1 (encodePretty tx)
-    case export networkId tx of
-        Left err -> putStrLn $ "Export tx failed for " <> filename1 <> ". Reason: " <> show (pretty err)
+    case export params networkId tx of
+        Left err ->
+            putStrLn $ "Export tx failed for " <> filename1 <> ". Reason: " <> show (pretty err)
         Right exportTx -> do
-            let filename2 = fp </> prefix <> "-" <> show idx <> ".cbor"
-            putStrLn $ "Writing partial transaction CBOR: " <> filename2
-            BSL.writeFile filename2 $ BSL.fromStrict (Binary.serialize' exportTx)
+            putStrLn $ "Writing partial transaction JSON: " <> filename1
+            BSL.writeFile filename1 $ encodePretty exportTx
 
 -- | `uncurry3` converts a curried function to a function on triples.
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
@@ -180,46 +220,75 @@ uncurry3 f (a, b, c) = f a b c
 theFold :: Folds.EmulatorEventFold ([ScriptValidationEvent], [UnbalancedTx])
 theFold = (,) <$> Folds.scriptEvents <*> Folds.walletTxBalanceEvents
 
+{- Note [Keys in ExportTx]
+
+The wallet backend (receiver of 'ExportTx' values) expectes the public keys in the
+'signatories' field to be 'Cardano.Crypto.Wallet.XPub' keys - extended public keys
+of 64 bytes. In the emulator we only deal with ED25519 keys of 32 bytes. Until that
+is changed (https://jira.iohk.io/browse/SCP-2644) we simply append each of our keys
+to itself in order to get a key of the correct length.
+
+-}
+
 -- | Partial transaction that can be balanced by the wallet backend.
 data ExportTx =
         ExportTx
             { partialTx   :: C.Tx C.AlonzoEra -- ^ The transaction itself
-            , lookups     :: [(C.TxIn, C.TxOut C.AlonzoEra)] -- ^ The tx outputs for all inputs spent by the partial tx
-            , signatories :: [C.Hash C.PaymentKey] -- ^ Key(s) that we expect to be used for balancing & signing. (Advisory)
+            , lookups     :: [ExportTxInput] -- ^ The tx outputs for all inputs spent by the partial tx
+            , signatories :: [Text] -- ^ Key(s) that we expect to be used for balancing & signing. (Advisory) See note [Keys in ExportT]
             }
     deriving stock (Generic, Typeable)
 
-instance Binary.ToCBOR ExportTx where
-    toCBOR ExportTx{partialTx, lookups, signatories} =
-        Binary.toCBOR
-            -- This is the best I could do, the types in Cardano.API all seem to have different serialisation
-            -- formats (ToCBOR, SerialiseAsCBOR, ToJSON)
-            ( C.serialiseToCBOR partialTx
-            , Aeson.encode lookups -- TODO: Missing CBOR instance(s) for TxOut AlonzoEra :(
-            , Binary.serialize' signatories
-            )
+data ExportTxInput = ExportTxInput{txIn :: C.TxIn, txOut :: C.TxOut C.AlonzoEra}
+    deriving stock (Generic, Typeable)
+    deriving anyclass (ToJSON)
 
-    encodedSizeExpr size _ =
-        Binary.encodedSizeExpr
-            size
-            (Proxy @(Binary.LengthOf BSL.ByteString, Binary.LengthOf BSL.ByteString, Binary.LengthOf BSL.ByteString))
+instance ToJSON ExportTx where
+    toJSON ExportTx{partialTx, lookups, signatories} =
+        object
+            [ "transaction" .= toJSON (C.serialiseToTextEnvelope Nothing partialTx)
+            , "inputs"      .= toJSON lookups
+            , "signatories" .= toJSON signatories
+            ]
 
-instance C.HasTypeProxy ExportTx where
-    data AsType ExportTx = AsExportTx
-    proxyToAsType _ = AsExportTx
+instance FromJSON ExportTx where
+    parseJSON (Object v) =
+        ExportTx
+            <$> ((v .: "transaction") >>= either (fail . show) pure . C.deserialiseFromTextEnvelope (C.proxyToAsType Proxy))
+            <*> pure mempty -- FIXME: How to deserialise Utxo / [(TxIn, TxOut)] ) see https://github.com/input-output-hk/cardano-node/issues/3051
+            <*> v .: "signatories"
+    parseJSON _ = fail "Expexted Object"
 
-export :: C.NetworkId -> UnbalancedTx -> Either CardanoAPI.ToCardanoError ExportTx
-export networkId UnbalancedTx{unBalancedTxTx, unBalancedTxUtxoIndex, unBalancedTxRequiredSignatories} =
+export :: C.ProtocolParameters -> C.NetworkId -> UnbalancedTx -> Either CardanoAPI.ToCardanoError ExportTx
+export params networkId UnbalancedTx{unBalancedTxTx, unBalancedTxUtxoIndex, unBalancedTxRequiredSignatories} =
     ExportTx
-        <$> mkTx networkId unBalancedTxTx
+        <$> mkTx params networkId unBalancedTxTx
         <*> mkLookups networkId unBalancedTxUtxoIndex
         <*> mkSignatories unBalancedTxRequiredSignatories
 
-mkTx :: C.NetworkId -> Plutus.Tx -> Either CardanoAPI.ToCardanoError (C.Tx C.AlonzoEra)
-mkTx networkId = fmap (C.makeSignedTransaction []) . CardanoAPI.toCardanoTxBody networkId
+mkTx :: C.ProtocolParameters -> C.NetworkId -> Plutus.Tx -> Either CardanoAPI.ToCardanoError (C.Tx C.AlonzoEra)
+mkTx params networkId = fmap (C.makeSignedTransaction []) . CardanoAPI.toCardanoTxBody (Just params) networkId
 
-mkLookups :: C.NetworkId -> Map Plutus.TxOutRef Plutus.TxOut -> Either CardanoAPI.ToCardanoError [(C.TxIn, C.TxOut C.AlonzoEra)]
-mkLookups networkId = traverse (bitraverse CardanoAPI.toCardanoTxIn (CardanoAPI.toCardanoTxOut networkId)) . Map.toList
+mkLookups :: C.NetworkId -> Map Plutus.TxOutRef Plutus.TxOut -> Either CardanoAPI.ToCardanoError [ExportTxInput]
+mkLookups networkId = fmap (fmap $ uncurry ExportTxInput) . traverse (bitraverse CardanoAPI.toCardanoTxIn (CardanoAPI.toCardanoTxOut networkId)) . Map.toList
 
-mkSignatories :: Set Plutus.PubKeyHash -> Either CardanoAPI.ToCardanoError [C.Hash C.PaymentKey]
-mkSignatories = traverse CardanoAPI.toCardanoPaymentKeyHash . Set.toList
+mkSignatories :: Map Plutus.PubKeyHash (Maybe Plutus.PubKey) -> Either CardanoAPI.ToCardanoError [Text]
+mkSignatories =
+    -- see note [Keys in ExportTx]
+    Right . fmap (\(PubKey (LedgerBytes k)) -> Text.decodeUtf8 $ convertToBase Base16 (k <> k)) . mapMaybe snd . Map.toList
+
+data ValidatorMode = FullyAppliedValidators | UnappliedValidators
+    deriving (Eq, Ord, Show)
+
+getScript :: ValidatorMode -> ScriptValidationEvent -> Script
+getScript FullyAppliedValidators ScriptValidationEvent{sveScript} = sveScript
+getScript UnappliedValidators ScriptValidationEvent{sveType}      = error "UnappliedValidators not supported"
+    -- case sveType of
+    --     ValidatorScript (Plutus.Validator script) _    -> script
+    --     MintingPolicyScript (Plutus.MintingPolicy mps) -> mps
+
+filenameSuffix :: ValidatorMode -> String
+filenameSuffix FullyAppliedValidators = ""
+filenameSuffix UnappliedValidators    = "-unapplied"
+
+-- ApiAccountPublicKey
