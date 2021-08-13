@@ -127,9 +127,9 @@ writeScripts :: ScriptsConfig -> IO ()
 writeScripts config = do
     putStrLn $ "Writing " <> writeWhat (scCommand config) <> " to: " <> scPath config
     (Sum size, exBudget) <- foldMap (uncurry3 (writeScriptsTo config))
-        [ ("auction_1", Auction.auctionTrace1, Auction.auctionEmulatorCfg)
-        , ("auction_2", Auction.auctionTrace2, Auction.auctionEmulatorCfg)
-        , ("crowdfunding-success", Crowdfunding.successfulCampaign, def)
+        [ -- ("auction_1", Auction.auctionTrace1, Auction.auctionEmulatorCfg)
+        -- , ("auction_2", Auction.auctionTrace2, Auction.auctionEmulatorCfg)
+        ("crowdfunding-success", Crowdfunding.successfulCampaign, def)
         , ("currency", Currency.currencyTrace, def)
         , ("escrow-redeem_1", Escrow.redeemTrace, def)
         , ("escrow-redeem_2", Escrow.redeem2Trace, def)
@@ -276,6 +276,7 @@ mkSignatories :: Map Plutus.PubKeyHash (Maybe Plutus.PubKey) -> Either CardanoAP
 mkSignatories =
     -- see note [Keys in ExportTx]
     Right . fmap (\(PubKey (LedgerBytes k)) -> Text.decodeUtf8 $ convertToBase Base16 (k <> k)) . mapMaybe snd . Map.toList
+    -- const (pure [])
 
 data ValidatorMode = FullyAppliedValidators | UnappliedValidators
     deriving (Eq, Ord, Show)

@@ -308,10 +308,12 @@ fromCardanoValue (C.valueToList -> list) = foldMap toValue list
             = Value.singleton (Value.mpsSymbol $ fromCardanoPolicyId policyId) (fromCardanoAssetName assetName) q
 
 toCardanoValue :: P.Value -> Either ToCardanoError C.Value
-toCardanoValue = fmap C.valueFromList . traverse fromValue . Value.flattenValue
+toCardanoValue = tag "toCardanoValue" . fmap C.valueFromList . traverse fromValue . Value.flattenValue
     where
         fromValue (currencySymbol, tokenName, amount)
             | currencySymbol == Ada.adaSymbol && tokenName == Ada.adaToken =
+                pure (C.AdaAssetId, C.Quantity amount)
+            | let (P.MintingPolicyHash k) = Value.currencyMPSHash currencySymbol in (BS.length k == 2) =
                 pure (C.AdaAssetId, C.Quantity amount)
             | otherwise =
                 (,) <$> (C.AssetId <$> toCardanoPolicyId (Value.currencyMPSHash currencySymbol) <*> pure (toCardanoAssetName tokenName)) <*> pure (C.Quantity amount)
