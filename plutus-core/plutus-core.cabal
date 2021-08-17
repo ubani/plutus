@@ -132,7 +132,7 @@ library
         PlutusIR.Transform.Beta
         PlutusIR.Transform.DeadCode
         PlutusIR.Transform.Inline
-        PlutusIR.Transform.LetFloat
+        PlutusIR.Transform.NewLetFloat
         PlutusIR.Transform.LetMerge
         PlutusIR.Transform.RecSplit
         PlutusIR.Transform.NonStrict
@@ -291,7 +291,6 @@ library
         mmorph -any,
         monoidal-containers,
         mtl -any,
-        nonempty-containers -any,
         parser-combinators >= 0.4.0,
         prettyprinter >=1.1.0.1,
         prettyprinter-configurable -any,

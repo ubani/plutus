@@ -1,6 +1,8 @@
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE DeriveTraversable     #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# OPTIONS_GHC -W -Wwarn  #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module TransformSpec (transform) where
 
@@ -9,24 +11,30 @@ import           TestLib
 
 import           PlutusCore.Quote
 
+import           Control.Exception
 import qualified PlutusCore                         as PLC
 import qualified PlutusCore.Pretty                  as PLC
 
+import           Data.Either
 import qualified PlutusIR.Analysis.RetainedSize     as RetainedSize
+import           PlutusIR.Error
 import           PlutusIR.Parser
 import qualified PlutusIR.Transform.Beta            as Beta
 import qualified PlutusIR.Transform.DeadCode        as DeadCode
 import qualified PlutusIR.Transform.Inline          as Inline
-import qualified PlutusIR.Transform.LetFloat        as LetFloat
 import qualified PlutusIR.Transform.LetMerge        as LetMerge
+import qualified PlutusIR.Transform.NewLetFloat     as NewLetFloat
 import qualified PlutusIR.Transform.NonStrict       as NonStrict
 import qualified PlutusIR.Transform.RecSplit        as RecSplit
 import           PlutusIR.Transform.Rename          ()
 import qualified PlutusIR.Transform.ThunkRecursions as ThunkRec
 import qualified PlutusIR.Transform.Unwrap          as Unwrap
+import           PlutusIR.TypeCheck
 
 import           Control.Monad
+import           Control.Monad.Except
 import           Text.Megaparsec.Pos
+
 
 transform :: TestNested
 transform = testNested "transform" [
@@ -58,7 +66,7 @@ nonStrict = testNested "nonStrict"
 letFloat :: TestNested
 letFloat =
     testNested "letFloat"
-    $ map (goldenPir (LetMerge.letMerge . LetFloat.floatTerm . runQuote . PLC.rename) $ term @PLC.DefaultUni @PLC.DefaultFun)
+    $ map (goldenPir (LetMerge.letMerge . RecSplit.recSplit . NewLetFloat.floatTerm . runQuote . PLC.rename) $ term @PLC.DefaultUni @PLC.DefaultFun)
   [ "letInLet"
   ,"listMatch"
   ,"maybe"
@@ -72,6 +80,7 @@ letFloat =
   ,"nonrec6"
   ,"nonrec7"
   ,"nonrec8"
+  ,"nonrec9"
   ,"rec1"
   ,"rec2"
   ,"rec3"
@@ -88,7 +97,13 @@ letFloat =
   ,"even3Eval"
   ,"strictNonValueDeep"
   ,"regression1"
+  ,"letrhs1"
+  , "new1"
+  , "new2"
   ]
+ where
+   pirtcconfig :: PirTCConfig PLC.DefaultUni PLC.DefaultFun
+   pirtcconfig = fromRight (error "mpla") (runExcept (getDefTypeCheckConfig ()) :: Either (Error PLC.DefaultUni PLC.DefaultFun ()) _)
 
 recSplit :: TestNested
 recSplit =

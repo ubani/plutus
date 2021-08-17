@@ -41,8 +41,8 @@ import           PlutusIR.Error
 import qualified PlutusIR.Transform.Beta            as Beta
 import qualified PlutusIR.Transform.DeadCode        as DeadCode
 import qualified PlutusIR.Transform.Inline          as Inline
-import qualified PlutusIR.Transform.LetFloat        as LetFloat
 import qualified PlutusIR.Transform.LetMerge        as LetMerge
+import qualified PlutusIR.Transform.NewLetFloat     as NewLetFloat
 import qualified PlutusIR.Transform.NonStrict       as NonStrict
 import qualified PlutusIR.Transform.RecSplit        as RecSplit
 import           PlutusIR.Transform.Rename          ()
@@ -126,8 +126,8 @@ simplifyTerm = runIfOpts $ simplify'
 
 -- | Perform floating/merging of lets in a 'Term' to their nearest lambda/Lambda/letStrictNonValue.
 -- Note: It assumes globally unique names
-floatTerm :: (Compiling m e uni fun a, Semigroup b) => Term TyName Name uni fun b -> m (Term TyName Name uni fun b)
-floatTerm = runIfOpts $ pure . LetMerge.letMerge . RecSplit.recSplit . LetFloat.floatTerm
+floatTerm :: (Compiling m e uni fun a) => Term TyName Name uni fun b -> m (Term TyName Name uni fun b)
+floatTerm = runIfOpts $ pure . LetMerge.letMerge . RecSplit.recSplit . NewLetFloat.floatTerm
 
 -- | Typecheck a PIR Term iff the context demands it.
 -- Note: assumes globally unique names
