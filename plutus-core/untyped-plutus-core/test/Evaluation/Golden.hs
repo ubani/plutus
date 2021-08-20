@@ -317,7 +317,7 @@ goldenVsEvaluatedCK name
 goldenVsEvaluatedCEK :: String -> Term TyName Name DefaultUni DefaultFun () -> TestTree
 goldenVsEvaluatedCEK name
     = goldenVsPretty ".plc.golden" name
-    . evaluateCekNoEmit defaultCekParameters
+    . evaluateCekNoEmit' defaultCekParameters
     . UPLC.erase
 
 runTypecheck

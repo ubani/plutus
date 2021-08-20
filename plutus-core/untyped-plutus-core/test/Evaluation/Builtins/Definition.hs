@@ -76,8 +76,12 @@ test_Const =
             runConst con = mkIterApp () (mkIterInst () con [text, bool]) [tC, tB]
             lhs = typecheckReadKnownCek defaultCekParametersExt $ runConst $ builtin () (Right Const)
             rhs = typecheckReadKnownCek defaultCekParametersExt $ runConst $ mapFun Left Plc.const
-        lhs === Right (Right c)
-        lhs === rhs
+        case lhs of
+            (Right (Right c')) -> c === c'
+            _                  -> fail "lhs was error"
+        case (lhs, rhs) of
+            (Right (Right t), Right (Right t')) -> t === t'
+            _                                   -> fail "one side was error"
 
 -- | Test that a polymorphic built-in function doesn't subvert the CEK machine.
 -- See https://github.com/input-output-hk/plutus/issues/1882

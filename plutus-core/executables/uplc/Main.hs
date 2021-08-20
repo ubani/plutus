@@ -34,7 +34,7 @@ uplcInfoCommand :: ParserInfo Command
 uplcInfoCommand = plutus uplcHelpText
 
 data BudgetMode  = Silent
-                 | forall cost. (Eq cost, NFData cost, PrintBudgetState cost) =>
+                 | forall cost. (Eq cost, NFData cost, PrintBudgetState cost, Monoid cost) =>
                      Verbose (Cek.ExBudgetMode cost PLC.DefaultUni PLC.DefaultFun)
 
 data EvalOptions = EvalOptions Input Format PrintMode BudgetMode TimingMode CekModel
@@ -170,18 +170,18 @@ runEval (EvalOptions inp ifmt printMode budgetMode timingMode cekModel) = do
                                                          -- type is encountered.  This is useful for calibrating the budgeting code.
     case budgetMode of
         Silent -> do
-            let evaluate = Cek.evaluateCekNoEmit cekparams
+            let evaluate = Cek.evaluateCekNoEmit' cekparams
             case timingMode of
                 NoTiming -> evaluate term & handleEResult printMode
                 Timing n -> timeEval n evaluate term >>= handleTimingResults term
         Verbose bm -> do
-            let evaluate = Cek.runCekNoEmit cekparams bm
+            let evaluate = Cek.runCekNoEmit' cekparams bm
             case timingMode of
                 NoTiming -> do
                         let (result, budget) = evaluate term
                         printBudgetState term cekModel budget
                         handleResultSilently result  -- We just want to see the budget information
-                Timing n -> timeEval n evaluate term >>= handleTimingResultsWithBudget term
+                Timing n -> timeEval n evaluate term >>= undefined --handleTimingResultsWithBudget term
     where
         handleResultSilently =
             \case

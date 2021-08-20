@@ -45,10 +45,10 @@ benchWith
 benchWith params name term = env
     (do
         (_result, budget) <-
-          pure $ (unsafeEvaluateCek noEmitter params) term
+          pure $ (unsafeEvaluateCek' noEmitter params) term
         pure budget
         )
-    $ \_ -> bench name $ nf (unsafeEvaluateCek noEmitter params) term
+    $ \_ -> bench name $ nf (unsafeEvaluateCek' noEmitter params) term
 
 benchDefault :: String -> PlainTerm DefaultFun -> Benchmark
 benchDefault = benchWith defaultCekParameters

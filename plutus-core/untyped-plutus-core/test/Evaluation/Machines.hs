@@ -36,10 +36,10 @@ import           Test.Tasty
 import           Test.Tasty.Hedgehog
 
 testMachine
-    :: (uni ~ DefaultUni, fun ~ DefaultFun, PrettyPlc internal)
+    :: (uni ~ DefaultUni, fun ~ DefaultFun, PrettyPlc internal, PrettyPlc term')
     => String
     -> (Term Name uni fun () ->
-           Either (EvaluationException user internal (Term Name uni fun ())) (Term Name uni fun ()))
+           Either (EvaluationException user internal term') (Term Name uni fun ()))
     -> TestTree
 testMachine machine eval =
     testGroup machine $ fromInterestingTermGens $ \name genTermOfTbv ->
@@ -53,7 +53,7 @@ testMachine machine eval =
 test_machines :: TestTree
 test_machines =
     testGroup "machines"
-        [ testMachine "CEK"  $ evaluateCekNoEmit Plc.defaultCekParameters
+        [ testMachine "CEK"  $ evaluateCekNoEmit' Plc.defaultCekParameters
         , testMachine "HOAS" $ evaluateHoas Plc.defaultBuiltinsRuntime
         ]
 
@@ -67,7 +67,7 @@ testBudget runtime name term =
                        nestedGoldenVsText
     name
     (renderStrict $ layoutPretty defaultLayoutOptions {layoutPageWidth = AvailablePerLine maxBound 1.0} $
-        prettyPlcReadableDef $ runCekNoEmit (MachineParameters Plc.defaultCekMachineCosts runtime) Cek.tallying term)
+        prettyPlcReadableDef $ runCekNoEmit' (MachineParameters Plc.defaultCekMachineCosts runtime) Cek.tallying term)
 
 bunchOfFibs :: PlcFolderContents DefaultUni DefaultFun
 bunchOfFibs = FolderContents [treeFolderContents "Fib" $ map fibFile [1..3]] where
@@ -130,7 +130,7 @@ testTallying name term =
                        nestedGoldenVsText
     name
     (renderStrict $ layoutPretty defaultLayoutOptions {layoutPageWidth = AvailablePerLine maxBound 1.0} $
-        prettyPlcReadableDef $ runCekNoEmit Plc.defaultCekParameters Cek.tallying term)
+        prettyPlcReadableDef $ runCekNoEmit' Plc.defaultCekParameters Cek.tallying term)
 
 test_tallying :: TestTree
 test_tallying =

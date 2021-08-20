@@ -512,12 +512,13 @@ handleEResult printMode result =
   case result of
     Right v  -> print (getPrintMethod printMode v) >> exitSuccess
     Left err -> print err *> exitFailure
-handleTimingResults :: (Eq a1, Eq b, Show a1) => p -> [Either a1 b] -> IO a2
+handleTimingResults :: (Eq b, Show a1) => p -> [Either a1 b] -> IO a2
 handleTimingResults _ results =
-    case nub results of
-      [Right _]  -> exitSuccess -- We don't want to see the result here
-      [Left err] -> print err >> exitFailure
-      _          -> error "Timing evaluations returned inconsistent results" -- Should never happen
+    case sequence results of
+      Left err -> print err >> exitFailure
+      Right successes -> case nub successes of
+          [_] -> exitSuccess -- We don't want to see the result here
+          _   -> error "Timing evaluations returned inconsistent results" -- Should never happen
 
 ----------------- Print examples -----------------------
 

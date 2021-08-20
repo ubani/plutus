@@ -40,7 +40,7 @@ typecheckEvaluateCek
     => MachineParameters CekMachineCosts CekValue uni fun
     -> TPLC.Term TyName Name uni fun ()
     -> m (EvaluationResult (UPLC.Term Name uni fun ()), [Text])
-typecheckEvaluateCek = typecheckAnd $ unsafeEvaluateCek logEmitter
+typecheckEvaluateCek = typecheckAnd $ unsafeEvaluateCek' logEmitter
 
 -- | Type check and evaluate a term, logging disabled.
 typecheckEvaluateCekNoEmit
@@ -50,7 +50,7 @@ typecheckEvaluateCekNoEmit
     => MachineParameters CekMachineCosts CekValue uni fun
     -> TPLC.Term TyName Name uni fun ()
     -> m (EvaluationResult (UPLC.Term Name uni fun ()))
-typecheckEvaluateCekNoEmit = typecheckAnd unsafeEvaluateCekNoEmit
+typecheckEvaluateCekNoEmit = typecheckAnd unsafeEvaluateCekNoEmit'
 
 -- | Type check and convert a Plutus Core term to a Haskell value.
 typecheckReadKnownCek
@@ -61,4 +61,4 @@ typecheckReadKnownCek
     => MachineParameters CekMachineCosts CekValue uni fun
     -> TPLC.Term TyName Name uni fun ()
     -> m (Either (CekEvaluationException uni fun) a)
-typecheckReadKnownCek = typecheckAnd readKnownCek
+typecheckReadKnownCek = undefined -- typecheckAnd readKnownCek
