@@ -489,19 +489,20 @@ spendBudgetCek = let (CekBudgetSpender spend) = ?cekBudgetSpender in spend
 -- | Instantiate all the free variables of a term by looking them up in an environment.
 -- Mutually recursive with dischargeCekVal.
 dischargeCekValEnv :: forall uni fun . CekValEnv uni fun -> Term NamedDeBruijn uni fun () -> Term NamedDeBruijn uni fun ()
-dischargeCekValEnv !valEnv = go 1
+dischargeCekValEnv !valEnv = go 0
     where
       go :: Word -> Term NamedDeBruijn uni fun () -> Term NamedDeBruijn uni fun ()
       go !lvl = \case
         var@(Var _ name) ->
             let i = coerce (ndbnIndex name) :: Word
-                relI = i - lvl
-            in if relI <= 0
+            in if lvl >= i
             -- bound variable so leave it alone
             then var
-            else dischargeCekValue $ DBE.unsafeIndex valEnv relI
+            else case DBE.index valEnv (i - lvl) of
+                Just val -> dischargeCekValue val
+                Nothing  -> var -- questionable
         LamAbs ann name body -> LamAbs ann name $ go (lvl+1) body
-        Apply ann fun arg    -> Apply ann (go lvl fun) $ go lvl arg
+        Apply ann fun arg    -> Apply ann (go lvl fun) (go lvl arg)
         Delay ann term       -> Delay ann $ go lvl term
         Force ann term       -> Force ann $ go lvl term
         t -> t
