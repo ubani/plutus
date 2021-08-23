@@ -78,6 +78,7 @@ library
 
 
 test-suite plutus-tx-tests
+    import: lang
     if flag(use-ghc-stub)
         buildable: False
     type: exitcode-stdio-1.0
@@ -100,7 +101,6 @@ test-suite plutus-tx-tests
         TH.Spec
         TH.TestTH
         Lib
-    default-language: Haskell2010
     build-depends:
         base >=4.9 && <5,
         flat -any,

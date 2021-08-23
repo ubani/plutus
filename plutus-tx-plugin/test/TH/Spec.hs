@@ -26,7 +26,6 @@ import qualified Prelude                   as Haskell
 import           PlutusTx
 import qualified PlutusTx.Builtins         as Builtins
 import           PlutusTx.Code
-import           PlutusTx.Evaluation
 import           PlutusTx.Prelude
 import           PlutusTx.TH
 

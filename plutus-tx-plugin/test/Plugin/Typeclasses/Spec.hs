@@ -9,17 +9,12 @@ module Plugin.Typeclasses.Spec where
 
 import           Common
 import           Lib
-import           PlcTestUtils
-import           Plugin.Data.Spec
-import           Plugin.Lib
 import           Plugin.Typeclasses.Lib
 
 import qualified PlutusTx.Builtins      as Builtins
 import           PlutusTx.Code
 import           PlutusTx.Plugin
 import qualified PlutusTx.Prelude       as P
-
-import qualified PlutusCore.Default     as PLC
 
 import           Data.Proxy
 

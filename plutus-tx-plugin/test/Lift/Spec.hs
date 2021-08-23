@@ -4,11 +4,10 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
-{-# OPTIONS_GHC   -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Lift.Spec where
 
 import           Common
-import           Lib
 import           PlcTestUtils
 import           Plugin.Data.Spec
 import           Plugin.Primitives.Spec
