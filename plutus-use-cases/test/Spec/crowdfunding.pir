@@ -267,6 +267,14 @@
         )
         (datatypebind
           (datatype
+            (tyvardecl UTuple2 (fun (type) (fun (type) (type))))
+            (tyvardecl a (type)) (tyvardecl b (type))
+            UTuple2_match
+            (vardecl UTuple2 (fun a (fun b [ [ UTuple2 a ] b ])))
+          )
+        )
+        (datatypebind
+          (datatype
             (tyvardecl Campaign (type))
 
             Campaign_match
@@ -280,20 +288,31 @@
         )
         (termbind
           (strict)
-          (vardecl collectionRange (fun Campaign [ Interval (con integer) ]))
+          (vardecl
+            wcollectionRange
+            (fun
+              Campaign
+              [
+                [ UTuple2 [ LowerBound (con integer) ] ]
+                [ UpperBound (con integer) ]
+              ])
+          )
           (lam
-            cmp
+            w
             Campaign
             [
               [
-                { Interval (con integer) }
+                {
+                  { UTuple2 [ LowerBound (con integer) ] }
+                  [ UpperBound (con integer) ]
+                }
                 [
                   [
                     { LowerBound (con integer) }
                     [
                       { Finite (con integer) }
                       [
-                        { [ Campaign_match cmp ] (con integer) }
+                        { [ Campaign_match w ] (con integer) }
                         (lam
                           ds
                           (con integer)
@@ -314,7 +333,7 @@
                       [
                         (builtin subtractInteger)
                         [
-                          { [ Campaign_match cmp ] (con integer) }
+                          { [ Campaign_match w ] (con integer) }
                           (lam
                             ds
                             (con integer)
@@ -337,271 +356,6 @@
 
             Ordering_match
             (vardecl EQ Ordering) (vardecl GT Ordering) (vardecl LT Ordering)
-          )
-        )
-        (termbind
-          (strict)
-          (vardecl
-            fOrdInteger_ccompare
-            (fun (con integer) (fun (con integer) Ordering))
-          )
-          (lam
-            x
-            (con integer)
-            (lam
-              y
-              (con integer)
-              {
-                [
-                  [
-                    {
-                      [
-                        Bool_match
-                        [
-                          [
-                            [
-                              { (builtin ifThenElse) Bool }
-                              [ [ (builtin equalsInteger) x ] y ]
-                            ]
-                            True
-                          ]
-                          False
-                        ]
-                      ]
-                      (all dead (type) Ordering)
-                    }
-                    (abs dead (type) EQ)
-                  ]
-                  (abs
-                    dead
-                    (type)
-                    {
-                      [
-                        [
-                          {
-                            [
-                              Bool_match
-                              [
-                                [
-                                  [
-                                    { (builtin ifThenElse) Bool }
-                                    [ [ (builtin lessThanEqualsInteger) x ] y ]
-                                  ]
-                                  True
-                                ]
-                                False
-                              ]
-                            ]
-                            (all dead (type) Ordering)
-                          }
-                          (abs dead (type) LT)
-                        ]
-                        (abs dead (type) GT)
-                      ]
-                      (all dead (type) dead)
-                    }
-                  )
-                ]
-                (all dead (type) dead)
-              }
-            )
-          )
-        )
-        (termbind
-          (strict)
-          (vardecl
-            fOrdInteger_cmax
-            (fun (con integer) (fun (con integer) (con integer)))
-          )
-          (lam
-            x
-            (con integer)
-            (lam
-              y
-              (con integer)
-              {
-                [
-                  [
-                    {
-                      [
-                        Bool_match
-                        [
-                          [
-                            [
-                              { (builtin ifThenElse) Bool }
-                              [ [ (builtin lessThanEqualsInteger) x ] y ]
-                            ]
-                            True
-                          ]
-                          False
-                        ]
-                      ]
-                      (all dead (type) (con integer))
-                    }
-                    (abs dead (type) y)
-                  ]
-                  (abs dead (type) x)
-                ]
-                (all dead (type) dead)
-              }
-            )
-          )
-        )
-        (termbind
-          (strict)
-          (vardecl
-            fOrdInteger_cmin
-            (fun (con integer) (fun (con integer) (con integer)))
-          )
-          (lam
-            x
-            (con integer)
-            (lam
-              y
-              (con integer)
-              {
-                [
-                  [
-                    {
-                      [
-                        Bool_match
-                        [
-                          [
-                            [
-                              { (builtin ifThenElse) Bool }
-                              [ [ (builtin lessThanEqualsInteger) x ] y ]
-                            ]
-                            True
-                          ]
-                          False
-                        ]
-                      ]
-                      (all dead (type) (con integer))
-                    }
-                    (abs dead (type) x)
-                  ]
-                  (abs dead (type) y)
-                ]
-                (all dead (type) dead)
-              }
-            )
-          )
-        )
-        (termbind
-          (strict)
-          (vardecl equalsInteger (fun (con integer) (fun (con integer) Bool)))
-          (lam
-            x
-            (con integer)
-            (lam
-              y
-              (con integer)
-              [
-                [
-                  [
-                    { (builtin ifThenElse) Bool }
-                    [ [ (builtin equalsInteger) x ] y ]
-                  ]
-                  True
-                ]
-                False
-              ]
-            )
-          )
-        )
-        (termbind
-          (strict)
-          (vardecl
-            greaterThanEqualsInteger
-            (fun (con integer) (fun (con integer) Bool))
-          )
-          (lam
-            x
-            (con integer)
-            (lam
-              y
-              (con integer)
-              [
-                [
-                  [
-                    { (builtin ifThenElse) Bool }
-                    [ [ (builtin lessThanInteger) x ] y ]
-                  ]
-                  False
-                ]
-                True
-              ]
-            )
-          )
-        )
-        (termbind
-          (strict)
-          (vardecl
-            greaterThanInteger (fun (con integer) (fun (con integer) Bool))
-          )
-          (lam
-            x
-            (con integer)
-            (lam
-              y
-              (con integer)
-              [
-                [
-                  [
-                    { (builtin ifThenElse) Bool }
-                    [ [ (builtin lessThanEqualsInteger) x ] y ]
-                  ]
-                  False
-                ]
-                True
-              ]
-            )
-          )
-        )
-        (termbind
-          (strict)
-          (vardecl
-            lessThanEqualsInteger (fun (con integer) (fun (con integer) Bool))
-          )
-          (lam
-            x
-            (con integer)
-            (lam
-              y
-              (con integer)
-              [
-                [
-                  [
-                    { (builtin ifThenElse) Bool }
-                    [ [ (builtin lessThanEqualsInteger) x ] y ]
-                  ]
-                  True
-                ]
-                False
-              ]
-            )
-          )
-        )
-        (termbind
-          (strict)
-          (vardecl lessThanInteger (fun (con integer) (fun (con integer) Bool)))
-          (lam
-            x
-            (con integer)
-            (lam
-              y
-              (con integer)
-              [
-                [
-                  [
-                    { (builtin ifThenElse) Bool }
-                    [ [ (builtin lessThanInteger) x ] y ]
-                  ]
-                  True
-                ]
-                False
-              ]
-            )
           )
         )
         (datatypebind
@@ -628,32 +382,6 @@
                             (fun (fun a (fun a a)) [ Ord a ]))))))))
             )
           )
-        )
-        (termbind
-          (nonstrict)
-          (vardecl fOrdPOSIXTime [ Ord (con integer) ])
-          [
-            [
-              [
-                [
-                  [
-                    [
-                      [
-                        [ { CConsOrd (con integer) } equalsInteger ]
-                        fOrdInteger_ccompare
-                      ]
-                      lessThanInteger
-                    ]
-                    lessThanEqualsInteger
-                  ]
-                  greaterThanInteger
-                ]
-                greaterThanEqualsInteger
-              ]
-              fOrdInteger_cmax
-            ]
-            fOrdInteger_cmin
-          ]
         )
         (termbind
           (strict)
@@ -2242,6 +1970,78 @@
         (termbind
           (strict)
           (vardecl
+            wc
+            (all
+              a
+              (type)
+              (fun
+                [ Ord a ]
+                (fun
+                  [ Extended a ]
+                  (fun Bool (fun [ Extended a ] (fun Bool Bool))))))
+          )
+          (abs
+            a
+            (type)
+            (lam
+              w
+              [ Ord a ]
+              (lam
+                ww
+                [ Extended a ]
+                (lam
+                  ww
+                  Bool
+                  (lam
+                    ww
+                    [ Extended a ]
+                    (lam
+                      ww
+                      Bool
+                      {
+                        [
+                          [
+                            [
+                              {
+                                [
+                                  Ordering_match
+                                  [ [ [ { hull_ccompare a } w ] ww ] ww ]
+                                ]
+                                (all dead (type) Bool)
+                              }
+                              (abs
+                                dead
+                                (type)
+                                {
+                                  [
+                                    [
+                                      {
+                                        [ Bool_match ww ] (all dead (type) Bool)
+                                      }
+                                      (abs dead (type) ww)
+                                    ]
+                                    (abs dead (type) True)
+                                  ]
+                                  (all dead (type) dead)
+                                }
+                              )
+                            ]
+                            (abs dead (type) False)
+                          ]
+                          (abs dead (type) True)
+                        ]
+                        (all dead (type) dead)
+                      }
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+        (termbind
+          (strict)
+          (vardecl
             fOrdUpperBound0_c
             (all
               a
@@ -2253,67 +2053,29 @@
             a
             (type)
             (lam
-              dOrd
+              w
               [ Ord a ]
               (lam
-                x
+                w
                 [ UpperBound a ]
                 (lam
-                  y
+                  w
                   [ UpperBound a ]
                   [
-                    { [ { UpperBound_match a } x ] Bool }
+                    { [ { UpperBound_match a } w ] Bool }
                     (lam
-                      v
+                      ww
                       [ Extended a ]
                       (lam
-                        in
+                        ww
                         Bool
                         [
-                          { [ { UpperBound_match a } y ] Bool }
+                          { [ { UpperBound_match a } w ] Bool }
                           (lam
-                            v
+                            ww
                             [ Extended a ]
                             (lam
-                              in
-                              Bool
-                              {
-                                [
-                                  [
-                                    [
-                                      {
-                                        [
-                                          Ordering_match
-                                          [
-                                            [ [ { hull_ccompare a } dOrd ] v ] v
-                                          ]
-                                        ]
-                                        (all dead (type) Bool)
-                                      }
-                                      (abs
-                                        dead
-                                        (type)
-                                        {
-                                          [
-                                            [
-                                              {
-                                                [ Bool_match in ]
-                                                (all dead (type) Bool)
-                                              }
-                                              (abs dead (type) in)
-                                            ]
-                                            (abs dead (type) True)
-                                          ]
-                                          (all dead (type) dead)
-                                        }
-                                      )
-                                    ]
-                                    (abs dead (type) False)
-                                  ]
-                                  (abs dead (type) True)
-                                ]
-                                (all dead (type) dead)
-                              }
+                              ww Bool [ [ [ [ [ { wc a } w ] ww ] ww ] ww ] ww ]
                             )
                           )
                         ]
@@ -2328,191 +2090,422 @@
         (termbind
           (strict)
           (vardecl
-            contains
+            wcontains
             (all
               a
               (type)
-              (fun [ Ord a ] (fun [ Interval a ] (fun [ Interval a ] Bool))))
+              (fun
+                [ Ord a ]
+                (fun
+                  [ Extended a ]
+                  (fun
+                    Bool
+                    (fun
+                      [ UpperBound a ]
+                      (fun
+                        [ Extended a ]
+                        (fun Bool (fun [ UpperBound a ] Bool))))))))
           )
           (abs
             a
             (type)
             (lam
-              dOrd
+              w
               [ Ord a ]
               (lam
-                ds
-                [ Interval a ]
+                ww
+                [ Extended a ]
                 (lam
-                  ds
-                  [ Interval a ]
-                  [
-                    { [ { Interval_match a } ds ] Bool }
+                  ww
+                  Bool
+                  (lam
+                    ww
+                    [ UpperBound a ]
                     (lam
-                      l
-                      [ LowerBound a ]
+                      ww
+                      [ Extended a ]
                       (lam
-                        h
-                        [ UpperBound a ]
-                        [
-                          { [ { Interval_match a } ds ] Bool }
-                          (lam
-                            l
-                            [ LowerBound a ]
-                            (lam
-                              h
-                              [ UpperBound a ]
+                        ww
+                        Bool
+                        (lam
+                          ww
+                          [ UpperBound a ]
+                          {
+                            [
                               [
-                                { [ { LowerBound_match a } l ] Bool }
-                                (lam
-                                  v
-                                  [ Extended a ]
-                                  (lam
-                                    in
-                                    Bool
+                                [
+                                  {
                                     [
-                                      { [ { LowerBound_match a } l ] Bool }
-                                      (lam
-                                        v
-                                        [ Extended a ]
-                                        (lam
-                                          in
-                                          Bool
+                                      Ordering_match
+                                      [ [ [ { hull_ccompare a } w ] ww ] ww ]
+                                    ]
+                                    (all dead (type) Bool)
+                                  }
+                                  (abs
+                                    dead
+                                    (type)
+                                    {
+                                      [
+                                        [
                                           {
-                                            [
+                                            [ Bool_match ww ]
+                                            (all dead (type) Bool)
+                                          }
+                                          (abs
+                                            dead
+                                            (type)
+                                            {
                                               [
                                                 [
                                                   {
-                                                    [
-                                                      Ordering_match
-                                                      [
-                                                        [
-                                                          [
-                                                            { hull_ccompare a }
-                                                            dOrd
-                                                          ]
-                                                          v
-                                                        ]
-                                                        v
-                                                      ]
-                                                    ]
+                                                    [ Bool_match ww ]
                                                     (all dead (type) Bool)
                                                   }
                                                   (abs
                                                     dead
                                                     (type)
-                                                    {
+                                                    [
                                                       [
                                                         [
                                                           {
-                                                            [ Bool_match in ]
-                                                            (all
-                                                              dead (type) Bool)
+                                                            fOrdUpperBound0_c a
                                                           }
-                                                          (abs
-                                                            dead
-                                                            (type)
-                                                            {
-                                                              [
-                                                                [
-                                                                  {
-                                                                    [
-                                                                      Bool_match
-                                                                      in
-                                                                    ]
-                                                                    (all
-                                                                      dead
-                                                                      (type)
-                                                                      Bool)
-                                                                  }
-                                                                  (abs
-                                                                    dead
-                                                                    (type)
-                                                                    [
-                                                                      [
-                                                                        [
-                                                                          {
-                                                                            fOrdUpperBound0_c
-                                                                            a
-                                                                          }
-                                                                          dOrd
-                                                                        ]
-                                                                        h
-                                                                      ]
-                                                                      h
-                                                                    ]
-                                                                  )
-                                                                ]
-                                                                (abs
-                                                                  dead
-                                                                  (type)
-                                                                  False
-                                                                )
-                                                              ]
-                                                              (all
-                                                                dead
-                                                                (type)
-                                                                dead)
-                                                            }
-                                                          )
+                                                          w
                                                         ]
-                                                        (abs
-                                                          dead
-                                                          (type)
-                                                          [
-                                                            [
-                                                              [
-                                                                {
-                                                                  fOrdUpperBound0_c
-                                                                  a
-                                                                }
-                                                                dOrd
-                                                              ]
-                                                              h
-                                                            ]
-                                                            h
-                                                          ]
-                                                        )
+                                                        ww
                                                       ]
-                                                      (all dead (type) dead)
-                                                    }
+                                                      ww
+                                                    ]
                                                   )
                                                 ]
                                                 (abs dead (type) False)
                                               ]
-                                              (abs
-                                                dead
-                                                (type)
-                                                [
-                                                  [
-                                                    [
-                                                      { fOrdUpperBound0_c a }
-                                                      dOrd
-                                                    ]
-                                                    h
-                                                  ]
-                                                  h
-                                                ]
-                                              )
-                                            ]
-                                            (all dead (type) dead)
-                                          }
+                                              (all dead (type) dead)
+                                            }
+                                          )
+                                        ]
+                                        (abs
+                                          dead
+                                          (type)
+                                          [
+                                            [ [ { fOrdUpperBound0_c a } w ] ww ]
+                                            ww
+                                          ]
                                         )
-                                      )
-                                    ]
+                                      ]
+                                      (all dead (type) dead)
+                                    }
                                   )
-                                )
+                                ]
+                                (abs dead (type) False)
                               ]
-                            )
-                          )
-                        ]
+                              (abs
+                                dead
+                                (type)
+                                [ [ [ { fOrdUpperBound0_c a } w ] ww ] ww ]
+                              )
+                            ]
+                            (all dead (type) dead)
+                          }
+                        )
                       )
                     )
-                  ]
+                  )
                 )
               )
             )
           )
+        )
+        (termbind
+          (strict)
+          (vardecl
+            fOrdInteger_ccompare
+            (fun (con integer) (fun (con integer) Ordering))
+          )
+          (lam
+            x
+            (con integer)
+            (lam
+              y
+              (con integer)
+              {
+                [
+                  [
+                    {
+                      [
+                        Bool_match
+                        [
+                          [
+                            [
+                              { (builtin ifThenElse) Bool }
+                              [ [ (builtin equalsInteger) x ] y ]
+                            ]
+                            True
+                          ]
+                          False
+                        ]
+                      ]
+                      (all dead (type) Ordering)
+                    }
+                    (abs dead (type) EQ)
+                  ]
+                  (abs
+                    dead
+                    (type)
+                    {
+                      [
+                        [
+                          {
+                            [
+                              Bool_match
+                              [
+                                [
+                                  [
+                                    { (builtin ifThenElse) Bool }
+                                    [ [ (builtin lessThanEqualsInteger) x ] y ]
+                                  ]
+                                  True
+                                ]
+                                False
+                              ]
+                            ]
+                            (all dead (type) Ordering)
+                          }
+                          (abs dead (type) LT)
+                        ]
+                        (abs dead (type) GT)
+                      ]
+                      (all dead (type) dead)
+                    }
+                  )
+                ]
+                (all dead (type) dead)
+              }
+            )
+          )
+        )
+        (termbind
+          (strict)
+          (vardecl
+            fOrdInteger_cmax
+            (fun (con integer) (fun (con integer) (con integer)))
+          )
+          (lam
+            x
+            (con integer)
+            (lam
+              y
+              (con integer)
+              {
+                [
+                  [
+                    {
+                      [
+                        Bool_match
+                        [
+                          [
+                            [
+                              { (builtin ifThenElse) Bool }
+                              [ [ (builtin lessThanEqualsInteger) x ] y ]
+                            ]
+                            True
+                          ]
+                          False
+                        ]
+                      ]
+                      (all dead (type) (con integer))
+                    }
+                    (abs dead (type) y)
+                  ]
+                  (abs dead (type) x)
+                ]
+                (all dead (type) dead)
+              }
+            )
+          )
+        )
+        (termbind
+          (strict)
+          (vardecl
+            fOrdInteger_cmin
+            (fun (con integer) (fun (con integer) (con integer)))
+          )
+          (lam
+            x
+            (con integer)
+            (lam
+              y
+              (con integer)
+              {
+                [
+                  [
+                    {
+                      [
+                        Bool_match
+                        [
+                          [
+                            [
+                              { (builtin ifThenElse) Bool }
+                              [ [ (builtin lessThanEqualsInteger) x ] y ]
+                            ]
+                            True
+                          ]
+                          False
+                        ]
+                      ]
+                      (all dead (type) (con integer))
+                    }
+                    (abs dead (type) x)
+                  ]
+                  (abs dead (type) y)
+                ]
+                (all dead (type) dead)
+              }
+            )
+          )
+        )
+        (termbind
+          (strict)
+          (vardecl equalsInteger (fun (con integer) (fun (con integer) Bool)))
+          (lam
+            x
+            (con integer)
+            (lam
+              y
+              (con integer)
+              [
+                [
+                  [
+                    { (builtin ifThenElse) Bool }
+                    [ [ (builtin equalsInteger) x ] y ]
+                  ]
+                  True
+                ]
+                False
+              ]
+            )
+          )
+        )
+        (termbind
+          (strict)
+          (vardecl
+            greaterThanEqualsInteger
+            (fun (con integer) (fun (con integer) Bool))
+          )
+          (lam
+            x
+            (con integer)
+            (lam
+              y
+              (con integer)
+              [
+                [
+                  [
+                    { (builtin ifThenElse) Bool }
+                    [ [ (builtin lessThanInteger) x ] y ]
+                  ]
+                  False
+                ]
+                True
+              ]
+            )
+          )
+        )
+        (termbind
+          (strict)
+          (vardecl
+            greaterThanInteger (fun (con integer) (fun (con integer) Bool))
+          )
+          (lam
+            x
+            (con integer)
+            (lam
+              y
+              (con integer)
+              [
+                [
+                  [
+                    { (builtin ifThenElse) Bool }
+                    [ [ (builtin lessThanEqualsInteger) x ] y ]
+                  ]
+                  False
+                ]
+                True
+              ]
+            )
+          )
+        )
+        (termbind
+          (strict)
+          (vardecl
+            lessThanEqualsInteger (fun (con integer) (fun (con integer) Bool))
+          )
+          (lam
+            x
+            (con integer)
+            (lam
+              y
+              (con integer)
+              [
+                [
+                  [
+                    { (builtin ifThenElse) Bool }
+                    [ [ (builtin lessThanEqualsInteger) x ] y ]
+                  ]
+                  True
+                ]
+                False
+              ]
+            )
+          )
+        )
+        (termbind
+          (strict)
+          (vardecl lessThanInteger (fun (con integer) (fun (con integer) Bool)))
+          (lam
+            x
+            (con integer)
+            (lam
+              y
+              (con integer)
+              [
+                [
+                  [
+                    { (builtin ifThenElse) Bool }
+                    [ [ (builtin lessThanInteger) x ] y ]
+                  ]
+                  True
+                ]
+                False
+              ]
+            )
+          )
+        )
+        (termbind
+          (nonstrict)
+          (vardecl fOrdPOSIXTime [ Ord (con integer) ])
+          [
+            [
+              [
+                [
+                  [
+                    [
+                      [
+                        [ { CConsOrd (con integer) } equalsInteger ]
+                        fOrdInteger_ccompare
+                      ]
+                      lessThanInteger
+                    ]
+                    lessThanEqualsInteger
+                  ]
+                  greaterThanInteger
+                ]
+                greaterThanEqualsInteger
+              ]
+              fOrdInteger_cmax
+            ]
+            fOrdInteger_cmin
+          ]
         )
         (datatypebind
           (datatype
@@ -2705,23 +2698,244 @@
             )
             (termbind
               (strict)
-              (vardecl txSignedBy (fun TxInfo (fun (con bytestring) Bool)))
+              (vardecl
+                wtxSignedBy
+                (fun [ List (con bytestring) ] (fun (con bytestring) Bool))
+              )
               (lam
-                ds
-                TxInfo
+                ww
+                [ List (con bytestring) ]
                 (lam
-                  k
+                  w
                   (con bytestring)
-                  [
-                    { [ TxInfo_match ds ] Bool }
+                  {
+                    [
+                      [
+                        {
+                          [
+                            { Maybe_match (con bytestring) }
+                            [
+                              [
+                                [
+                                  {
+                                    {
+                                      fFoldableNil_cfoldMap
+                                      [
+                                        (lam a (type) [ Maybe a ])
+                                        (con bytestring)
+                                      ]
+                                    }
+                                    (con bytestring)
+                                  }
+                                  { fMonoidFirst (con bytestring) }
+                                ]
+                                (lam
+                                  x
+                                  (con bytestring)
+                                  {
+                                    [
+                                      [
+                                        {
+                                          [
+                                            Bool_match
+                                            [
+                                              [
+                                                [
+                                                  { (builtin ifThenElse) Bool }
+                                                  [
+                                                    [
+                                                      (builtin equalsByteString)
+                                                      w
+                                                    ]
+                                                    x
+                                                  ]
+                                                ]
+                                                True
+                                              ]
+                                              False
+                                            ]
+                                          ]
+                                          (all
+                                            dead
+                                            (type)
+                                            [ Maybe (con bytestring) ])
+                                        }
+                                        (abs
+                                          dead
+                                          (type)
+                                          [ { Just (con bytestring) } x ]
+                                        )
+                                      ]
+                                      (abs
+                                        dead (type) { Nothing (con bytestring) }
+                                      )
+                                    ]
+                                    (all dead (type) dead)
+                                  }
+                                )
+                              ]
+                              ww
+                            ]
+                          ]
+                          (all dead (type) Bool)
+                        }
+                        (lam ds (con bytestring) (abs dead (type) True))
+                      ]
+                      (abs dead (type) False)
+                    ]
+                    (all dead (type) dead)
+                  }
+                )
+              )
+            )
+            (termbind
+              (strict)
+              (vardecl
+                wvalidCollection
+                (fun
+                  Campaign
+                  (fun
+                    [ Extended (con integer) ]
+                    (fun
+                      Bool
+                      (fun
+                        [ UpperBound (con integer) ]
+                        (fun [ List (con bytestring) ] Bool)))))
+              )
+              (lam
+                w
+                Campaign
+                (lam
+                  ww
+                  [ Extended (con integer) ]
+                  (lam
+                    ww
+                    Bool
                     (lam
-                      ds
+                      ww
+                      [ UpperBound (con integer) ]
+                      (lam
+                        ww
+                        [ List (con bytestring) ]
+                        [
+                          {
+                            [
+                              {
+                                { UTuple2_match [ LowerBound (con integer) ] }
+                                [ UpperBound (con integer) ]
+                              }
+                              [ wcollectionRange w ]
+                            ]
+                            Bool
+                          }
+                          (lam
+                            ww
+                            [ LowerBound (con integer) ]
+                            (lam
+                              ww
+                              [ UpperBound (con integer) ]
+                              [
+                                {
+                                  [ { LowerBound_match (con integer) } ww ] Bool
+                                }
+                                (lam
+                                  ww
+                                  [ Extended (con integer) ]
+                                  (lam
+                                    ww
+                                    Bool
+                                    {
+                                      [
+                                        [
+                                          {
+                                            [
+                                              Bool_match
+                                              [
+                                                [
+                                                  [
+                                                    [
+                                                      [
+                                                        [
+                                                          [
+                                                            {
+                                                              wcontains
+                                                              (con integer)
+                                                            }
+                                                            fOrdPOSIXTime
+                                                          ]
+                                                          ww
+                                                        ]
+                                                        ww
+                                                      ]
+                                                      ww
+                                                    ]
+                                                    ww
+                                                  ]
+                                                  ww
+                                                ]
+                                                ww
+                                              ]
+                                            ]
+                                            (all dead (type) Bool)
+                                          }
+                                          (abs
+                                            dead
+                                            (type)
+                                            [
+                                              [ wtxSignedBy ww ]
+                                              [
+                                                {
+                                                  [ Campaign_match w ]
+                                                  (con bytestring)
+                                                }
+                                                (lam
+                                                  ds
+                                                  (con integer)
+                                                  (lam
+                                                    ds
+                                                    (con integer)
+                                                    (lam ds (con bytestring) ds)
+                                                  )
+                                                )
+                                              ]
+                                            ]
+                                          )
+                                        ]
+                                        (abs dead (type) False)
+                                      ]
+                                      (all dead (type) dead)
+                                    }
+                                  )
+                                )
+                              ]
+                            )
+                          )
+                        ]
+                      )
+                    )
+                  )
+                )
+              )
+            )
+            (termbind
+              (strict)
+              (vardecl validCollection (fun Campaign (fun TxInfo Bool)))
+              (lam
+                w
+                Campaign
+                (lam
+                  w
+                  TxInfo
+                  [
+                    { [ TxInfo_match w ] Bool }
+                    (lam
+                      ww
                       [ List TxInInfo ]
                       (lam
-                        ds
+                        ww
                         [ List TxOut ]
                         (lam
-                          ds
+                          ww
                           [
                             [
                               (lam
@@ -2742,7 +2956,7 @@
                             ]
                           ]
                           (lam
-                            ds
+                            ww
                             [
                               [
                                 (lam
@@ -2763,22 +2977,22 @@
                               ]
                             ]
                             (lam
-                              ds
+                              ww
                               [ List DCert ]
                               (lam
-                                ds
+                                ww
                                 [
                                   List
                                   [ [ Tuple2 StakingCredential ] (con integer) ]
                                 ]
                                 (lam
-                                  ds
+                                  ww
                                   [ Interval (con integer) ]
                                   (lam
-                                    ds
+                                    ww
                                     [ List (con bytestring) ]
                                     (lam
-                                      ds
+                                      ww
                                       [
                                         List
                                         [
@@ -2786,120 +3000,60 @@
                                         ]
                                       ]
                                       (lam
-                                        ds
+                                        ww
                                         (con bytestring)
-                                        {
-                                          [
+                                        [
+                                          {
                                             [
-                                              {
-                                                [
-                                                  {
-                                                    Maybe_match (con bytestring)
-                                                  }
+                                              { Interval_match (con integer) }
+                                              ww
+                                            ]
+                                            Bool
+                                          }
+                                          (lam
+                                            ww
+                                            [ LowerBound (con integer) ]
+                                            (lam
+                                              ww
+                                              [ UpperBound (con integer) ]
+                                              [
+                                                {
                                                   [
+                                                    {
+                                                      LowerBound_match
+                                                      (con integer)
+                                                    }
+                                                    ww
+                                                  ]
+                                                  Bool
+                                                }
+                                                (lam
+                                                  ww
+                                                  [ Extended (con integer) ]
+                                                  (lam
+                                                    ww
+                                                    Bool
                                                     [
                                                       [
-                                                        {
-                                                          {
-                                                            fFoldableNil_cfoldMap
-                                                            [
-                                                              (lam
-                                                                a
-                                                                (type)
-                                                                [ Maybe a ])
-                                                              (con bytestring)
-                                                            ]
-                                                          }
-                                                          (con bytestring)
-                                                        }
-                                                        {
-                                                          fMonoidFirst
-                                                          (con bytestring)
-                                                        }
-                                                      ]
-                                                      (lam
-                                                        x
-                                                        (con bytestring)
-                                                        {
+                                                        [
                                                           [
                                                             [
-                                                              {
-                                                                [
-                                                                  Bool_match
-                                                                  [
-                                                                    [
-                                                                      [
-                                                                        {
-                                                                          (builtin
-                                                                            ifThenElse
-                                                                          )
-                                                                          Bool
-                                                                        }
-                                                                        [
-                                                                          [
-                                                                            (builtin
-                                                                              equalsByteString
-                                                                            )
-                                                                            k
-                                                                          ]
-                                                                          x
-                                                                        ]
-                                                                      ]
-                                                                      True
-                                                                    ]
-                                                                    False
-                                                                  ]
-                                                                ]
-                                                                (all
-                                                                  dead
-                                                                  (type)
-                                                                  [
-                                                                    Maybe
-                                                                    (con
-                                                                      bytestring)
-                                                                  ])
-                                                              }
-                                                              (abs
-                                                                dead
-                                                                (type)
-                                                                [
-                                                                  {
-                                                                    Just
-                                                                    (con
-                                                                      bytestring)
-                                                                  }
-                                                                  x
-                                                                ]
-                                                              )
+                                                              wvalidCollection w
                                                             ]
-                                                            (abs
-                                                              dead
-                                                              (type)
-                                                              {
-                                                                Nothing
-                                                                (con bytestring)
-                                                              }
-                                                            )
+                                                            ww
                                                           ]
-                                                          (all dead (type) dead)
-                                                        }
-                                                      )
+                                                          ww
+                                                        ]
+                                                        ww
+                                                      ]
+                                                      ww
                                                     ]
-                                                    ds
-                                                  ]
-                                                ]
-                                                (all dead (type) Bool)
-                                              }
-                                              (lam
-                                                ds
-                                                (con bytestring)
-                                                (abs dead (type) True)
-                                              )
-                                            ]
-                                            (abs dead (type) False)
-                                          ]
-                                          (all dead (type) dead)
-                                        }
+                                                  )
+                                                )
+                                              ]
+                                            )
+                                          )
+                                        ]
                                       )
                                     )
                                   )
@@ -2916,193 +3070,56 @@
             )
             (termbind
               (strict)
-              (vardecl validCollection (fun Campaign (fun TxInfo Bool)))
-              (lam
-                campaign
-                Campaign
-                (lam
-                  txinfo
-                  TxInfo
-                  {
-                    [
-                      [
-                        {
-                          [
-                            Bool_match
-                            [
-                              [
-                                [ { contains (con integer) } fOrdPOSIXTime ]
-                                [ collectionRange campaign ]
-                              ]
-                              [
-                                {
-                                  [ TxInfo_match txinfo ]
-                                  [ Interval (con integer) ]
-                                }
-                                (lam
-                                  ds
-                                  [ List TxInInfo ]
-                                  (lam
-                                    ds
-                                    [ List TxOut ]
-                                    (lam
-                                      ds
-                                      [
-                                        [
-                                          (lam
-                                            k
-                                            (type)
-                                            (lam
-                                              v
-                                              (type)
-                                              [ List [ [ Tuple2 k ] v ] ]))
-                                          (con bytestring)
-                                        ]
-                                        [
-                                          [
-                                            (lam
-                                              k
-                                              (type)
-                                              (lam
-                                                v
-                                                (type)
-                                                [ List [ [ Tuple2 k ] v ] ]))
-                                            (con bytestring)
-                                          ]
-                                          (con integer)
-                                        ]
-                                      ]
-                                      (lam
-                                        ds
-                                        [
-                                          [
-                                            (lam
-                                              k
-                                              (type)
-                                              (lam
-                                                v
-                                                (type)
-                                                [ List [ [ Tuple2 k ] v ] ]))
-                                            (con bytestring)
-                                          ]
-                                          [
-                                            [
-                                              (lam
-                                                k
-                                                (type)
-                                                (lam
-                                                  v
-                                                  (type)
-                                                  [ List [ [ Tuple2 k ] v ] ]))
-                                              (con bytestring)
-                                            ]
-                                            (con integer)
-                                          ]
-                                        ]
-                                        (lam
-                                          ds
-                                          [ List DCert ]
-                                          (lam
-                                            ds
-                                            [
-                                              List
-                                              [
-                                                [ Tuple2 StakingCredential ]
-                                                (con integer)
-                                              ]
-                                            ]
-                                            (lam
-                                              ds
-                                              [ Interval (con integer) ]
-                                              (lam
-                                                ds
-                                                [ List (con bytestring) ]
-                                                (lam
-                                                  ds
-                                                  [
-                                                    List
-                                                    [
-                                                      [
-                                                        Tuple2 (con bytestring)
-                                                      ]
-                                                      (con data)
-                                                    ]
-                                                  ]
-                                                  (lam ds (con bytestring) ds)
-                                                )
-                                              )
-                                            )
-                                          )
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              ]
-                            ]
-                          ]
-                          (all dead (type) Bool)
-                        }
-                        (abs
-                          dead
-                          (type)
-                          [
-                            [ txSignedBy txinfo ]
-                            [
-                              { [ Campaign_match campaign ] (con bytestring) }
-                              (lam
-                                ds
-                                (con integer)
-                                (lam
-                                  ds (con integer) (lam ds (con bytestring) ds)
-                                )
-                              )
-                            ]
-                          ]
-                        )
-                      ]
-                      (abs dead (type) False)
-                    ]
-                    (all dead (type) dead)
-                  }
-                )
-              )
-            )
-            (termbind
-              (strict)
               (vardecl
-                validRefund
-                (fun Campaign (fun (con bytestring) (fun TxInfo Bool)))
+                wvalidRefund
+                (fun
+                  Campaign
+                  (fun
+                    (con bytestring)
+                    (fun
+                      [ Extended (con integer) ]
+                      (fun
+                        Bool
+                        (fun
+                          [ UpperBound (con integer) ]
+                          (fun [ List (con bytestring) ] Bool))))))
               )
               (lam
-                campaign
+                w
                 Campaign
                 (lam
-                  contributor
+                  w
                   (con bytestring)
                   (lam
-                    txinfo
-                    TxInfo
-                    {
-                      [
-                        [
+                    ww
+                    [ Extended (con integer) ]
+                    (lam
+                      ww
+                      Bool
+                      (lam
+                        ww
+                        [ UpperBound (con integer) ]
+                        (lam
+                          ww
+                          [ List (con bytestring) ]
                           {
                             [
-                              Bool_match
                               [
                                 [
-                                  [ { contains (con integer) } fOrdPOSIXTime ]
-                                  [
+                                  {
                                     [
-                                      { Interval (con integer) }
+                                      Ordering_match
                                       [
                                         [
-                                          { LowerBound (con integer) }
+                                          [
+                                            { hull_ccompare (con integer) }
+                                            fOrdPOSIXTime
+                                          ]
                                           [
                                             { Finite (con integer) }
                                             [
                                               {
-                                                [ Campaign_match campaign ]
+                                                [ Campaign_match w ]
                                                 (con integer)
                                               }
                                               (lam
@@ -3117,137 +3134,702 @@
                                             ]
                                           ]
                                         ]
-                                        True
+                                        ww
                                       ]
                                     ]
-                                    [
+                                    (all dead (type) Bool)
+                                  }
+                                  (abs
+                                    dead
+                                    (type)
+                                    {
                                       [
-                                        { UpperBound (con integer) }
-                                        { PosInf (con integer) }
+                                        [
+                                          {
+                                            [ Bool_match ww ]
+                                            (all dead (type) Bool)
+                                          }
+                                          (abs
+                                            dead
+                                            (type)
+                                            [
+                                              {
+                                                [
+                                                  {
+                                                    UpperBound_match
+                                                    (con integer)
+                                                  }
+                                                  ww
+                                                ]
+                                                Bool
+                                              }
+                                              (lam
+                                                ww
+                                                [ Extended (con integer) ]
+                                                (lam
+                                                  ww
+                                                  Bool
+                                                  {
+                                                    [
+                                                      [
+                                                        [
+                                                          {
+                                                            [
+                                                              {
+                                                                Extended_match
+                                                                (con integer)
+                                                              }
+                                                              ww
+                                                            ]
+                                                            (all
+                                                              dead (type) Bool)
+                                                          }
+                                                          (lam
+                                                            default_arg0
+                                                            (con integer)
+                                                            (abs
+                                                              dead
+                                                              (type)
+                                                              {
+                                                                [
+                                                                  [
+                                                                    [
+                                                                      {
+                                                                        [
+                                                                          {
+                                                                            Extended_match
+                                                                            (con
+                                                                              integer)
+                                                                          }
+                                                                          ww
+                                                                        ]
+                                                                        (all
+                                                                          dead
+                                                                          (type)
+                                                                          Bool)
+                                                                      }
+                                                                      (lam
+                                                                        default_arg0
+                                                                        (con
+                                                                          integer)
+                                                                        (abs
+                                                                          dead
+                                                                          (type)
+                                                                          [
+                                                                            [
+                                                                              wtxSignedBy
+                                                                              ww
+                                                                            ]
+                                                                            w
+                                                                          ]
+                                                                        )
+                                                                      )
+                                                                    ]
+                                                                    (abs
+                                                                      dead
+                                                                      (type)
+                                                                      [
+                                                                        [
+                                                                          wtxSignedBy
+                                                                          ww
+                                                                        ]
+                                                                        w
+                                                                      ]
+                                                                    )
+                                                                  ]
+                                                                  (abs
+                                                                    dead
+                                                                    (type)
+                                                                    [
+                                                                      [
+                                                                        wtxSignedBy
+                                                                        ww
+                                                                      ]
+                                                                      w
+                                                                    ]
+                                                                  )
+                                                                ]
+                                                                (all
+                                                                  dead
+                                                                  (type)
+                                                                  dead)
+                                                              }
+                                                            )
+                                                          )
+                                                        ]
+                                                        (abs
+                                                          dead
+                                                          (type)
+                                                          [
+                                                            [ wtxSignedBy ww ] w
+                                                          ]
+                                                        )
+                                                      ]
+                                                      (abs
+                                                        dead
+                                                        (type)
+                                                        {
+                                                          [
+                                                            [
+                                                              [
+                                                                {
+                                                                  [
+                                                                    {
+                                                                      Extended_match
+                                                                      (con
+                                                                        integer)
+                                                                    }
+                                                                    ww
+                                                                  ]
+                                                                  (all
+                                                                    dead
+                                                                    (type)
+                                                                    Bool)
+                                                                }
+                                                                (lam
+                                                                  default_arg0
+                                                                  (con integer)
+                                                                  (abs
+                                                                    dead
+                                                                    (type)
+                                                                    [
+                                                                      [
+                                                                        wtxSignedBy
+                                                                        ww
+                                                                      ]
+                                                                      w
+                                                                    ]
+                                                                  )
+                                                                )
+                                                              ]
+                                                              (abs
+                                                                dead
+                                                                (type)
+                                                                [
+                                                                  [
+                                                                    wtxSignedBy
+                                                                    ww
+                                                                  ]
+                                                                  w
+                                                                ]
+                                                              )
+                                                            ]
+                                                            (abs
+                                                              dead
+                                                              (type)
+                                                              [
+                                                                [
+                                                                  wtxSignedBy ww
+                                                                ]
+                                                                w
+                                                              ]
+                                                            )
+                                                          ]
+                                                          (all dead (type) dead)
+                                                        }
+                                                      )
+                                                    ]
+                                                    (all dead (type) dead)
+                                                  }
+                                                )
+                                              )
+                                            ]
+                                          )
+                                        ]
+                                        (abs
+                                          dead
+                                          (type)
+                                          [
+                                            {
+                                              [
+                                                {
+                                                  UpperBound_match (con integer)
+                                                }
+                                                ww
+                                              ]
+                                              Bool
+                                            }
+                                            (lam
+                                              ww
+                                              [ Extended (con integer) ]
+                                              (lam
+                                                ww
+                                                Bool
+                                                {
+                                                  [
+                                                    [
+                                                      [
+                                                        {
+                                                          [
+                                                            {
+                                                              Extended_match
+                                                              (con integer)
+                                                            }
+                                                            ww
+                                                          ]
+                                                          (all dead (type) Bool)
+                                                        }
+                                                        (lam
+                                                          default_arg0
+                                                          (con integer)
+                                                          (abs
+                                                            dead
+                                                            (type)
+                                                            {
+                                                              [
+                                                                [
+                                                                  [
+                                                                    {
+                                                                      [
+                                                                        {
+                                                                          Extended_match
+                                                                          (con
+                                                                            integer)
+                                                                        }
+                                                                        ww
+                                                                      ]
+                                                                      (all
+                                                                        dead
+                                                                        (type)
+                                                                        Bool)
+                                                                    }
+                                                                    (lam
+                                                                      default_arg0
+                                                                      (con
+                                                                        integer)
+                                                                      (abs
+                                                                        dead
+                                                                        (type)
+                                                                        [
+                                                                          [
+                                                                            wtxSignedBy
+                                                                            ww
+                                                                          ]
+                                                                          w
+                                                                        ]
+                                                                      )
+                                                                    )
+                                                                  ]
+                                                                  (abs
+                                                                    dead
+                                                                    (type)
+                                                                    [
+                                                                      [
+                                                                        wtxSignedBy
+                                                                        ww
+                                                                      ]
+                                                                      w
+                                                                    ]
+                                                                  )
+                                                                ]
+                                                                (abs
+                                                                  dead
+                                                                  (type)
+                                                                  [
+                                                                    [
+                                                                      wtxSignedBy
+                                                                      ww
+                                                                    ]
+                                                                    w
+                                                                  ]
+                                                                )
+                                                              ]
+                                                              (all
+                                                                dead
+                                                                (type)
+                                                                dead)
+                                                            }
+                                                          )
+                                                        )
+                                                      ]
+                                                      (abs
+                                                        dead
+                                                        (type)
+                                                        [ [ wtxSignedBy ww ] w ]
+                                                      )
+                                                    ]
+                                                    (abs
+                                                      dead
+                                                      (type)
+                                                      {
+                                                        [
+                                                          [
+                                                            [
+                                                              {
+                                                                [
+                                                                  {
+                                                                    Extended_match
+                                                                    (con
+                                                                      integer)
+                                                                  }
+                                                                  ww
+                                                                ]
+                                                                (all
+                                                                  dead
+                                                                  (type)
+                                                                  Bool)
+                                                              }
+                                                              (lam
+                                                                default_arg0
+                                                                (con integer)
+                                                                (abs
+                                                                  dead
+                                                                  (type)
+                                                                  [
+                                                                    [
+                                                                      wtxSignedBy
+                                                                      ww
+                                                                    ]
+                                                                    w
+                                                                  ]
+                                                                )
+                                                              )
+                                                            ]
+                                                            (abs
+                                                              dead
+                                                              (type)
+                                                              [
+                                                                [
+                                                                  wtxSignedBy ww
+                                                                ]
+                                                                w
+                                                              ]
+                                                            )
+                                                          ]
+                                                          (abs
+                                                            dead
+                                                            (type)
+                                                            [
+                                                              [ wtxSignedBy ww ]
+                                                              w
+                                                            ]
+                                                          )
+                                                        ]
+                                                        (all dead (type) dead)
+                                                      }
+                                                    )
+                                                  ]
+                                                  (all dead (type) dead)
+                                                }
+                                              )
+                                            )
+                                          ]
+                                        )
                                       ]
-                                      True
-                                    ]
-                                  ]
+                                      (all dead (type) dead)
+                                    }
+                                  )
                                 ]
+                                (abs dead (type) False)
+                              ]
+                              (abs
+                                dead
+                                (type)
                                 [
                                   {
-                                    [ TxInfo_match txinfo ]
-                                    [ Interval (con integer) ]
+                                    [ { UpperBound_match (con integer) } ww ]
+                                    Bool
                                   }
                                   (lam
-                                    ds
-                                    [ List TxInInfo ]
+                                    ww
+                                    [ Extended (con integer) ]
                                     (lam
-                                      ds
-                                      [ List TxOut ]
-                                      (lam
-                                        ds
+                                      ww
+                                      Bool
+                                      {
                                         [
                                           [
-                                            (lam
-                                              k
-                                              (type)
-                                              (lam
-                                                v
-                                                (type)
-                                                [ List [ [ Tuple2 k ] v ] ]))
-                                            (con bytestring)
-                                          ]
-                                          [
                                             [
+                                              {
+                                                [
+                                                  {
+                                                    Extended_match (con integer)
+                                                  }
+                                                  ww
+                                                ]
+                                                (all dead (type) Bool)
+                                              }
                                               (lam
-                                                k
-                                                (type)
-                                                (lam
-                                                  v
+                                                default_arg0
+                                                (con integer)
+                                                (abs
+                                                  dead
                                                   (type)
-                                                  [ List [ [ Tuple2 k ] v ] ]))
-                                              (con bytestring)
+                                                  {
+                                                    [
+                                                      [
+                                                        [
+                                                          {
+                                                            [
+                                                              {
+                                                                Extended_match
+                                                                (con integer)
+                                                              }
+                                                              ww
+                                                            ]
+                                                            (all
+                                                              dead (type) Bool)
+                                                          }
+                                                          (lam
+                                                            default_arg0
+                                                            (con integer)
+                                                            (abs
+                                                              dead
+                                                              (type)
+                                                              [
+                                                                [
+                                                                  wtxSignedBy ww
+                                                                ]
+                                                                w
+                                                              ]
+                                                            )
+                                                          )
+                                                        ]
+                                                        (abs
+                                                          dead
+                                                          (type)
+                                                          [
+                                                            [ wtxSignedBy ww ] w
+                                                          ]
+                                                        )
+                                                      ]
+                                                      (abs
+                                                        dead
+                                                        (type)
+                                                        [ [ wtxSignedBy ww ] w ]
+                                                      )
+                                                    ]
+                                                    (all dead (type) dead)
+                                                  }
+                                                )
+                                              )
                                             ]
-                                            (con integer)
+                                            (abs
+                                              dead
+                                              (type)
+                                              [ [ wtxSignedBy ww ] w ]
+                                            )
+                                          ]
+                                          (abs
+                                            dead
+                                            (type)
+                                            {
+                                              [
+                                                [
+                                                  [
+                                                    {
+                                                      [
+                                                        {
+                                                          Extended_match
+                                                          (con integer)
+                                                        }
+                                                        ww
+                                                      ]
+                                                      (all dead (type) Bool)
+                                                    }
+                                                    (lam
+                                                      default_arg0
+                                                      (con integer)
+                                                      (abs
+                                                        dead
+                                                        (type)
+                                                        [ [ wtxSignedBy ww ] w ]
+                                                      )
+                                                    )
+                                                  ]
+                                                  (abs
+                                                    dead
+                                                    (type)
+                                                    [ [ wtxSignedBy ww ] w ]
+                                                  )
+                                                ]
+                                                (abs
+                                                  dead
+                                                  (type)
+                                                  [ [ wtxSignedBy ww ] w ]
+                                                )
+                                              ]
+                                              (all dead (type) dead)
+                                            }
+                                          )
+                                        ]
+                                        (all dead (type) dead)
+                                      }
+                                    )
+                                  )
+                                ]
+                              )
+                            ]
+                            (all dead (type) dead)
+                          }
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+            (termbind
+              (strict)
+              (vardecl
+                validRefund
+                (fun Campaign (fun (con bytestring) (fun TxInfo Bool)))
+              )
+              (lam
+                w
+                Campaign
+                (lam
+                  w
+                  (con bytestring)
+                  (lam
+                    w
+                    TxInfo
+                    [
+                      { [ TxInfo_match w ] Bool }
+                      (lam
+                        ww
+                        [ List TxInInfo ]
+                        (lam
+                          ww
+                          [ List TxOut ]
+                          (lam
+                            ww
+                            [
+                              [
+                                (lam
+                                  k
+                                  (type)
+                                  (lam v (type) [ List [ [ Tuple2 k ] v ] ]))
+                                (con bytestring)
+                              ]
+                              [
+                                [
+                                  (lam
+                                    k
+                                    (type)
+                                    (lam v (type) [ List [ [ Tuple2 k ] v ] ]))
+                                  (con bytestring)
+                                ]
+                                (con integer)
+                              ]
+                            ]
+                            (lam
+                              ww
+                              [
+                                [
+                                  (lam
+                                    k
+                                    (type)
+                                    (lam v (type) [ List [ [ Tuple2 k ] v ] ]))
+                                  (con bytestring)
+                                ]
+                                [
+                                  [
+                                    (lam
+                                      k
+                                      (type)
+                                      (lam
+                                        v (type) [ List [ [ Tuple2 k ] v ] ]))
+                                    (con bytestring)
+                                  ]
+                                  (con integer)
+                                ]
+                              ]
+                              (lam
+                                ww
+                                [ List DCert ]
+                                (lam
+                                  ww
+                                  [
+                                    List
+                                    [
+                                      [ Tuple2 StakingCredential ] (con integer)
+                                    ]
+                                  ]
+                                  (lam
+                                    ww
+                                    [ Interval (con integer) ]
+                                    (lam
+                                      ww
+                                      [ List (con bytestring) ]
+                                      (lam
+                                        ww
+                                        [
+                                          List
+                                          [
+                                            [ Tuple2 (con bytestring) ]
+                                            (con data)
                                           ]
                                         ]
                                         (lam
-                                          ds
+                                          ww
+                                          (con bytestring)
                                           [
-                                            [
-                                              (lam
-                                                k
-                                                (type)
-                                                (lam
-                                                  v
-                                                  (type)
-                                                  [ List [ [ Tuple2 k ] v ] ]))
-                                              (con bytestring)
-                                            ]
-                                            [
+                                            {
                                               [
-                                                (lam
-                                                  k
-                                                  (type)
-                                                  (lam
-                                                    v
-                                                    (type)
-                                                    [
-                                                      List [ [ Tuple2 k ] v ]
-                                                    ]))
-                                                (con bytestring)
+                                                { Interval_match (con integer) }
+                                                ww
                                               ]
-                                              (con integer)
-                                            ]
-                                          ]
-                                          (lam
-                                            ds
-                                            [ List DCert ]
+                                              Bool
+                                            }
                                             (lam
-                                              ds
-                                              [
-                                                List
-                                                [
-                                                  [ Tuple2 StakingCredential ]
-                                                  (con integer)
-                                                ]
-                                              ]
+                                              ww
+                                              [ LowerBound (con integer) ]
                                               (lam
-                                                ds
-                                                [ Interval (con integer) ]
-                                                (lam
-                                                  ds
-                                                  [ List (con bytestring) ]
-                                                  (lam
-                                                    ds
+                                                ww
+                                                [ UpperBound (con integer) ]
+                                                [
+                                                  {
                                                     [
-                                                      List
+                                                      {
+                                                        LowerBound_match
+                                                        (con integer)
+                                                      }
+                                                      ww
+                                                    ]
+                                                    Bool
+                                                  }
+                                                  (lam
+                                                    ww
+                                                    [ Extended (con integer) ]
+                                                    (lam
+                                                      ww
+                                                      Bool
                                                       [
                                                         [
-                                                          Tuple2
-                                                          (con bytestring)
+                                                          [
+                                                            [
+                                                              [
+                                                                [
+                                                                  wvalidRefund w
+                                                                ]
+                                                                w
+                                                              ]
+                                                              ww
+                                                            ]
+                                                            ww
+                                                          ]
+                                                          ww
                                                         ]
-                                                        (con data)
+                                                        ww
                                                       ]
-                                                    ]
-                                                    (lam ds (con bytestring) ds)
+                                                    )
                                                   )
-                                                )
+                                                ]
                                               )
                                             )
-                                          )
+                                          ]
                                         )
                                       )
                                     )
                                   )
-                                ]
-                              ]
-                            ]
-                            (all dead (type) Bool)
-                          }
-                          (abs dead (type) [ [ txSignedBy txinfo ] contributor ]
+                                )
+                              )
+                            )
                           )
-                        ]
-                        (abs dead (type) False)
-                      ]
-                      (all dead (type) dead)
-                    }
+                        )
+                      )
+                    ]
                   )
                 )
               )
