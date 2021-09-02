@@ -124,6 +124,7 @@ data TxInfo = TxInfo
     , txInfoWdrl        :: [(StakingCredential, Integer)] -- ^ Withdrawals
     , txInfoValidRange  :: POSIXTimeRange -- ^ The valid range for the transaction.
     , txInfoSignatories :: [PubKeyHash] -- ^ Signatures provided with the transaction, attested that they all signed the tx
+    , txInfoRedeemers   :: [(ScriptPurpose, Redeemer)]
     , txInfoData        :: [(DatumHash, Datum)]
     , txInfoId          :: TxId
     -- ^ Hash of the pending transaction (excluding witnesses)
@@ -131,11 +132,11 @@ data TxInfo = TxInfo
 
 instance Eq TxInfo where
     {-# INLINABLE (==) #-}
-    TxInfo i o f m c w r s d tid == TxInfo i' o' f' m' c' w' r' s' d' tid' =
-        i == i' && o == o' && f == f' && m == m' && c == c' && w == w' && r == r' && s == s' && d == d' && tid == tid'
+    TxInfo i o f m c w r s rs d tid == TxInfo i' o' f' m' c' w' r' s' rs' d' tid' =
+        i == i' && o == o' && f == f' && m == m' && c == c' && w == w' && r == r' && s == s' && rs == rs' && d == d' && tid == tid'
 
 instance Pretty TxInfo where
-    pretty TxInfo{txInfoInputs, txInfoOutputs, txInfoFee, txInfoMint, txInfoDCert, txInfoWdrl, txInfoValidRange, txInfoSignatories, txInfoData, txInfoId} =
+    pretty TxInfo{txInfoInputs, txInfoOutputs, txInfoFee, txInfoMint, txInfoDCert, txInfoWdrl, txInfoValidRange, txInfoSignatories, txInfoRedeemers, txInfoData, txInfoId} =
         vsep
             [ "TxId:" <+> pretty txInfoId
             , "Inputs:" <+> pretty txInfoInputs
@@ -146,6 +147,7 @@ instance Pretty TxInfo where
             , "Wdrl:" <+> pretty txInfoWdrl
             , "Valid range:" <+> pretty txInfoValidRange
             , "Signatories:" <+> pretty txInfoSignatories
+            , "Redeemers:" <+> pretty txInfoRedeemers
             , "Datums:" <+> pretty txInfoData
             ]
 
