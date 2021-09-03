@@ -1,13 +1,12 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# OPTIONS_GHC -W -Wwarn=unused-top-binds #-}
+{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# OPTIONS_GHC -W -Wwarn #-}
 module PlutusIR.Transform.NewLetFloat (floatTerm) where
 
 import           Control.Lens            hiding (Strict)
-import           Data.Set.Lens              (setOf)
 import           Control.Monad.Reader
 import           Data.Bifunctor
 import           Data.Coerce
@@ -15,6 +14,7 @@ import qualified Data.List.NonEmpty      as NE
 import qualified Data.Map                as M
 import           Data.Semigroup.Foldable
 import qualified Data.Set                as S
+import           Data.Set.Lens           (setOf)
 import           GHC.Exts
 import qualified PlutusCore              as PLC
 import qualified PlutusCore.Constant     as PLC
@@ -22,7 +22,6 @@ import qualified PlutusCore.Name         as PLC
 import           PlutusIR
 import           PlutusIR.Purity
 import           PlutusIR.Subst
-
 
 {- Note [Let Floating pass]
 
@@ -79,7 +78,7 @@ right inside its depending-let inTerm.
 -- and for that we also use a "represenative" identifier (PLC.Unique).
 -- 2) Since we have lets as anchors, we also need the extra 'PosType' to signify
 -- the let's marker position (at rhs or at inTerm).
-type Pos = (Depth
+type Pos = ( Depth
            , PLC.Unique -- The lambda name or Lambda tyname or Let's representative unique
            , PosType
            )
@@ -111,28 +110,30 @@ type Depth = Int
 -- OPTIMIZE: use UniqueMap instead
 type Scope = M.Map PLC.Unique Pos
 
--- The result of the first pass is the union (superset) of all computed scopes.
--- This is larger than needed, because we don't really care about lambda/Lambda markers
--- in the later passes, but for simplicity we keep it.
-type Marks = M.Map PLC.Unique Pos
+-- The result of the first pass is a subset(union of all computed scopes).
+-- This subset contains only the marks of the floatable lets.
+type Marks = Scope
 
-data LetProduct tyname name uni fun a =
-    -- same as 'PlutusIR.Core.Type.Term' 's Let datacontructor
-    LetProduct a Recursivity (NE.NonEmpty (Binding tyname name uni fun a))  (Term tyname name uni fun a)
-
+-- | A "naked" let, without its inTerm.
+-- We use this structure
+-- 1) to determine if a let is movable/unmovable. See 'unmovable'.
+-- 2) to calculate freevars/tyvars of a let.
+-- 2) to store it in the 'FloatTable'.
 data LetNaked tyname name uni fun a = LetNaked {
-    _letNAnn :: a,
-    _letNRec :: Recursivity,
-    _letNBs :: NE.NonEmpty (Binding tyname name uni fun a)
+    _letAnn :: a,
+    _letRec :: Recursivity,
+    _letBs  :: NE.NonEmpty (Binding tyname name uni fun a)
     }
 makeLenses ''LetNaked
 
-strip :: LetProduct tyname name uni fun a -> LetNaked tyname name uni fun a
-strip (LetProduct a r bs _) = LetNaked a r bs
+-- a store of lets to be floated at their new position
+type FloatTable tyname name uni fun a = M.Map Pos (NE.NonEmpty (LetNaked tyname name uni fun a))
 
+-- | The 1st pass of marking floatable lets
 mark :: forall tyname name uni fun a.
       (Ord tyname, Ord name, PLC.HasUnique tyname PLC.TypeUnique, PLC.HasUnique name PLC.TermUnique, PLC.ToBuiltinMeaning uni fun)
-     => Term tyname name uni fun a -> Marks
+     => Term tyname name uni fun a
+     -> Marks
 mark = flip runReader initCtx . go
     where
       initCtx :: MarkCtx
@@ -144,64 +145,68 @@ mark = flip runReader initCtx . go
           LamAbs _ n _ tBody  -> withLam n $ go tBody
           TyAbs _ n _ tBody   -> withLam n $ go tBody
 
-          -- break down let nonrecs
+          -- first, break down let nonrecs.
           -- by rule: {let nonrec (b:bs) in t} === {let nonrec b in let nonrec bs in t}
           Let a NonRec (b NE.:| bs) tIn | not (null bs) ->
                 go (Let a NonRec (pure b) $ Let a NonRec (fromList bs) tIn)
 
-          -- main operation.
+          -- main operation: for letrec or single letnonrec
           Let ann r bs tIn -> do
             (depth, scope) <- ask
-            let letP = LetProduct ann r bs tIn
+            let letN = LetNaked ann r bs
                 letU = representativeBindingUnique bs
-            if unmovable letP
+            if unmovable letN
               then do
                   -- since it is unmovable, the floatpos is a new anchor
                   let newDepth = depth+1
                       toPos = (newDepth, letU,)
 
-                  marked1 <- withDepth (+1) $
-                               ifRec r (withBs bs $ toPos LetRhs) $
+                  -- let is effectful so it acts as anchor, both in rhses and inTerm
+                  withDepth (+1) $ do
+                      -- visit the rhs'es
+                      marksRhs <-
+                          -- if rec, then its bindings are in scope in the rhs'es
+                          ifRec r (withBs bs $ toPos LetRhs) $
                                   mconcat <$> traverse go (bs^..traversed.bindingSubterms)
 
-                  marked2 <- withDepth (+1) $
-                      withBs bs (toPos LamBody) $ go tIn
+                       -- visit the inTerm
+                      marksIn <-
+                          -- bindings are inscope in the InTerm for both rec&nonrec
+                          withBs bs (toPos LamBody) $ go tIn
 
-                  -- don't add any marks
-                  pure $ marked1 <> marked2
+                      -- don't add any marks, just propagate
+                      pure $ marksRhs <> marksIn
 
               else do
-                  let letN = strip letP
+                  let freeVars =
+                          -- if Rec, remove the here-bindings from free
+                          ifRec r (S.\\ setOf (traversed.bindingIds) bs) $
+                             calcFreeVars letN
 
-                      -- if Rec then here-bindings are not free
-                      freeVars = ifRec r (S.\\ setOf (traversed.bindingIds) bs) $
-                                    calcFreeVars letN
-
-                      -- the heart of the algorithm: the future position to float this let to,
+                      -- The "heart" of the algorithm: the future position to float this let to
                       -- is determined as the maximum among its dependencies (free vars).
-                      newPos@(newD,_,_) =  maxPos $ M.restrictKeys scope freeVars
+                      floatPos@(floatDepth,_,_) =  maxPos $ M.restrictKeys scope freeVars
 
-                  marks1 <- withDepth (const newD) $
-                             ifRec r (withBs bs newPos) $
-                               mconcat <$> traverse go (bs^..traversed.bindingSubterms)
+                  -- visit the rhs'es
+                  marksRhs <-
+                      -- IMPORTANT: inside the rhs, act like the current depth
+                      -- is the future floated depth of this rhs.
+                      withDepth (const floatDepth) $
+                          ifRec r (withBs bs floatPos) $
+                             mconcat <$> traverse go (bs^..traversed.bindingSubterms)
 
-                  marks2 <- withBs bs newPos $
+                  -- visit the inTerm
+                  marksIn <- withBs bs floatPos $
                       go tIn
 
-                  -- add here a new mark
-                  pure $ M.singleton letU newPos <> marks1 <> marks2
+                  -- collect here the new mark and propagate it
+                  pure $ M.singleton letU floatPos <> marksRhs <> marksIn
 
+          -- descend and collect
           t -> mconcat <$> traverse go (t^..termSubterms)
 
-      -- A helper to apply a function iff recursive
-      ifRec :: Recursivity -> (b -> b) -> b -> b
-      ifRec = \case
-          Rec -> ($)
-          NonRec -> id
 
-
-
-
+-- | Given a 'LetNaked' , it calculate its free vars and free tyvars and collects them in a set.
 calcFreeVars :: forall tyname name uni fun a.
              (Ord tyname, Ord name, PLC.HasUnique tyname PLC.TypeUnique, PLC.HasUnique name PLC.TermUnique)
              => LetNaked tyname name uni fun a
@@ -216,146 +221,167 @@ calcFreeVars (LetNaked _ r bs) = foldMap1 calcBinding bs
           <> S.map (^.PLC.theUnique) (ftvBinding r b)
 
 
--- only unique based, slow but more flexible
+-- | The second pass of cleaning the term of the floatable lets, and placing them in a separate map
+-- OPTIMIZE: use State for building the FloatTable, and for reducing the Marks
 removeLets :: forall tyname name uni fun a.
             (PLC.HasUnique tyname PLC.TypeUnique, PLC.HasUnique name PLC.TermUnique)
            => Marks
            -> Term tyname name uni fun a
-           -> (M.Map Pos (NE.NonEmpty (LetNaked tyname name uni fun a)) -- letterms
-             , Term tyname name uni fun a)
-removeLets ms = go
+           -> (FloatTable tyname name uni fun a -- the floatable lets
+             , Term tyname name uni fun a) -- the cleaned-up, reducted term
+removeLets marks = go
     where
       go :: Term tyname name uni fun a
          -> (M.Map Pos (NE.NonEmpty (LetNaked tyname name uni fun a))
            , Term tyname name uni fun a)
       go = \case
-          -- break down let nonrecs
+          -- first, break down let nonrecs.
           -- by rule: {let nonrec (b:bs) in t} === {let nonrec b in let nonrec bs in t}
           Let a NonRec (b NE.:| bs) tIn | not (null bs) ->
                 go (Let a NonRec (pure b) $ Let a NonRec (fromList bs) tIn)
+
+          -- main operation: for letrec or single letnonrec
           Let a r bs tIn ->
               let
-                  (r1s, bs') = NE.unzip $ goBinding <$> bs
-                  r1 = M.unionsWith (<>) r1s
-                  (r2, tIn') = go tIn
-              in case M.lookup (representativeBindingUnique bs) ms of
-                  Nothing  -> (M.unionWith (<>) r1 r2, Let a r bs' tIn')
-                  Just pos -> (M.insertWith (<>) pos (pure $ LetNaked a r bs') (M.unionWith (<>) r1 r2), tIn')
+                  -- go to rhse's and collect their floattable + cleanedterm
+                  (fRhs, bs') = M.unionsWith (<>) `first`
+                                   NE.unzip (goBinding <$> bs)
+                  -- go to inTerm and collect its floattable + cleanedterm
+                  (fIn, tIn') = go tIn
+                  fBoth = M.unionWith (<>) fRhs fIn
+              in case marks M.!? representativeBindingUnique bs  of
+                  -- this is not a floatable let
+                  -- propagate the floattable and KEEP this let in the cleaned term
+                  Nothing  -> (fBoth, Let a r bs' tIn')
+                  -- floatable let found.
+                  -- move this let inside the floattable and just return the traversed interm
+                  Just pos -> (M.insertWith (<>) pos (pure $ LetNaked a r bs') fBoth, tIn')
 
           Apply a t1 t2 ->
-              let
-                  (r1, t1') = go t1
-                  (r2, t2') = go t2
-              in (M.unionWith (<>) r1 r2, Apply a t1' t2')
+              let (f1, t1') = go t1
+                  (f2, t2') = go t2
+              in (M.unionWith (<>) f1 f2, Apply a t1' t2')
 
+          -- descend and collect
           TyInst a t ty -> flip (TyInst a) ty `second` go t
           TyAbs a tyname k t -> TyAbs a tyname k `second` go t
           LamAbs a name ty t -> LamAbs a name ty `second` go t
           IWrap a ty1 ty2 t -> IWrap a ty1 ty2 `second` go t
           Unwrap a t -> Unwrap a `second` go t
 
-          t -> (mempty, t)
+          -- no term inside here, nothing to do
+          t@Var{} -> (mempty, t)
+          t@Constant{} -> (mempty, t)
+          t@Builtin{} -> (mempty, t)
+          t@Error{} -> (mempty, t)
 
       goBinding :: Binding tyname name uni fun a
                 -> (M.Map Pos (NE.NonEmpty (LetNaked tyname name uni fun a))
                   , Binding tyname name uni fun a)
       goBinding = \case
               TermBind x s d t -> TermBind x s d `second` go t
-              b -> (mempty, b)
+              -- no term inside here, nothing to do
+              b@TypeBind{}     -> (mempty, b)
+              b@DatatypeBind{} -> (mempty, b)
 
+-- | The 3rd and last pass that, given the result of 'removeLets', places the lets back (floats) at the right marked positions.
 floatBackLets :: forall tyname name uni fun a.
                 (PLC.HasUnique tyname PLC.TypeUnique, PLC.HasUnique name PLC.TermUnique)
-              => M.Map Pos (NE.NonEmpty (LetNaked tyname name uni fun a))
-              -> Term tyname name uni fun a
-              -> Term tyname name uni fun a
-floatBackLets letholesTable = flip runReader topDepth . goTop
-    where
-          goTop  :: Term tyname name uni fun a -> Reader Depth (Term tyname name uni fun a)
-          goTop = mergeLetsInM topPos
+              => FloatTable tyname name uni fun a -- the lets to be floated
+              -> Term tyname name uni fun a -- the cleanedup, reducted term
+              -> Term tyname name uni fun a -- the final, floated, and correctly-scoped term
+floatBackLets fTable =
+    -- our reader context is only the depth this time.
+    flip runReader topDepth . goTop
+  where
+    -- first check if we have something to float in the top
+    goTop :: Term tyname name uni fun a -> Reader Depth (Term tyname name uni fun a)
+    goTop = floatLam topUnique <=< go
 
-          go  :: Term tyname name uni fun a -> Reader Depth (Term tyname name uni fun a)
-          go = \case
-              LamAbs a n ty tBody -> goLam (LamAbs a n ty) (n^.PLC.theUnique) tBody
-              TyAbs a n k tBody   -> goLam (TyAbs a n k) (n^.PLC.theUnique) tBody
-              Let a r bs tIn      -> do
-                  let letU = representativeBindingUnique bs
-                  k <- goLetRhs (Let a r) letU bs
-                  goLam k letU tIn
-              t                  -> t & termSubterms go
+    go  :: Term tyname name uni fun a -> Reader Depth (Term tyname name uni fun a)
+    go = \case
+        -- lam/Lam anchor, increase depth
+        LamAbs a n ty tBody -> local (+1) $
+            LamAbs a n ty <$> (floatLam (n^.PLC.theUnique) =<< go tBody)
+        -- lam/Lam anchor, increase depth
+        TyAbs a n k tBody -> local (+1) $
+            TyAbs a n k <$> (floatLam (n^.PLC.theUnique) =<< go tBody)
+        -- Unmovable-let anchor, increase depth
+        -- note that we do not touch the recursivity of an unmovable-let
+        Let a r bs tIn   -> local (+1) $ do
+            Let a r
+                <$> (floatRhs (representativeBindingUnique bs) =<< traverseOf (traversed.bindingSubterms) go bs)
+                -- act the same as lam/Lam: float right inside
+                <*> (floatLam (representativeBindingUnique bs) =<< go tIn)
 
-          goLam :: (Term tyname name uni fun a -> Term tyname name uni fun a) -- ^ continuation
-                -> PLC.Unique -- ^ lam/Lam unique
-                -> Term tyname name uni fun a -- ^ lam/Lam body
-                -> Reader Depth (Term tyname name uni fun a) -- ^ r
-          goLam k u tBody = local (+1) $ do
-              lamPos <- (,u,LamBody) <$> ask
-              -- NOTE that we do not run go(floated lets) because that would increase the depth,
-              -- but the floated lets are not anchors, instead we run go on the floated-let bindings' subterms
-              k <$> mergeLetsInM lamPos tBody
+        -- descend
+        t                  -> t & termSubterms go
 
-          goLetRhs :: (NE.NonEmpty (Binding tyname name uni fun a) -> Term tyname name uni fun a -> Term tyname name uni fun a) -- ^ continuation
-                   -> PLC.Unique -- ^ let's representative unique
-                   -> NE.NonEmpty (Binding tyname name uni fun a) -- ^ let's bindings
-                   -> Reader Depth (Term tyname name uni fun a -> Term tyname name uni fun a) -- ^ r
-          goLetRhs k u bs = local (+1) $ do
-              letPos <- (,u,LetRhs) <$> ask
-              k <$> mergeBindingsM letPos bs
+    floatLam u m = do
+        herePos <- (,u, LamBody) <$> ask
+        -- make a brand new let-group comprised of all the floatable lets just inside the lam/Lam/letInTerm
+        floatBy makeNewLet herePos m
 
-          mergeLetsInM :: Pos
-                       -> Term tyname name uni fun a
-                       -> Reader Depth (Term tyname name uni fun a)
-          mergeLetsInM pos t =
-              case M.lookup pos letholesTable of
-                  Just letholes -> do
-                      -- NOTE that we do not run go(floated lets) because that would increase the depth,
-                      -- but the floated lets are not anchors, instead we run go on the floated-let bindings' subterms
-                      letholes' <-  traverseOf (traversed.letNBs.traversed.bindingSubterms) go letholes
-                      mergeLetsIn letholes' <$> go t
-                  Nothing ->  go t
+    floatRhs u m = do
+        -- we cannot float the lets originally found inside any of the unmovable-let rhs'es back in those rhs'es
+        -- because we lost the information on which specific rhs they belonged to!
+        herePos <- (,u, LetRhs) <$> ask
+        floatBy (\ floatableNaked unmovableBindings ->
+                     -- instead we merge them together with the same level as the unmovable-let's bindings using this safe local transformation:
+                     -- letrec Unmovable = (let Floatable = e in b) in c ====> letrec { Floatable = e ; Unmovable = b } in c
+                     mergeNaked floatableNaked <> unmovableBindings
+                     -- How can we apply this letrec-only transformation for any let?
+                     -- Well if the floatable lets were originally in some unmovable-let's rhs, this implies that the unmovable let is a letrec.
+                     -- We do not touch the recursivity of an unmovable let.
+                ) herePos m
 
-          mergeBindingsM :: Pos
-                         -> NE.NonEmpty (Binding tyname name uni fun a)
-                         -> Reader Depth (NE.NonEmpty (Binding tyname name uni fun a))
-          mergeBindingsM pos bs = do
-              bs' <- traverseOf (traversed.bindingSubterms) go bs
-              case M.lookup pos letholesTable of
-                  Just letholes -> do
-                      -- NOTE that we do not run go(floated lets) because that would increase the depth,
-                      -- but the floated lets are not anchors, instead we run go on the floated-let bindings' subterms
-                      letholes' <-  traverseOf (traversed.letNBs.traversed.bindingSubterms) go letholes
-                      pure $ mergeBindings letholes' <> bs'
-                  Nothing       -> pure bs'
-
-
+    floatBy :: (NE.NonEmpty (LetNaked tyname name uni fun a) -> b -> b) -- ^ how to merge the floated bindings into a term or bindings
+             -> Pos -- ^ current floating position
+             -> b -- ^ with what to combine
+             -> Reader Depth b -- ^ the combined result
+    floatBy mergeFunc herePos next =
+        -- is there something to be floated here?
+        case fTable M.!? herePos  of
+            -- just descend
+            Nothing -> pure next
+            -- all the naked-lets to be floated here
+            Just letsNaked -> do
+                -- visit their rhs'es for any potential floatings as well
+                -- NOTE: we do not directly run go(floated-lets) because that would increase the depth,
+                -- and the floated lets are not anchors: instead we run go on the floated-let bindings' subterms
+                letsNaked' <- traverseOf (traversed.letBs.traversed.bindingSubterms) go letsNaked
+                -- apply the merging with the visit result. This is what floats them back to the pir.
+                pure $ mergeFunc letsNaked' next
 
 -- | this has the side-effect that no "directly" nested let rec or nonrec inside another let's rhs can appear,
 -- e.g. no:  let {x = 1 + let {y = 3} in y} in ...
 -- EXCEPT if the nested let is intercepted by a l/Lambda (depends on a lambda of the parent-let's rhs)
 -- e.g. ok: let {x = \ z -> let {y = z+1} in y} in ...
-mergeBindings :: NE.NonEmpty (LetNaked tyname name uni fun a)
-              -> NE.NonEmpty (Binding tyname name uni fun a)
-mergeBindings = foldMap1 (^.letNBs)
+mergeNaked :: NE.NonEmpty (LetNaked tyname name uni fun a)
+           -> NE.NonEmpty (Binding tyname name uni fun a)
+mergeNaked = foldMap1 (^.letBs)
     -- we ignore annotations and recursivity, the letholes *must be* merged together with a Recursive let bindings
     -- the order of (<>) does not matter because it is a recursive let-group anyway.
 
-mergeLetsIn :: NE.NonEmpty (LetNaked tyname name uni fun a) -> Term tyname name uni fun a -> Term tyname name uni fun a
-mergeLetsIn ls =
+makeNewLet :: NE.NonEmpty (LetNaked tyname name uni fun a) -> Term tyname name uni fun a -> Term tyname name uni fun a
+makeNewLet ls =
                  -- TODO: use some semigroup annotation-joining
                  -- arbitrary: use the annotation of the first let of the floated lets as the annotation of the new let
-                 Let (NE.head ls^.letNAnn)
+                 Let (NE.head ls^.letAnn)
                  Rec -- needs to be rec because we don't do dependency resolution at this pass, See Note [LetRec splitting pass]
-                 (mergeBindings ls)
+                 (mergeNaked ls)
 
 
+-- | The compiler pass of the algorithm (comprised of 3 connected passes).
 floatTerm :: (PLC.ToBuiltinMeaning uni fun,
             PLC.HasUnique tyname PLC.TypeUnique, PLC.HasUnique name PLC.TermUnique,
             Ord tyname, Ord name
             )
           => Term tyname name uni fun a -> Term tyname name uni fun a
 floatTerm t =
-    let ms = mark t
-        (letholes, t') = removeLets ms t
-    in floatBackLets letholes t'
+    mark t
+    & flip removeLets t
+    & uncurry floatBackLets
 
 -- CONSTANTS
 
@@ -368,9 +394,9 @@ topUnique = coerce (-1 :: Int)
 topDepth :: Depth
 topDepth = -1
 
--- arbitrary chosen as LetRhs, because top conceptually can be thought as a global let-rhs.
+-- arbitrary chosen as LamBody, because top can be imagined as a global inbody (of an empty letterm)
 topType :: PosType
-topType = LetRhs
+topType = LamBody
 
 topPos :: Pos
 topPos = (topDepth, topUnique, topType)
@@ -399,12 +425,19 @@ withBs :: (r ~ MarkCtx, MonadReader r m, PLC.HasUnique name PLC.TermUnique, PLC.
        -> m a -> m a
 withBs bs pos = local $ second (M.fromList [(bid,pos) | bid <- bs^..traversed.bindingIds] <>)
 
+-- A helper to apply a function iff recursive
+ifRec :: Recursivity -> (a -> a) -> a -> a
+ifRec = \case
+    Rec    -> ($)
+    NonRec -> id
 
-unmovable :: PLC.ToBuiltinMeaning uni fun => LetProduct tyname name uni fun a -> Bool
+
+
+unmovable :: PLC.ToBuiltinMeaning uni fun => LetNaked tyname name uni fun a -> Bool
 unmovable = \case
-    LetProduct _ Rec bs _ ->  any mayHaveEffects bs
-    LetProduct _ NonRec (b  NE.:|[]) _  -> mayHaveEffects b
-    LetProduct _ NonRec _ _ -> error "should not happen because we prior break down nonrecs"
+    LetNaked _ Rec bs              ->  any mayHaveEffects bs
+    LetNaked _ NonRec (b  NE.:|[]) -> mayHaveEffects b
+    LetNaked _ NonRec _            -> error "should not happen because we prior break down nonrecs"
 
 -- | Returns if a binding's rhs is strict and may have effects (see Value.hs)
 -- See Note [Purity, strictness, and variables]
