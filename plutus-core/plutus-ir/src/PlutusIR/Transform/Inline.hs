@@ -141,13 +141,13 @@ isTypeSubstEmpty :: Subst tyname name uni fun a -> Bool
 isTypeSubstEmpty (Subst _ (TypeEnv tyEnv)) = isEmpty tyEnv
 
 -- NOTE:  Type substitution is disabled
-extendType
-    :: (HasUnique tyname TypeUnique)
-    => tyname
-    -> Type tyname uni a
-    -> Subst tyname name uni fun a
-    -> Subst tyname name uni fun a
-extendType tn ty subst = subst &  typeEnv . unTypeEnv %~ insertByName tn ty
+-- extendType
+--     :: (HasUnique tyname TypeUnique)
+--     => tyname
+--     -> Type tyname uni a
+--     -> Subst tyname name uni fun a
+--     -> Subst tyname name uni fun a
+-- extendType tn ty subst = subst &  typeEnv . unTypeEnv %~ insertByName tn ty
 
 {- Note [Inlining and global uniqueness]
 Inlining relies on global uniqueness (we store things in a unique map), and *does* currently
@@ -256,9 +256,6 @@ processSingleBinding = \case
     TermBind a s v@(VarDecl _ n _) rhs -> do
         maybeRhs' <- maybeAddSubst s n rhs
         pure $ TermBind a s v <$> maybeRhs'
-    TypeBind _ (TyVarDecl _ tn _) rhs -> do
-        modify' (extendType tn rhs)
-        pure Nothing
     -- Not a strict binding, just process all the subterms
     b -> Just <$> forMOf bindingSubterms b processTerm
 
