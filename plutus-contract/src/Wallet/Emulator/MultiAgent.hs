@@ -44,7 +44,7 @@ import qualified Wallet.API                        as WAPI
 import qualified Wallet.Emulator.Chain             as Chain
 import           Wallet.Emulator.LogMessages       (RequestHandlerLogMsg, TxBalanceMsg)
 import qualified Wallet.Emulator.NodeClient        as NC
-import           Wallet.Emulator.Wallet            (Wallet (..), WalletId (..))
+import           Wallet.Emulator.Wallet            (Wallet (..))
 import qualified Wallet.Emulator.Wallet            as Wallet
 import           Wallet.Types                      (AssertionError (..))
 
@@ -234,8 +234,7 @@ data EmulatorState = EmulatorState {
 makeLenses ''EmulatorState
 
 walletState :: Wallet -> Lens' EmulatorState Wallet.WalletState
-walletState wallet@(Wallet (MockWallet privKey)) = walletStates . at wallet . anon (Wallet.emptyWalletState privKey) (const False)
-walletState (Wallet (XPubWallet _)) = error "XPub Wallets not supported in emulator"
+walletState wallet = walletStates . at wallet . anon (Wallet.emptyWalletState (Wallet.unsafeWalletXPrv wallet)) (const False)
 
 -- | Get the blockchain as a list of blocks, starting with the oldest (genesis)
 --   block.

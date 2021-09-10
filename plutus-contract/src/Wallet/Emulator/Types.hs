@@ -22,7 +22,6 @@ module Wallet.Emulator.Types(
     knownWallets,
     knownWallet,
     WalletNumber(..),
-    toWalletNumber,
     fromWalletNumber,
     TxPool,
     -- * Emulator

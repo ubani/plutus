@@ -156,12 +156,11 @@ data AgentState t =
 makeLenses ''AgentState
 
 initialAgentState :: forall t. Wallet -> AgentState t
-initialAgentState (Wallet (MockWallet privKey)) =
+initialAgentState wallet =
     AgentState
-        { _walletState   = Wallet.emptyWalletState privKey
+        { _walletState   = Wallet.emptyWalletState (Wallet.unsafeWalletXPrv wallet)
         , _submittedFees = mempty
         }
-initialAgentState (Wallet (XPubWallet _)) = error "Only mock wallets supported in the simulator"
 
 data SimulatorState t =
     SimulatorState

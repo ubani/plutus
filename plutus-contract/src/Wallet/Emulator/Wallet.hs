@@ -36,7 +36,6 @@ import           Data.Bifunctor
 import qualified Data.ByteString                as BS
 import           Data.Foldable
 import           Data.Hashable                  (Hashable (..))
-import           Data.List                      (findIndex)
 import qualified Data.Map                       as Map
 import           Data.Maybe
 import           Data.Ord
@@ -87,7 +86,7 @@ instance Show Wallet where
 instance Pretty Wallet where
     pretty (Wallet i) = "W" <> pretty (T.take 7 $ toBase16 i)
 
-data WalletId = MockWallet Crypto.XPrv | XPubWallet Crypto.XPub
+data WalletId = MockWallet Crypto.XPrv | XPubWallet Crypto.XPub | KnownWallet Int
     deriving (Eq, Ord, Generic)
     deriving anyclass (Hashable, ToJSONKey)
 
@@ -113,23 +112,32 @@ instance Hashable Crypto.XPrv where
 toBase16 :: WalletId -> T.Text
 toBase16 (MockWallet xprv) = encodeByteString $ Crypto.unXPrv xprv
 toBase16 (XPubWallet xpub) = encodeByteString $ Crypto.unXPub xpub
+toBase16 (KnownWallet i)   = encodeByteString . BS.singleton . fromInteger . toInteger $ i
 
 fromBase16 :: T.Text -> Either String WalletId
 fromBase16 s = do
     bs <- tryDecode s
     case BS.length bs of
+        1   -> Right . KnownWallet . fromInteger . toInteger . (`BS.index` 0) $ bs
         64  -> XPubWallet <$> Crypto.xpub bs
         128 -> MockWallet <$> Crypto.xprv bs
-        _   -> Left "fromBase16 error: bytestring length should be 64 or 128"
+        _   -> Left "fromBase16 error: bytestring length should be 1, 64 or 128"
 
 -- | Get a wallet's extended public key
 walletXPub :: Wallet -> Crypto.XPub
 walletXPub (Wallet (MockWallet xprv)) = Crypto.toXPub xprv
 walletXPub (Wallet (XPubWallet xpub)) = xpub
+walletXPub (Wallet (KnownWallet i))   = Crypto.toXPub $ knownPrivateKeys !! pred i
 
 -- | Get a wallet's public key.
 walletPubKey :: Wallet -> PubKey
 walletPubKey = Crypto.xPubToPublicKey . walletXPub
+
+-- | Get a wallet's private key. Fails for XPub wallets.
+unsafeWalletXPrv :: Wallet -> Crypto.XPrv
+unsafeWalletXPrv (Wallet (MockWallet xprv)) = xprv
+unsafeWalletXPrv (Wallet (KnownWallet i))   = knownPrivateKeys !! pred i
+unsafeWalletXPrv (Wallet (XPubWallet _))    = error "XPub wallets not supported in the emulator"
 
 -- | Get a wallet's address.
 walletAddress :: Wallet -> Address
@@ -138,11 +146,11 @@ walletAddress = pubKeyAddress . walletPubKey
 -- | The wallets used in mockchain simulations by default. There are
 --   ten wallets because the emulator comes with ten private keys.
 knownWallets :: [Wallet]
-knownWallets = Wallet . MockWallet <$> knownPrivateKeys
+knownWallets = Wallet . KnownWallet <$> [1..length knownPrivateKeys]
 
 -- | Get a known wallet from an @Integer@ indexed from 1 to 10.
 knownWallet :: Integer -> Wallet
-knownWallet = (knownWallets !!) . pred . fromInteger
+knownWallet = Wallet . KnownWallet . fromInteger
 
 -- | Wrapper for config files and APIs
 newtype WalletNumber = WalletNumber { getWallet :: Integer }
@@ -152,9 +160,6 @@ newtype WalletNumber = WalletNumber { getWallet :: Integer }
 
 fromWalletNumber :: WalletNumber -> Wallet
 fromWalletNumber (WalletNumber i) = knownWallet i
-
-toWalletNumber :: Wallet -> WalletNumber
-toWalletNumber w = maybe (error "toWalletNumber: not a known wallet") (WalletNumber . toInteger . succ) $ findIndex (== w) knownWallets
 
 data WalletEvent =
     GenericLog T.Text
@@ -454,8 +459,8 @@ signWallet wllt = SigningProcess $
 -- | Sign the transaction with the private key of the given public
 --   key. Fails if the wallet doesn't have the private key.
 signTxnWithKey :: (Member (Error WAPI.WalletAPIError) r) => Wallet -> Tx -> PubKeyHash -> Eff r Tx
-signTxnWithKey (Wallet (MockWallet prv)) tx pubK = signTxWithPrivateKey prv tx pubK
 signTxnWithKey (Wallet (XPubWallet xPub)) _ _ = throwError . WAPI.PrivateKeyNotFound . pubKeyHash $ Crypto.xPubToPublicKey xPub
+signTxnWithKey w tx pubK = signTxWithPrivateKey (unsafeWalletXPrv w) tx pubK
 
 -- | Sign the transaction with the private key, if the hash is that of the
 --   private key.
