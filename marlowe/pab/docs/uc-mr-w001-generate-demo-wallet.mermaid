@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant Frontend
+    participant PAB
+    participant WalletCompanion as PAB - Wallet Companion Contract
+    participant MarloweApp as PAB - Marlowe App Contract
+
+    Note over Frontend: User action Welcome.GenerateWallet
+    Frontend->>PAB: /wallet/create
+    Note over PAB: Cardano.Wallet.Client:createWallet?
+    PAB-->>Frontend: walletInfo
+
+    Frontend->>WalletCompanion: /api/contract/activate
+    Note over WalletCompanion: Listens the wallet's utxo for<br>new role token in Marlowe Contracts. <br>It notifies the frontend with<br> (Map MarloweParams MarloweData)<br>QUESTION: Only for new or old contracts as well?<br>QUESTION: The whole map or only new tuples?
+
+    Frontend->>MarloweApp: /api/contract/activate
+    Note over MarloweApp: API for marlowe contracts<br>See Marlowe.Client.hs MarloweSchema
+
+    Note over Frontend: User action Welcome.UseWallet

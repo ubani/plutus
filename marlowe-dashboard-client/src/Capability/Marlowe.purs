@@ -98,6 +98,7 @@ class
   unsubscribeFromWallet :: Wallet -> m Unit
 
 instance manageMarloweAppM :: ManageMarlowe AppM where
+  -- See Note [UC-MR-W001]
   -- create a Wallet, together with a WalletCompanion and a MarloweApp, and return the WalletDetails
   createWallet = do
     { dataProvider } <- ask

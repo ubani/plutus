@@ -1,0 +1,55 @@
+=== `marlowe pab`
+
+The marlowe-pab is a bundle of the plutus-pab with some pre-installed Plutus contracts. It serves as an off-chain backend for the marlowe-run application and it allows to create, modify and follow the progress of Marlowe contracts.
+
+The pre-installed Plutus contracts are coded in the module `Language.Marlowe.Client`.
+
+TODO: add image of marlowe-pab-demo.excalidraw
+
+## MarloweApp
+Redeem, Close,
+Observable State: Records OK or Error
+1 per wallet
+
+## WalletCompanion
+1 per wallet
+the state is a map of MarloweParams to MarloweData
+The number of entries equals the number of open Marlowe Contracts that you have a token for, not the number of roles that you have.
+    --
+
+## MarloweFollower
+
+0 or more per wallet, 1 per Marlowe contract instance
+
+
+1. Marlowe Contract is created on chain and you are given a role in it
+2. Your wallet companion notice that someone paid into your wallet a new role token and you get a new MarloweParams
+    (if you receive multiple roles then you receive multiple tokens and it should be up to the FE to distinguish to only create one contract.
+        Both tokens should have the same marlowe params
+    )
+3. You check your Follower contracts to see if any one has the MarloweParams that you just received
+
+
+# Use cases
+
+Nomenclature `UC-{project}-{logical component}{use case number}`
+for example `UC-MR-W001` can be thinked of the first `UC` (use case) in the `MR` (marlowe run) project that the `W` (wallet) component has.
+
+Following the link:../../CONTRIBUTING.adoc#code-is-communication[CONTRIBUTING] guidelines, it can be useful to add comments in the code like `See note [UC-MR-W001]` to correlate the code with the sequence diagrams.
+
+
+## Wallet
+### UC-MR-W001: Generate Demo Wallet
+This is only for demo, eventually we should change for a real wallet integration.
+TODO: use `mermaid-cli` to generate an image of `./docs/uc-mr-w001-generated-demo-wallet.mermaid` and add it here.
+
+## Marlowe contracts
+
+### UC-MR-C001: Create a contract
+TODO
+
+### UC-MR-C002: Apply an input
+TODO
+
+### UC-MR-C003: Redeem funds
+TODO

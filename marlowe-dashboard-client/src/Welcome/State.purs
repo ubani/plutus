@@ -82,6 +82,7 @@ handleAction CloseCard = do
   handleAction $ WalletNicknameInputAction $ InputField.Reset
   handleAction $ WalletIdInputAction $ InputField.Reset
 
+-- See Note [UC-MR-W001]
 handleAction GenerateWallet = do
   walletLibrary <- use _walletLibrary
   assign _remoteWalletDetails Loading
