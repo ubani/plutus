@@ -5,11 +5,7 @@ module MainFrame.Lenses
   , _contractDemos
   , _currentDemoName
   , _editorState
-  , _simulations
-  , _actionDrag
-  , _evaluationResult
-  , _successfulEvaluationResult
-  , _lastEvaluatedSimulation
+  , _simulatorState
   , _compilationResult
   , _successfulCompilationResult
   , _authStatus
@@ -34,7 +30,6 @@ module MainFrame.Lenses
 import Auth (AuthStatus)
 import Chain.Types as Chain
 import Control.Monad.State.Class (class MonadState)
-import Cursor (Cursor)
 import Data.Either (Either)
 import Data.Json.JsonTuple (JsonTuple)
 import Data.Lens (Lens', Traversal', _Right)
@@ -46,13 +41,15 @@ import Data.Symbol (SProxy(..))
 import Editor.Types (State) as Editor
 import Gist (Gist)
 import Language.Haskell.Interpreter (InterpreterError, InterpreterResult, SourceCode, _InterpreterResult)
-import MainFrame.Types (State, View, WebData)
+import MainFrame.Types (State, View)
 import Network.RemoteData (_Success)
-import Playground.Types (CompilationResult, ContractCall, ContractDemo, EvaluationResult, FunctionSchema, KnownCurrency, PlaygroundError, Simulation, SimulatorWallet)
+import Playground.Types (CompilationResult, ContractCall, ContractDemo, EvaluationResult, FunctionSchema, KnownCurrency, Simulation, SimulatorWallet)
 import Plutus.V1.Ledger.Crypto (PubKeyHash)
 import Prelude ((<$>), (<<<))
 import Schema (FormSchema)
 import Schema.Types (FormArgument)
+import Simulator.Types (State) as Simulator
+import Types (WebData)
 import Wallet.Emulator.Wallet (WalletNumber)
 import Wallet.Rollup.Types (AnnotatedTx)
 
@@ -74,20 +71,8 @@ _currentDemoName = _Newtype <<< prop (SProxy :: SProxy "currentDemoName")
 _editorState :: Lens' State Editor.State
 _editorState = _Newtype <<< prop (SProxy :: SProxy "editorState")
 
-_simulations :: Lens' State (Cursor Simulation)
-_simulations = _Newtype <<< prop (SProxy :: SProxy "simulations")
-
-_actionDrag :: Lens' State (Maybe Int)
-_actionDrag = _Newtype <<< prop (SProxy :: SProxy "actionDrag")
-
-_evaluationResult :: Lens' State (WebData (Either PlaygroundError EvaluationResult))
-_evaluationResult = _Newtype <<< prop (SProxy :: SProxy "evaluationResult")
-
-_successfulEvaluationResult :: Traversal' State EvaluationResult
-_successfulEvaluationResult = _evaluationResult <<< _Success <<< _Right
-
-_lastEvaluatedSimulation :: Lens' State (Maybe Simulation)
-_lastEvaluatedSimulation = _Newtype <<< prop (SProxy :: SProxy "lastEvaluatedSimulation")
+_simulatorState :: Lens' State Simulator.State
+_simulatorState = _Newtype <<< prop (SProxy :: SProxy "simulatorState")
 
 _compilationResult :: Lens' State (WebData (Either InterpreterError (InterpreterResult CompilationResult)))
 _compilationResult = _Newtype <<< prop (SProxy :: SProxy "compilationResult")

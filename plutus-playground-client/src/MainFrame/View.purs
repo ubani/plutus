@@ -22,19 +22,21 @@ import Halogen.HTML.Properties (class_, classes, height, href, src, target, widt
 import Icons (Icon(..), icon)
 import Language.Haskell.Interpreter (_SourceCode)
 import MainFrame.Lenses (getKnownCurrencies, _contractDemoEditorContents)
-import MainFrame.Types (ChildSlots, HAction(..), State(..), View(..), WebCompilationResult, WebEvaluationResult)
+import MainFrame.Types (ChildSlots, HAction(..), State(..), View(..))
 import Network.RemoteData (RemoteData(..))
 import Playground.Types (ContractDemo(..), Simulation)
 import Prelude (class Eq, const, ($), (<$>), (<<<), (==))
 import Schema.Types (mkInitialValue)
+import Simulator.Types (State(..)) as Simulator
 import Simulator.View (simulatorTitle, simulationsPane, simulationsNav)
 import StaticData (bufferLocalStorageKey, lookupContractDemo)
 import Transaction.View (evaluationPane)
+import Types (WebCompilationResult, WebEvaluationResult)
 
 foreign import plutusLogo :: String
 
 render :: forall m. MonadAff m => State -> ComponentHTML HAction ChildSlots m
-render state@(State { contractDemos, currentView, editorState, compilationResult, simulations, evaluationResult, blockchainVisualisationState }) =
+render state@(State { contractDemos, currentView, editorState, compilationResult, simulatorState, blockchainVisualisationState }) =
   div
     [ class_ $ ClassName "frame" ]
     [ releaseBanner
@@ -42,7 +44,7 @@ render state@(State { contractDemos, currentView, editorState, compilationResult
     , subHeader state
     , editorMain contractDemos currentView editorState compilationResult
     , simulationsMain state
-    , transactionsMain currentView simulations evaluationResult blockchainVisualisationState
+    , transactionsMain currentView simulatorState blockchainVisualisationState
     , mainFooter
     ]
 
@@ -166,8 +168,8 @@ simulationsMain state@(State { currentView }) =
     , simulationsWrapper state
     ]
 
-transactionsMain :: forall m. MonadAff m => View -> Cursor Simulation -> WebEvaluationResult -> Chain.State -> ComponentHTML HAction ChildSlots m
-transactionsMain currentView simulations evaluationResult blockchainVisualisationState =
+transactionsMain :: forall m. MonadAff m => View -> Simulator.State -> Chain.State -> ComponentHTML HAction ChildSlots m
+transactionsMain currentView simulatorState@(Simulator.State { simulations, evaluationResult }) blockchainVisualisationState =
   main
     [ classes $ mainComponentClasses currentView Transactions ]
     [ simulatorTitle
@@ -206,7 +208,7 @@ editorWrapper contractDemos currentView editorState compilationResult =
   defaultContents = view (_contractDemoEditorContents <<< _SourceCode) <$> lookupContractDemo "Vesting" contractDemos
 
 simulationsWrapper :: forall p. State -> HTML p HAction
-simulationsWrapper state@(State { actionDrag, currentView, compilationResult, simulations, lastEvaluatedSimulation, evaluationResult }) =
+simulationsWrapper state@(State { compilationResult, simulatorState }) =
   let
     knownCurrencies = evalState getKnownCurrencies state
 
@@ -216,11 +218,8 @@ simulationsWrapper state@(State { actionDrag, currentView, compilationResult, si
       [ classes [ ClassName "main-body", ClassName "simulator" ] ]
       [ simulationsPane
           initialValue
-          actionDrag
           compilationResult
-          simulations
-          lastEvaluatedSimulation
-          evaluationResult
+          simulatorState
       ]
 
 transactionsWrapper :: forall m. MonadAff m => Cursor Simulation -> WebEvaluationResult -> Chain.State -> ComponentHTML HAction ChildSlots m

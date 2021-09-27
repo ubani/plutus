@@ -55,9 +55,9 @@ import Halogen as H
 import Halogen.HTML (HTML)
 import Halogen.Query (HalogenM)
 import Language.Haskell.Interpreter (CompilationError(..), InterpreterError(..), InterpreterResult, SourceCode(..), _InterpreterResult)
-import MainFrame.Lenses (_actionDrag, _authStatus, _blockchainVisualisationState, _compilationResult, _contractDemos, _createGistResult, _currentDemoName, _currentView, _demoFilesMenuVisible, _editorState, _evaluationResult, _functionSchema, _gistErrorPaneVisible, _gistUrl, _lastEvaluatedSimulation, _knownCurrencies, _result, _resultRollup, _simulationActions, _simulationId, _simulationWallets, _simulations, _successfulCompilationResult, _successfulEvaluationResult, getKnownCurrencies)
+import MainFrame.Lenses (_authStatus, _blockchainVisualisationState, _compilationResult, _contractDemos, _createGistResult, _currentDemoName, _currentView, _demoFilesMenuVisible, _editorState, _functionSchema, _gistErrorPaneVisible, _gistUrl, _knownCurrencies, _result, _resultRollup, _simulationActions, _simulationId, _simulationWallets, _simulatorState, _successfulCompilationResult, getKnownCurrencies)
 import MainFrame.MonadApp (class MonadApp, editorGetContents, editorHandleAction, editorSetAnnotations, editorSetContents, getGistByGistId, getOauthStatus, postGistByGistId, postContract, postEvaluation, postGist, preventDefault, resizeBalancesChart, resizeEditor, runHalogenApp, saveBuffer, scrollIntoView, setDataTransferData, setDropEffect)
-import MainFrame.Types (ChildSlots, DragAndDropEventType(..), HAction(..), Query, State(..), View(..), WalletEvent(..), WebData)
+import MainFrame.Types (ChildSlots, DragAndDropEventType(..), HAction(..), Query, State(..), View(..), WalletEvent(..))
 import MainFrame.View (render)
 import Monaco (IMarkerData, markerSeverity)
 import Network.RemoteData (RemoteData(..), _Success, isSuccess)
@@ -69,8 +69,11 @@ import Prelude (class Applicative, Unit, Void, add, const, bind, discard, flip, 
 import Schema.Types (Expression, FormArgument, SimulationAction(..), formArgumentToJson, handleActionEvent, handleFormEvent, handleValueEvent, mkInitialValue, traverseFunctionSchema)
 import Servant.PureScript.Ajax (errorToString)
 import Servant.PureScript.Settings (SPSettings_, defaultSettings)
+import Simulator.Lenses (_actionDrag, _evaluationResult, _lastEvaluatedSimulation, _simulations, _successfulEvaluationResult)
+import Simulator.Types (State(..)) as Simulator
 import Simulator.View (simulatorTitleRefLabel, simulationsErrorRefLabel)
 import StaticData (mkContractDemos, lookupContractDemo)
+import Types (WebData)
 import Validation (_argumentValues, _argument)
 import Wallet.Emulator.Wallet (WalletNumber(WalletNumber))
 import Wallet.Lenses (_simulatorWalletBalance, _simulatorWalletWallet, _walletId)
@@ -104,10 +107,13 @@ mkInitialState editorState = do
         , contractDemos
         , currentDemoName: Nothing
         , compilationResult: NotAsked
-        , simulations: Cursor.empty
-        , actionDrag: Nothing
-        , evaluationResult: NotAsked
-        , lastEvaluatedSimulation: Nothing
+        , simulatorState:
+            Simulator.State
+              { simulations: Cursor.empty
+              , actionDrag: Nothing
+              , evaluationResult: NotAsked
+              , lastEvaluatedSimulation: Nothing
+              }
         , authStatus: NotAsked
         , createGistResult: NotAsked
         , gistUrl: Nothing
@@ -170,9 +176,9 @@ handleAction (EditorAction action) = editorHandleAction action
 
 handleAction (ActionDragAndDrop index DragStart event) = do
   setDataTransferData event textPlain (show index)
-  assign _actionDrag (Just index)
+  assign (_simulatorState <<< _actionDrag) (Just index)
 
-handleAction (ActionDragAndDrop _ DragEnd event) = assign _actionDrag Nothing
+handleAction (ActionDragAndDrop _ DragEnd event) = assign (_simulatorState <<< _actionDrag) Nothing
 
 handleAction (ActionDragAndDrop _ DragEnter event) = do
   preventDefault event
@@ -185,12 +191,12 @@ handleAction (ActionDragAndDrop _ DragOver event) = do
 handleAction (ActionDragAndDrop _ DragLeave event) = pure unit
 
 handleAction (ActionDragAndDrop destination Drop event) = do
-  use _actionDrag
+  use (_simulatorState <<< _actionDrag)
     >>= case _ of
-        Just source -> modifying (_simulations <<< _current <<< _simulationActions) (Array.move source destination)
+        Just source -> modifying (_simulatorState <<< _simulations <<< _current <<< _simulationActions) (Array.move source destination)
         _ -> pure unit
   preventDefault event
-  assign _actionDrag Nothing
+  assign (_simulatorState <<< _actionDrag) Nothing
 
 -- We just ignore most Chartist events.
 handleAction (HandleBalancesChartMessage _) = pure unit
@@ -213,23 +219,23 @@ handleAction EvaluateActions =
   void
     $ runMaybeT
     $ do
-        simulation <- peruse (_simulations <<< _current)
+        simulation <- peruse (_simulatorState <<< _simulations <<< _current)
         evaluation <-
           MaybeT do
             contents <- editorGetContents
             pure $ join $ toEvaluation <$> contents <*> simulation
-        assign _evaluationResult Loading
+        assign (_simulatorState <<< _evaluationResult) Loading
         result <- lift $ postEvaluation evaluation
-        assign _evaluationResult result
+        assign (_simulatorState <<< _evaluationResult) result
         case result of
           Success (Right _) -> do
             -- on successful evaluation, update last evaluated simulation, and reset and show transactions
             when (isSuccess result) do
-              assign _lastEvaluatedSimulation simulation
+              assign (_simulatorState <<< _lastEvaluatedSimulation) simulation
               assign _blockchainVisualisationState Chain.initialState
               -- preselect the first transaction (if any)
-              mAnnotatedBlockchain <- peruse (_successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
-              txId <- (gets <<< lastOf) (_successfulEvaluationResult <<< _resultRollup <<< traversed <<< traversed <<< _txIdOf)
+              mAnnotatedBlockchain <- peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
+              txId <- (gets <<< lastOf) (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< traversed <<< traversed <<< _txIdOf)
               lift $ zoomStateT _blockchainVisualisationState $ Chain.handleAction (FocusTx txId) mAnnotatedBlockchain
             replaceViewOnSuccess result Simulations Transactions
             lift $ scrollIntoView simulatorTitleRefLabel
@@ -252,11 +258,11 @@ handleAction (LoadScript key) = do
       assign _demoFilesMenuVisible false
       assign _currentView Editor
       assign _currentDemoName (Just contractDemoName)
-      assign _simulations $ Cursor.fromArray contractDemoSimulations
+      assign (_simulatorState <<< _simulations) $ Cursor.fromArray contractDemoSimulations
       assign (_editorState <<< _lastCompiledCode) (Just contractDemoEditorContents)
       assign (_editorState <<< _currentCodeIsCompiled) true
       assign _compilationResult (Success <<< Right $ contractDemoContext)
-      assign _evaluationResult NotAsked
+      assign (_simulatorState <<< _evaluationResult) NotAsked
       assign _createGistResult NotAsked
 
 -- Note: the following three cases involve some temporary fudges that should become
@@ -264,7 +270,7 @@ handleAction (LoadScript key) = do
 -- particular: we prevent simulation changes while the evaluationResult is Loading,
 -- and switch to the simulations view (from transactions) following any change
 handleAction AddSimulationSlot = do
-  evaluationResult <- use _evaluationResult
+  evaluationResult <- use (_simulatorState <<< _evaluationResult)
   case evaluationResult of
     Loading -> pure unit
     _ -> do
@@ -272,7 +278,7 @@ handleAction AddSimulationSlot = do
       mSignatures <- peruse (_successfulCompilationResult <<< _functionSchema)
       case mSignatures of
         Just signatures ->
-          modifying _simulations
+          modifying (_simulatorState <<< _simulations)
             ( \simulations ->
                 let
                   maxsimulationId = fromMaybe 0 $ maximumOf (traversed <<< _simulationId) simulations
@@ -286,38 +292,38 @@ handleAction AddSimulationSlot = do
       assign _currentView Simulations
 
 handleAction (SetSimulationSlot index) = do
-  evaluationResult <- use _evaluationResult
+  evaluationResult <- use (_simulatorState <<< _evaluationResult)
   case evaluationResult of
     Loading -> pure unit
     _ -> do
-      modifying _simulations (Cursor.setIndex index)
+      modifying (_simulatorState <<< _simulations) (Cursor.setIndex index)
       assign _currentView Simulations
 
 handleAction (RemoveSimulationSlot index) = do
-  evaluationResult <- use _evaluationResult
+  evaluationResult <- use (_simulatorState <<< _evaluationResult)
   case evaluationResult of
     Loading -> pure unit
     _ -> do
-      simulations <- use _simulations
+      simulations <- use (_simulatorState <<< _simulations)
       if (Cursor.getIndex simulations) == index then
         assign _currentView Simulations
       else
         pure unit
-      modifying _simulations (Cursor.deleteAt index)
+      modifying (_simulatorState <<< _simulations) (Cursor.deleteAt index)
 
 handleAction (ModifyWallets action) = do
   knownCurrencies <- getKnownCurrencies
-  modifying (_simulations <<< _current <<< _simulationWallets) (handleActionWalletEvent (mkSimulatorWallet knownCurrencies) action)
+  modifying (_simulatorState <<< _simulations <<< _current <<< _simulationWallets) (handleActionWalletEvent (mkSimulatorWallet knownCurrencies) action)
 
 handleAction (ChangeSimulation subaction) = do
   knownCurrencies <- getKnownCurrencies
   let
     initialValue = mkInitialValue knownCurrencies zero
-  modifying (_simulations <<< _current <<< _simulationActions) (handleSimulationAction initialValue subaction)
+  modifying (_simulatorState <<< _simulations <<< _current <<< _simulationActions) (handleSimulationAction initialValue subaction)
 
 handleAction (ChainAction subaction) = do
   mAnnotatedBlockchain <-
-    peruse (_successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
+    peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
   let
     wrapper = case subaction of
       (FocusTx _) -> animate (_blockchainVisualisationState <<< _chainFocusAppearing)
@@ -366,7 +372,7 @@ handleAction CompileProgram = do
             && oldCurrencies
             == newCurrencies
         )
-        ( assign _simulations
+        ( assign (_simulatorState <<< _simulations)
             $ case newCurrencies of
                 Just currencies -> Cursor.singleton $ mkSimulation currencies 1
                 Nothing -> Cursor.empty
@@ -398,7 +404,7 @@ handleGistAction PublishOrUpdateGist = do
   void
     $ runMaybeT do
         mContents <- lift $ editorGetContents
-        simulations <- use _simulations
+        simulations <- use (_simulatorState <<< _simulations)
         newGist <- hoistMaybe $ mkNewGist { source: mContents, simulations }
         mGist <- use _createGistResult
         assign _createGistResult Loading
@@ -435,13 +441,13 @@ handleGistAction LoadGist =
         content <- noteT "Source not found in gist." $ view playgroundGistFile gist
         lift $ editorSetContents (SourceCode content) (Just 1)
         lift $ saveBuffer content
-        assign _simulations Cursor.empty
-        assign _evaluationResult NotAsked
+        assign (_simulatorState <<< _simulations) Cursor.empty
+        assign (_simulatorState <<< _evaluationResult) NotAsked
         --
         -- Load the simulation, if available.
         simulationString <- noteT "Simulation not found in gist." $ view simulationGistFile gist
         simulations <- mapExceptT (pure <<< unwrap) $ withExceptT renderForeignErrors $ decodeJSON simulationString
-        assign _simulations simulations
+        assign (_simulatorState <<< _simulations) simulations
   where
   toEither :: forall e a. Either e a -> RemoteData e a -> Either e a
   toEither _ (Success a) = Right a

@@ -26,9 +26,10 @@ import Language.Haskell.Interpreter (CompilationError(CompilationError, RawError
 import Language.Haskell.Monaco as HM
 import LocalStorage (Key)
 import MainFrame.Lenses (_editorSlot)
-import MainFrame.Types (ChildSlots, HAction(..), View(..), WebCompilationResult)
+import MainFrame.Types (ChildSlots, HAction(..), View(..))
 import Network.RemoteData (RemoteData(..), _Success, isLoading)
 import Prelude (const, map, not, pure, show, unit, ($), (<$>), (<<<), (<>), (==))
+import Types (WebCompilationResult)
 import Web.UIEvent.MouseEvent (MouseEvent, pageY)
 
 editorPreferencesSelect :: forall p. KeyBindings -> HTML p Action

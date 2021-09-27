@@ -29,9 +29,11 @@ import Language.Haskell.Interpreter as PI
 import Plutus.V1.Ledger.Value (Value)
 import Network.RemoteData (RemoteData(..), _Success)
 import MainFrame.Lenses (_functionSchema, _result)
-import MainFrame.Types (HAction(..), View(..), SimulatorAction, WebCompilationResult, WebEvaluationResult)
+import MainFrame.Types (HAction(..), View(..), SimulatorAction)
 import Playground.Types (PlaygroundError(..), Simulation(..), SimulatorWallet)
 import Prelude (const, map, not, pure, show, (#), ($), (/=), (<$>), (<<<), (<>), (==), (>))
+import Simulator.Types (State(..))
+import Types (WebCompilationResult, WebEvaluationResult)
 import Wallet.View (walletsPane)
 import Web.Event.Event (Event)
 
@@ -49,8 +51,8 @@ simulatorTitle =
         [ text "< Return to Editor" ]
     ]
 
-simulationsPane :: forall p. Value -> Maybe Int -> WebCompilationResult -> Cursor Simulation -> Maybe Simulation -> WebEvaluationResult -> HTML p HAction
-simulationsPane initialValue actionDrag compilationResult simulations lastEvaluatedSimulation evaluationResult = case current simulations of
+simulationsPane :: forall p. Value -> WebCompilationResult -> State -> HTML p HAction
+simulationsPane initialValue compilationResult state@(State { simulations, actionDrag, evaluationResult, lastEvaluatedSimulation }) = case current simulations of
   Just (Simulation simulation@{ simulationWallets, simulationActions }) ->
     div
       [ class_ $ ClassName "simulations" ]

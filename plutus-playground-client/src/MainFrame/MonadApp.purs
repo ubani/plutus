@@ -47,7 +47,7 @@ import Halogen.Extra as HE
 import Halogen.Monaco as Monaco
 import Language.Haskell.Interpreter (InterpreterError, SourceCode(SourceCode), InterpreterResult)
 import MainFrame.Lenses (_balancesChartSlot, _editorSlot, _editorState)
-import MainFrame.Types (ChildSlots, HAction, State, WebData)
+import MainFrame.Types (ChildSlots, HAction, State)
 import Monaco (IMarkerData)
 import Network.RemoteData as RemoteData
 import Playground.Server (SPParams_)
@@ -57,6 +57,7 @@ import Prelude (class Applicative, class Apply, class Bind, class Functor, class
 import Servant.PureScript.Ajax (AjaxError)
 import Servant.PureScript.Settings (SPSettings_)
 import StaticData (bufferLocalStorageKey)
+import Types (WebData)
 import Web.Event.Extra (class IsEvent)
 import Web.Event.Extra as WebEvent
 import Web.HTML.Event.DataTransfer (DropEffect)

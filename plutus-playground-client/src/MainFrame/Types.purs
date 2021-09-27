@@ -3,9 +3,6 @@ module MainFrame.Types
   , View(..)
   , ChainSlot
   , Blockchain
-  , WebData
-  , WebCompilationResult
-  , WebEvaluationResult
   , SimulatorAction
   , Query
   , HAction(..)
@@ -19,27 +16,24 @@ import Auth (AuthStatus)
 import Chain.Types (Action(..))
 import Chain.Types as Chain
 import Clipboard as Clipboard
-import Cursor (Cursor)
-import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.NonEmpty ((:|))
-import Editor.Types as Editor
+import Editor.Types (Action(..), State) as Editor
 import Gist (Gist)
 import Gists.Types (GistAction(..))
 import Halogen as H
 import Halogen.Chartist as Chartist
 import Halogen.Monaco as Monaco
-import Language.Haskell.Interpreter (InterpreterError, InterpreterResult)
-import Network.RemoteData (RemoteData)
-import Playground.Types (CompilationResult, ContractCall, ContractDemo, EvaluationResult, PlaygroundError, Simulation)
+import Playground.Types (ContractCall, ContractDemo)
 import Plutus.V1.Ledger.Tx (Tx)
 import Prelude (class Eq, class Show, Unit, show, ($))
 import Schema.Types (ActionEvent(..), FormArgument, SimulationAction(..))
-import Servant.PureScript.Ajax (AjaxError)
+import Simulator.Types (State) as Simulator
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.QuickCheck.Gen as Gen
+import Types (WebCompilationResult, WebData)
 import ValueEditor (ValueEvent(..))
 import Web.HTML.Event.DragEvent (DragEvent)
 
@@ -52,10 +46,7 @@ newtype State
   , currentDemoName :: Maybe String
   , editorState :: Editor.State
   , compilationResult :: WebCompilationResult
-  , simulations :: Cursor Simulation
-  , actionDrag :: Maybe Int
-  , evaluationResult :: WebEvaluationResult
-  , lastEvaluatedSimulation :: Maybe Simulation
+  , simulatorState :: Simulator.State
   , authStatus :: WebData AuthStatus
   , createGistResult :: WebData Gist
   , gistUrl :: Maybe String
@@ -86,15 +77,6 @@ type ChainSlot
 
 type Blockchain
   = Array ChainSlot
-
-type WebData
-  = RemoteData AjaxError
-
-type WebCompilationResult
-  = WebData (Either InterpreterError (InterpreterResult CompilationResult))
-
-type WebEvaluationResult
-  = WebData (Either PlaygroundError EvaluationResult)
 
 -- this synonym is defined in playground-common/src/Playground/Types.hs
 type SimulatorAction
