@@ -16,13 +16,15 @@ import Halogen.HTML.Elements.Keyed as Keyed
 import Halogen.HTML.Events (onChange, onClick, onDragEnd, onDragEnter, onDragLeave, onDragOver, onDragStart, onDrop, onValueInput)
 import Halogen.HTML.Properties (InputType(..), checked, class_, classes, draggable, for, id_, min, name, placeholder, required, type_, value)
 import Icons (Icon(..), icon)
-import MainFrame.Types (DragAndDropEventType(..), HAction(..), SimulatorAction)
+import MainFrame.Types (HAction(..))
 import Playground.Lenses (_endpointDescription, _getEndpointDescription)
 import Playground.Types (ContractCall(..), SimulatorWallet, _FunctionSchema)
 import Plutus.V1.Ledger.Slot (Slot)
 import Prelude (const, one, show, ($), (+), (<$>), (<<<), (<>), (==))
 import Schema.Types (ActionEvent(..), FormArgument, SimulationAction(..))
 import Schema.View (actionArgumentForm)
+import Simulator.Types (DragAndDropEventType(..), SimulatorAction)
+import Simulator.Types (Action(..)) as Simulator
 import Validation (_argument)
 import ValueEditor (valueForm)
 import Wallet.Lenses (_walletId)
@@ -71,7 +73,7 @@ actionPane actionDrag wallets index action =
             <> dragSourceProperties index
             <> dragTargetProperties index
         )
-        [ ChangeSimulation
+        [ (SimulatorAction <<< Simulator.ChangeSimulation)
             <$> cardBody_
                 [ div
                     [ class_ $ ClassName "action-label" ]
@@ -208,7 +210,7 @@ addWaitActionPane index =
         [ classes [ actionClass, ClassName "add-wait-action" ] ]
         [ div
             ( [ class_ card
-              , onClick $ const $ Just $ ChangeSimulation $ ModifyActions $ AddWaitAction $ BigInteger.fromInt 10
+              , onClick $ const $ Just $ SimulatorAction $ Simulator.ChangeSimulation $ ModifyActions $ AddWaitAction $ BigInteger.fromInt 10
               ]
                 <> dragTargetProperties index
             )
@@ -259,7 +261,7 @@ dragTargetProperties index =
   ]
 
 dragAndDropAction :: Int -> DragAndDropEventType -> DragEvent -> Maybe HAction
-dragAndDropAction index eventType = Just <<< ActionDragAndDrop index eventType
+dragAndDropAction index eventType = Just <<< SimulatorAction <<< Simulator.ActionDragAndDrop index eventType
 
 -- defaults to 1 because all the BigInteger fields here have a minimum value of 1
 onBigIntegerInput :: forall i r. (BigInteger -> i) -> IProp ( onInput :: Event, value :: String | r ) i

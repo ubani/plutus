@@ -29,10 +29,11 @@ import Language.Haskell.Interpreter as PI
 import Plutus.V1.Ledger.Value (Value)
 import Network.RemoteData (RemoteData(..), _Success)
 import MainFrame.Lenses (_functionSchema, _result)
-import MainFrame.Types (HAction(..), View(..), SimulatorAction)
+import MainFrame.Types (HAction(..), View(..))
 import Playground.Types (PlaygroundError(..), Simulation(..), SimulatorWallet)
 import Prelude (const, map, not, pure, show, (#), ($), (/=), (<$>), (<<<), (<>), (==), (>))
 import Simulator.Types (State(..))
+import Simulator.Types (Action(..), SimulatorAction) as Simulator
 import Types (WebCompilationResult, WebEvaluationResult)
 import Wallet.View (walletsPane)
 import Web.Event.Event (Event)
@@ -105,13 +106,13 @@ simulationNavItem canClose activeIndex index (Simulation { simulationName }) =
       ]
       [ a
           [ classes navLinkClasses
-          , onClick $ const $ Just $ SetSimulationSlot index
+          , onClick $ const $ Just $ SimulatorAction $ Simulator.SetSimulationSlot index
           ]
           [ text simulationName ]
       , if canClose then
           button
             [ classes [ btn, navItemButtonClass ]
-            , onClick $ const $ Just $ RemoveSimulationSlot index
+            , onClick $ const $ Just $ SimulatorAction $ Simulator.RemoveSimulationSlot index
             ]
             [ icon Close ]
         else
@@ -131,13 +132,13 @@ addSimulationControl =
         [ class_ navLink ]
         [ button
             [ classes [ btn, navItemButtonClass ]
-            , onClick $ const $ Just $ AddSimulationSlot
+            , onClick $ const $ Just $ SimulatorAction Simulator.AddSimulationSlot
             ]
             [ icon Plus ]
         ]
     ]
 
-evaluateActionsButton :: forall p. Array SimulatorWallet -> Array SimulatorAction -> WebEvaluationResult -> HTML p HAction
+evaluateActionsButton :: forall p. Array SimulatorWallet -> Array Simulator.SimulatorAction -> WebEvaluationResult -> HTML p HAction
 evaluateActionsButton simulationWallets simulationActions evaluationResult =
   button
     [ classes [ btn, ClassName "btn-green" ]

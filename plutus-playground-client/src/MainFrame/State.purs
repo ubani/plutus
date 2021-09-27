@@ -57,7 +57,7 @@ import Halogen.Query (HalogenM)
 import Language.Haskell.Interpreter (CompilationError(..), InterpreterError(..), InterpreterResult, SourceCode(..), _InterpreterResult)
 import MainFrame.Lenses (_authStatus, _blockchainVisualisationState, _compilationResult, _contractDemos, _createGistResult, _currentDemoName, _currentView, _demoFilesMenuVisible, _editorState, _functionSchema, _gistErrorPaneVisible, _gistUrl, _knownCurrencies, _result, _resultRollup, _simulationActions, _simulationId, _simulationWallets, _simulatorState, _successfulCompilationResult, getKnownCurrencies)
 import MainFrame.MonadApp (class MonadApp, editorGetContents, editorHandleAction, editorSetAnnotations, editorSetContents, getGistByGistId, getOauthStatus, postGistByGistId, postContract, postEvaluation, postGist, preventDefault, resizeBalancesChart, resizeEditor, runHalogenApp, saveBuffer, scrollIntoView, setDataTransferData, setDropEffect)
-import MainFrame.Types (ChildSlots, DragAndDropEventType(..), HAction(..), Query, State(..), View(..), WalletEvent(..))
+import MainFrame.Types (ChildSlots, HAction(..), Query, State(..), View(..))
 import MainFrame.View (render)
 import Monaco (IMarkerData, markerSeverity)
 import Network.RemoteData (RemoteData(..), _Success, isSuccess)
@@ -70,7 +70,9 @@ import Schema.Types (Expression, FormArgument, SimulationAction(..), formArgumen
 import Servant.PureScript.Ajax (errorToString)
 import Servant.PureScript.Settings (SPSettings_, defaultSettings)
 import Simulator.Lenses (_actionDrag, _evaluationResult, _lastEvaluatedSimulation, _simulations, _successfulEvaluationResult)
-import Simulator.Types (State(..)) as Simulator
+import Simulator.State (initialState) as Simulator
+import Simulator.Types (DragAndDropEventType(..), SimulatorAction, WalletEvent(..))
+import Simulator.Types (Action(..)) as Simulator
 import Simulator.View (simulatorTitleRefLabel, simulationsErrorRefLabel)
 import StaticData (mkContractDemos, lookupContractDemo)
 import Types (WebData)
@@ -107,13 +109,7 @@ mkInitialState editorState = do
         , contractDemos
         , currentDemoName: Nothing
         , compilationResult: NotAsked
-        , simulatorState:
-            Simulator.State
-              { simulations: Cursor.empty
-              , actionDrag: Nothing
-              , evaluationResult: NotAsked
-              , lastEvaluatedSimulation: Nothing
-              }
+        , simulatorState: Simulator.initialState
         , authStatus: NotAsked
         , createGistResult: NotAsked
         , gistUrl: Nothing
@@ -172,32 +168,6 @@ handleAction Init = do
 
 handleAction Mounted = pure unit
 
-handleAction (EditorAction action) = editorHandleAction action
-
-handleAction (ActionDragAndDrop index DragStart event) = do
-  setDataTransferData event textPlain (show index)
-  assign (_simulatorState <<< _actionDrag) (Just index)
-
-handleAction (ActionDragAndDrop _ DragEnd event) = assign (_simulatorState <<< _actionDrag) Nothing
-
-handleAction (ActionDragAndDrop _ DragEnter event) = do
-  preventDefault event
-  setDropEffect DataTransfer.Move event
-
-handleAction (ActionDragAndDrop _ DragOver event) = do
-  preventDefault event
-  setDropEffect DataTransfer.Move event
-
-handleAction (ActionDragAndDrop _ DragLeave event) = pure unit
-
-handleAction (ActionDragAndDrop destination Drop event) = do
-  use (_simulatorState <<< _actionDrag)
-    >>= case _ of
-        Just source -> modifying (_simulatorState <<< _simulations <<< _current <<< _simulationActions) (Array.move source destination)
-        _ -> pure unit
-  preventDefault event
-  assign (_simulatorState <<< _actionDrag) Nothing
-
 -- We just ignore most Chartist events.
 handleAction (HandleBalancesChartMessage _) = pure unit
 
@@ -209,44 +179,6 @@ handleAction CheckAuthStatus = do
 handleAction (GistAction subEvent) = handleGistAction subEvent
 
 handleAction ToggleDemoFilesMenu = modifying _demoFilesMenuVisible not
-
-handleAction (ChangeView view) = do
-  assign _currentView view
-  when (view == Editor) resizeEditor
-  when (view == Transactions) resizeBalancesChart
-
-handleAction EvaluateActions =
-  void
-    $ runMaybeT
-    $ do
-        simulation <- peruse (_simulatorState <<< _simulations <<< _current)
-        evaluation <-
-          MaybeT do
-            contents <- editorGetContents
-            pure $ join $ toEvaluation <$> contents <*> simulation
-        assign (_simulatorState <<< _evaluationResult) Loading
-        result <- lift $ postEvaluation evaluation
-        assign (_simulatorState <<< _evaluationResult) result
-        case result of
-          Success (Right _) -> do
-            -- on successful evaluation, update last evaluated simulation, and reset and show transactions
-            when (isSuccess result) do
-              assign (_simulatorState <<< _lastEvaluatedSimulation) simulation
-              assign _blockchainVisualisationState Chain.initialState
-              -- preselect the first transaction (if any)
-              mAnnotatedBlockchain <- peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
-              txId <- (gets <<< lastOf) (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< traversed <<< traversed <<< _txIdOf)
-              lift $ zoomStateT _blockchainVisualisationState $ Chain.handleAction (FocusTx txId) mAnnotatedBlockchain
-            replaceViewOnSuccess result Simulations Transactions
-            lift $ scrollIntoView simulatorTitleRefLabel
-          Success (Left _) -> do
-            -- on failed evaluation, scroll the error pane into view
-            lift $ scrollIntoView simulationsErrorRefLabel
-          Failure _ -> do
-            -- on failed response, scroll the ajax error pane into view
-            lift $ scrollIntoView ajaxErrorRefLabel
-          _ -> pure unit
-        pure unit
 
 handleAction (LoadScript key) = do
   contractDemos <- use _contractDemos
@@ -265,72 +197,12 @@ handleAction (LoadScript key) = do
       assign (_simulatorState <<< _evaluationResult) NotAsked
       assign _createGistResult NotAsked
 
--- Note: the following three cases involve some temporary fudges that should become
--- unnecessary when we remodel and have one evaluationResult per simulation. In
--- particular: we prevent simulation changes while the evaluationResult is Loading,
--- and switch to the simulations view (from transactions) following any change
-handleAction AddSimulationSlot = do
-  evaluationResult <- use (_simulatorState <<< _evaluationResult)
-  case evaluationResult of
-    Loading -> pure unit
-    _ -> do
-      knownCurrencies <- getKnownCurrencies
-      mSignatures <- peruse (_successfulCompilationResult <<< _functionSchema)
-      case mSignatures of
-        Just signatures ->
-          modifying (_simulatorState <<< _simulations)
-            ( \simulations ->
-                let
-                  maxsimulationId = fromMaybe 0 $ maximumOf (traversed <<< _simulationId) simulations
+handleAction (ChangeView view) = do
+  assign _currentView view
+  when (view == Editor) resizeEditor
+  when (view == Transactions) resizeBalancesChart
 
-                  simulationId = maxsimulationId + 1
-                in
-                  Cursor.snoc simulations
-                    (mkSimulation knownCurrencies simulationId)
-            )
-        Nothing -> pure unit
-      assign _currentView Simulations
-
-handleAction (SetSimulationSlot index) = do
-  evaluationResult <- use (_simulatorState <<< _evaluationResult)
-  case evaluationResult of
-    Loading -> pure unit
-    _ -> do
-      modifying (_simulatorState <<< _simulations) (Cursor.setIndex index)
-      assign _currentView Simulations
-
-handleAction (RemoveSimulationSlot index) = do
-  evaluationResult <- use (_simulatorState <<< _evaluationResult)
-  case evaluationResult of
-    Loading -> pure unit
-    _ -> do
-      simulations <- use (_simulatorState <<< _simulations)
-      if (Cursor.getIndex simulations) == index then
-        assign _currentView Simulations
-      else
-        pure unit
-      modifying (_simulatorState <<< _simulations) (Cursor.deleteAt index)
-
-handleAction (ModifyWallets action) = do
-  knownCurrencies <- getKnownCurrencies
-  modifying (_simulatorState <<< _simulations <<< _current <<< _simulationWallets) (handleActionWalletEvent (mkSimulatorWallet knownCurrencies) action)
-
-handleAction (ChangeSimulation subaction) = do
-  knownCurrencies <- getKnownCurrencies
-  let
-    initialValue = mkInitialValue knownCurrencies zero
-  modifying (_simulatorState <<< _simulations <<< _current <<< _simulationActions) (handleSimulationAction initialValue subaction)
-
-handleAction (ChainAction subaction) = do
-  mAnnotatedBlockchain <-
-    peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
-  let
-    wrapper = case subaction of
-      (FocusTx _) -> animate (_blockchainVisualisationState <<< _chainFocusAppearing)
-      _ -> identity
-  wrapper
-    $ zoomStateT _blockchainVisualisationState
-    $ Chain.handleAction subaction mAnnotatedBlockchain
+handleAction (EditorAction action) = editorHandleAction action
 
 handleAction CompileProgram = do
   mContents <- editorGetContents
@@ -379,22 +251,51 @@ handleAction CompileProgram = do
         )
       pure unit
 
-handleSimulationAction ::
-  Value ->
-  SimulationAction ->
-  Array (ContractCall FormArgument) ->
-  Array (ContractCall FormArgument)
-handleSimulationAction _ (ModifyActions actionEvent) = handleActionEvent actionEvent
+handleAction (SimulatorAction simulatorAction) = handleSimulatorAction simulatorAction
 
-handleSimulationAction initialValue (PopulateAction n event) = do
-  over
-    ( ix n
-        <<< _CallEndpoint
-        <<< _argumentValues
-        <<< _FunctionSchema
-        <<< _argument
-    )
-    $ handleFormEvent initialValue event
+handleAction EvaluateActions =
+  void
+    $ runMaybeT
+    $ do
+        simulation <- peruse (_simulatorState <<< _simulations <<< _current)
+        evaluation <-
+          MaybeT do
+            contents <- editorGetContents
+            pure $ join $ toEvaluation <$> contents <*> simulation
+        assign (_simulatorState <<< _evaluationResult) Loading
+        result <- lift $ postEvaluation evaluation
+        assign (_simulatorState <<< _evaluationResult) result
+        case result of
+          Success (Right _) -> do
+            -- on successful evaluation, update last evaluated simulation, and reset and show transactions
+            when (isSuccess result) do
+              assign (_simulatorState <<< _lastEvaluatedSimulation) simulation
+              assign _blockchainVisualisationState Chain.initialState
+              -- preselect the first transaction (if any)
+              mAnnotatedBlockchain <- peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
+              txId <- (gets <<< lastOf) (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< traversed <<< traversed <<< _txIdOf)
+              lift $ zoomStateT _blockchainVisualisationState $ Chain.handleAction (FocusTx txId) mAnnotatedBlockchain
+            replaceViewOnSuccess result Simulations Transactions
+            lift $ scrollIntoView simulatorTitleRefLabel
+          Success (Left _) -> do
+            -- on failed evaluation, scroll the error pane into view
+            lift $ scrollIntoView simulationsErrorRefLabel
+          Failure _ -> do
+            -- on failed response, scroll the ajax error pane into view
+            lift $ scrollIntoView ajaxErrorRefLabel
+          _ -> pure unit
+        pure unit
+
+handleAction (ChainAction subaction) = do
+  mAnnotatedBlockchain <-
+    peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
+  let
+    wrapper = case subaction of
+      (FocusTx _) -> animate (_blockchainVisualisationState <<< _chainFocusAppearing)
+      _ -> identity
+  wrapper
+    $ zoomStateT _blockchainVisualisationState
+    $ Chain.handleAction subaction mAnnotatedBlockchain
 
 _details :: forall a. Traversal' (WebData (Either InterpreterError (InterpreterResult a))) a
 _details = _Success <<< _Right <<< _InterpreterResult <<< _result
@@ -460,6 +361,94 @@ handleGistAction LoadGist =
 
 handleGistAction (AjaxErrorPaneAction CloseErrorPane) = assign _gistErrorPaneVisible false
 
+handleSimulatorAction ::
+  forall m.
+  MonadState State m =>
+  MonadClipboard m =>
+  MonadAsk (SPSettings_ SPParams_) m =>
+  MonadApp m =>
+  MonadAnimate m State =>
+  Simulator.Action -> m Unit
+-- Note: the following three cases involve some temporary fudges that should become
+-- unnecessary when we remodel and have one evaluationResult per simulation. In
+-- particular: we prevent simulation changes while the evaluationResult is Loading,
+-- and switch to the simulations view (from transactions) following any change
+handleSimulatorAction Simulator.AddSimulationSlot = do
+  evaluationResult <- use (_simulatorState <<< _evaluationResult)
+  case evaluationResult of
+    Loading -> pure unit
+    _ -> do
+      knownCurrencies <- getKnownCurrencies
+      mSignatures <- peruse (_successfulCompilationResult <<< _functionSchema)
+      case mSignatures of
+        Just signatures ->
+          modifying (_simulatorState <<< _simulations)
+            ( \simulations ->
+                let
+                  maxsimulationId = fromMaybe 0 $ maximumOf (traversed <<< _simulationId) simulations
+
+                  simulationId = maxsimulationId + 1
+                in
+                  Cursor.snoc simulations
+                    (mkSimulation knownCurrencies simulationId)
+            )
+        Nothing -> pure unit
+      assign _currentView Simulations
+
+handleSimulatorAction (Simulator.SetSimulationSlot index) = do
+  evaluationResult <- use (_simulatorState <<< _evaluationResult)
+  case evaluationResult of
+    Loading -> pure unit
+    _ -> do
+      modifying (_simulatorState <<< _simulations) (Cursor.setIndex index)
+      assign _currentView Simulations
+
+handleSimulatorAction (Simulator.RemoveSimulationSlot index) = do
+  evaluationResult <- use (_simulatorState <<< _evaluationResult)
+  case evaluationResult of
+    Loading -> pure unit
+    _ -> do
+      simulations <- use (_simulatorState <<< _simulations)
+      if (Cursor.getIndex simulations) == index then
+        assign _currentView Simulations
+      else
+        pure unit
+      modifying (_simulatorState <<< _simulations) (Cursor.deleteAt index)
+
+handleSimulatorAction (Simulator.ActionDragAndDrop index DragStart event) = do
+  setDataTransferData event textPlain (show index)
+  assign (_simulatorState <<< _actionDrag) (Just index)
+
+handleSimulatorAction (Simulator.ActionDragAndDrop _ DragEnd event) = assign (_simulatorState <<< _actionDrag) Nothing
+
+handleSimulatorAction (Simulator.ActionDragAndDrop _ DragEnter event) = do
+  preventDefault event
+  setDropEffect DataTransfer.Move event
+
+handleSimulatorAction (Simulator.ActionDragAndDrop _ DragOver event) = do
+  preventDefault event
+  setDropEffect DataTransfer.Move event
+
+handleSimulatorAction (Simulator.ActionDragAndDrop _ DragLeave event) = pure unit
+
+handleSimulatorAction (Simulator.ActionDragAndDrop destination Drop event) = do
+  use (_simulatorState <<< _actionDrag)
+    >>= case _ of
+        Just source -> modifying (_simulatorState <<< _simulations <<< _current <<< _simulationActions) (Array.move source destination)
+        _ -> pure unit
+  preventDefault event
+  assign (_simulatorState <<< _actionDrag) Nothing
+
+handleSimulatorAction (Simulator.ModifyWallets action) = do
+  knownCurrencies <- getKnownCurrencies
+  modifying (_simulatorState <<< _simulations <<< _current <<< _simulationWallets) (handleActionWalletEvent (mkSimulatorWallet knownCurrencies) action)
+
+handleSimulatorAction (Simulator.ChangeSimulation subaction) = do
+  knownCurrencies <- getKnownCurrencies
+  let
+    initialValue = mkInitialValue knownCurrencies zero
+  modifying (_simulatorState <<< _simulations <<< _current <<< _simulationActions) (handleSimulationAction initialValue subaction)
+
 handleActionWalletEvent :: (BigInteger -> SimulatorWallet) -> WalletEvent -> Array SimulatorWallet -> Array SimulatorWallet
 handleActionWalletEvent mkWallet AddWallet wallets =
   let
@@ -476,6 +465,19 @@ handleActionWalletEvent _ (ModifyBalance walletIndex action) wallets =
     (ix walletIndex <<< _simulatorWalletBalance)
     (handleValueEvent action)
     wallets
+
+handleSimulationAction :: Value -> SimulationAction -> Array SimulatorAction -> Array SimulatorAction
+handleSimulationAction _ (ModifyActions actionEvent) = handleActionEvent actionEvent
+
+handleSimulationAction initialValue (PopulateAction n event) = do
+  over
+    ( ix n
+        <<< _CallEndpoint
+        <<< _argumentValues
+        <<< _FunctionSchema
+        <<< _argument
+    )
+    $ handleFormEvent initialValue event
 
 replaceViewOnSuccess :: forall m e a. MonadState State m => RemoteData e a -> View -> View -> m Unit
 replaceViewOnSuccess result source target = do

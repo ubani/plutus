@@ -14,13 +14,15 @@ import Halogen.HTML.Elements.Keyed as Keyed
 import Halogen.HTML.Events (onClick)
 import Halogen.HTML.Properties (class_, classes)
 import Icons (Icon(..), icon)
-import MainFrame.Types (HAction(..), WalletEvent(..))
+import MainFrame.Types (HAction(..))
 import Playground.Lenses (_endpointDescription, _getEndpointDescription)
 import Playground.Types (ContractCall(..), FunctionSchema, SimulatorWallet(..), _FunctionSchema)
 import Plutus.V1.Ledger.Value (Value)
 import Prelude (const, show, ($), (<), (<>), (<$>), (<<<))
 import Schema (FormSchema)
 import Schema.Types (ActionEvent(..), SimulationAction(..), Signatures, toArgument)
+import Simulator.Types (WalletEvent(..))
+import Simulator.Types (Action(..)) as Simulator
 import ValueEditor (valueForm)
 import Wallet.Emulator.Wallet (WalletNumber(..))
 import Wallet.Lenses (_simulatorWalletWallet)
@@ -50,18 +52,18 @@ walletPane signatures initialValue walletIndex simulatorWallet@(SimulatorWallet 
         [ cardBody_
             [ button
                 [ classes [ btn, floatRight, ClassName "close-button" ]
-                , onClick $ const $ Just $ ModifyWallets $ RemoveWallet walletIndex
+                , onClick $ const $ Just $ SimulatorAction $ Simulator.ModifyWallets $ RemoveWallet walletIndex
                 ]
                 [ icon Close ]
             , cardTitle_ [ h3_ [ walletIdPane simulatorWalletWallet ] ]
             , h4_ [ text "Opening Balances" ]
-            , valueForm (ModifyWallets <<< ModifyBalance walletIndex) simulatorWalletBalance
+            , valueForm (SimulatorAction <<< Simulator.ModifyWallets <<< ModifyBalance walletIndex) simulatorWalletBalance
             , br_
             , h4_ [ text "Available functions" ]
             , div
                 [ class_ $ ClassName "available-actions" ]
-                [ ChangeSimulation <$> div_ (actionButton initialValue simulatorWallet <$> signatures)
-                , ChangeSimulation <$> div_ [ addPayToWalletButton initialValue simulatorWallet ]
+                [ (SimulatorAction <<< Simulator.ChangeSimulation) <$> div_ (actionButton initialValue simulatorWallet <$> signatures)
+                , (SimulatorAction <<< Simulator.ChangeSimulation) <$> div_ [ addPayToWalletButton initialValue simulatorWallet ]
                 ]
             ]
         ]
@@ -77,7 +79,7 @@ addWalletPane =
   Tuple "add-wallet"
     $ div
         [ classes [ card, walletClass, ClassName "add-wallet" ]
-        , onClick $ const $ Just $ ModifyWallets AddWallet
+        , onClick $ const $ Just $ SimulatorAction $ Simulator.ModifyWallets AddWallet
         ]
         [ cardBody_
             [ icon Plus
