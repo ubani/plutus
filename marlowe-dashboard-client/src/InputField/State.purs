@@ -8,7 +8,6 @@ module InputField.State
   ) where
 
 import Prologue
-import Control.Monad.Reader (class MonadAsk)
 import Data.Array (head, last)
 import Data.Array (length, take) as Array
 import Data.BigInteger (BigInteger)
@@ -19,8 +18,6 @@ import Data.Maybe (fromMaybe)
 import Data.String (Pattern(..), split, splitAt)
 import Data.String (drop, length, take) as String
 import Data.String.Extra (leftPadTo, rightPadTo)
-import Effect.Aff.Class (class MonadAff)
-import Env (Env)
 import Halogen (HalogenM, modify_)
 import InputField.Lenses (_dropdownLocked, _dropdownOpen, _pristine, _validator, _value)
 import InputField.Types (class InputFieldError, Action(..), State)
@@ -47,8 +44,6 @@ mkInitialState mNumberFormat =
 
 handleAction ::
   forall m e slots msg.
-  MonadAff m =>
-  MonadAsk Env m =>
   InputFieldError e =>
   Action e -> HalogenM (State e) (Action e) slots msg m Unit
 handleAction (SetValue value) =

@@ -1,5 +1,6 @@
 module MainFrame.Lenses
   ( _webSocketStatus
+  , _connecting
   , _currentSlot
   , _tzOffset
   , _subState
@@ -34,6 +35,9 @@ _subState = prop (SProxy :: SProxy "subState")
 
 _toast :: Lens' State Toast.State
 _toast = prop (SProxy :: SProxy "toast")
+
+_connecting :: Lens' State Boolean
+_connecting = prop (SProxy :: SProxy "connecting")
 
 ------------------------------------------------------------
 _welcomeState :: Traversal' State Welcome.State

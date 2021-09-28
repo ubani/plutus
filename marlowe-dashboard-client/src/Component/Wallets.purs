@@ -1,39 +1,38 @@
--- | This module contains the implementation and entry point of the component
 module Component.Wallets
   ( component
+  , walletsScreen
   , module Component.Wallets.Types
   ) where
 
 import Prologue
-import Component.Wallets.Types (Component, Input, Msg, Query, Slot)
+import Component.Wallets.State (handleAction)
+import Component.Wallets.Types (Component, Input, Msg(..), Query, Slot)
+import Component.Wallets.Types.Internal (class MonadHandler, Action(..), State)
+import Component.Wallets.View (render)
+import Data.Symbol (SProxy(..))
 import Halogen as H
-import Halogen.HTML (text)
+import Halogen.HTML (slot)
+import InputField.State (mkInitialState) as InputField
+import Network.RemoteData (RemoteData(..))
 
--------------------------------------------------------------------------------
--- Private types
--------------------------------------------------------------------------------
-data Action
-  = Init
-  | Receive Input
+walletsScreenSlot :: SProxy "walletsScreenSlot"
+walletsScreenSlot = SProxy
 
-type State
-  = {
-    }
+walletsScreen ::
+  forall slots m action.
+  MonadHandler m =>
+  Input ->
+  (Msg -> action) ->
+  H.ComponentHTML action ( walletsScreenSlot :: Slot | slots ) m
+walletsScreen input handleMsg =
+  slot
+    walletsScreenSlot
+    unit
+    component
+    input
+    (Just <<< handleMsg)
 
-type Slots
-  = (
-    )
-
-type DSL
-  = H.HalogenM State Action Slots Msg
-
-type ComponentHTML m
-  = H.ComponentHTML Action Slots m
-
--------------------------------------------------------------------------------
--- Entry point
--------------------------------------------------------------------------------
-component :: forall m. Monad m => Component m
+component :: forall m. MonadHandler m => Component m
 component =
   H.mkComponent
     { initialState
@@ -48,18 +47,10 @@ component =
     }
 
 initialState :: Input -> State
-initialState input = {}
-
--------------------------------------------------------------------------------
--- Rendering
--------------------------------------------------------------------------------
-render :: forall m. Monad m => State -> ComponentHTML m
-render state = text "hello, world"
-
--------------------------------------------------------------------------------
--- Handlers
--------------------------------------------------------------------------------
-handleAction :: forall m. Monad m => Action -> DSL m Unit
-handleAction = case _ of
-  Init -> pure unit
-  Receive {} -> pure unit
+initialState connecting =
+  { modal: Nothing
+  , searchKey: InputField.mkInitialState Nothing
+  , walletLibrary: mempty
+  , walletDetails: NotAsked
+  , connecting
+  }

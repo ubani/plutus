@@ -3,11 +3,14 @@ module MainFrame.State (mkMainFrame, handleAction) where
 import Prologue
 import Bridge (toFront)
 import Capability.Marlowe (class ManageMarlowe, getFollowerApps, subscribeToPlutusApp, subscribeToWallet, unsubscribeFromPlutusApp, unsubscribeFromWallet)
-import Capability.MarloweStorage (class ManageMarloweStorage, getContractNicknames, getWalletLibrary)
+import Capability.MarloweStorage (class ManageMarloweStorage, clearAllLocalStorage, getContractNicknames, getWalletLibrary, insertIntoWalletLibrary)
 import Capability.PlutusApps.MarloweApp as MarloweApp
 import Capability.PlutusApps.MarloweApp.Types (LastResult(..))
 import Capability.Toast (class Toast, addToast)
 import Clipboard (class MonadClipboard)
+import Component.Wallets as Wallets
+import Component.Wallets.Types.Internal (class MonadHandler)
+import Contacts.Lenses (_assets, _companionAppId, _marloweAppId, _previousCompanionAppState, _wallet, _walletInfo)
 import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (class MonadAsk)
 import Control.Monad.Reader.Class (ask)
@@ -30,15 +33,17 @@ import Halogen.Extra (mapMaybeSubmodule, mapSubmodule)
 import Halogen.HTML (HTML)
 import Halogen.LocalStorage (localStorageEvents)
 import Humanize (getTimezoneOffset)
-import MainFrame.Lenses (_currentSlot, _dashboardState, _subState, _toast, _tzOffset, _webSocketStatus, _welcomeState)
+import MainFrame.Lenses (_connecting, _currentSlot, _dashboardState, _subState, _toast, _tzOffset, _webSocketStatus, _welcomeState)
 import MainFrame.Types (Action(..), ChildSlots, Msg, Query(..), State, WebSocketStatus(..))
 import MainFrame.View (render)
 import Marlowe.PAB (PlutusAppId)
 import Plutus.PAB.Webserver.Types (CombinedWSStreamToClient(..), InstanceStatusToClient(..))
 import Toast.State (defaultState, handleAction) as Toast
 import Toast.Types (Action, State) as Toast
-import Toast.Types (decodedAjaxErrorToast, decodingErrorToast, errorToast, successToast)
-import Contacts.Lenses (_assets, _companionAppId, _marloweAppId, _previousCompanionAppState, _wallet, _walletInfo)
+import Toast.Types (ajaxErrorToast, decodedAjaxErrorToast, decodingErrorToast, errorToast, successToast)
+import Web.HTML (window)
+import Web.HTML.Location (reload)
+import Web.HTML.Window (location)
 import WebSocket.Support as WS
 import Welcome.Lenses (_walletLibrary)
 import Welcome.State (handleAction, dummyState, mkInitialState) as Welcome
@@ -67,11 +72,8 @@ code for e.g. "[Workflow 4]" to see all of the steps involved in starting a cont
 -}
 mkMainFrame ::
   forall m.
-  MonadAff m =>
+  MonadHandler m =>
   MonadAsk Env m =>
-  ManageMarlowe m =>
-  Toast m =>
-  MonadClipboard m =>
   Component HTML Query Action Msg m
 mkMainFrame =
   mkComponent
@@ -94,6 +96,7 @@ initialState =
   , subState: Left Welcome.dummyState
   , toast: Toast.defaultState
   , tzOffset: Minutes 0.0 -- This will be updated on MainFrame.Init
+  , connecting: false
   }
 
 handleQuery ::
@@ -266,6 +269,7 @@ finished loading them yet) is a bit convoluted - follow the trail of workflow co
 it works.
 -}
 handleAction (EnterDashboardState walletLibrary walletDetails) = do
+  assign _connecting true
   ajaxFollowerApps <- getFollowerApps walletDetails
   currentSlot <- use _currentSlot
   case ajaxFollowerApps of
@@ -284,6 +288,7 @@ handleAction (EnterDashboardState walletLibrary walletDetails) = do
       -- MarloweFollower apps will be triggered by the initial WebSocket status notification.
       contractNicknames <- getContractNicknames
       assign _subState $ Right $ Dashboard.mkInitialState walletLibrary walletDetails followerApps contractNicknames currentSlot
+  assign _connecting false
 
 handleAction (WelcomeAction welcomeAction) = toWelcome $ Welcome.handleAction welcomeAction
 
@@ -293,6 +298,18 @@ handleAction (DashboardAction dashboardAction) = do
   toDashboard $ Dashboard.handleAction { currentSlot, tzOffset } dashboardAction
 
 handleAction (ToastAction toastAction) = toToast $ Toast.handleAction toastAction
+
+handleAction (WalletsMsg (Wallets.WalletChosen details)) = do
+  insertIntoWalletLibrary details
+  walletLibrary <- getWalletLibrary
+  handleAction $ EnterDashboardState walletLibrary details
+
+handleAction (WalletsMsg (Wallets.RemoteCallFailed message error)) = do
+  addToast $ ajaxErrorToast message error
+
+handleAction (WalletsMsg Wallets.CacheClearRequested) = do
+  clearAllLocalStorage
+  liftEffect $ reload =<< location =<< window
 
 ------------------------------------------------------------
 -- Note [dummyState]: In order to map a submodule whose state might not exist, we need

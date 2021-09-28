@@ -10,6 +10,8 @@ module MainFrame.Types
 import Prologue
 import Analytics (class IsEvent, defaultEvent, toEvent)
 import Component.Expand as Expand
+import Component.Wallets.Types as Wallets
+import Contacts.Types (WalletDetails, WalletLibrary)
 import Contract.Types (State) as Contract
 import Dashboard.Types (Action, State) as Dashboard
 import Data.Generic.Rep (class Generic)
@@ -24,7 +26,6 @@ import Plutus.PAB.Webserver.Types (CombinedWSStreamToClient)
 import Toast.Types (Action, State) as Toast
 import Tooltip.Types (ReferenceId)
 import Types (CombinedWSStreamToServer)
-import Contacts.Types (WalletDetails, WalletLibrary)
 import Web.Socket.Event.CloseEvent (CloseEvent, reason) as WS
 import WebSocket.Support (FromSocket) as WS
 import Welcome.Types (Action, State) as Welcome
@@ -38,6 +39,7 @@ type State
     , tzOffset :: Minutes
     , subState :: Either Welcome.State Dashboard.State
     , toast :: Toast.State
+    , connecting :: Boolean
     }
 
 data WebSocketStatus
@@ -58,6 +60,7 @@ type ChildSlots
     , submitButtonSlot :: H.Slot LoadingSubmitButton.Query LoadingSubmitButton.Message String
     , lifeCycleSlot :: forall query. H.Slot query LifecycleEvent String
     , expandSlot :: Expand.Slot Void String
+    , walletsScreenSlot :: Wallets.Slot
     )
 
 ------------------------------------------------------------
@@ -77,6 +80,7 @@ data Action
   | WelcomeAction Welcome.Action
   | DashboardAction Dashboard.Action
   | ToastAction Toast.Action
+  | WalletsMsg Wallets.Msg
 
 -- | Here we decide which top-level queries to track as GA events, and
 -- how to classify them.
@@ -87,3 +91,4 @@ instance actionIsEvent :: IsEvent Action where
   toEvent (WelcomeAction welcomeAction) = toEvent welcomeAction
   toEvent (DashboardAction dashboardAction) = toEvent dashboardAction
   toEvent (ToastAction toastAction) = toEvent toastAction
+  toEvent (WalletsMsg _) = Nothing
