@@ -36,7 +36,7 @@ import Types (WebCompilationResult, WebEvaluationResult)
 foreign import plutusLogo :: String
 
 render :: forall m. MonadAff m => State -> ComponentHTML HAction ChildSlots m
-render state@(State { contractDemos, currentView, editorState, compilationResult, simulatorState, blockchainVisualisationState }) =
+render state@(State { contractDemos, currentView, editorState, compilationResult, simulatorState }) =
   let
     knownCurrencies = evalState getKnownCurrencies state
   in
@@ -46,7 +46,7 @@ render state@(State { contractDemos, currentView, editorState, compilationResult
       , mainHeader
       , subHeader state
       , editorMain contractDemos currentView editorState compilationResult
-      , simulatorMain knownCurrencies currentView compilationResult simulatorState blockchainVisualisationState
+      , simulatorMain knownCurrencies currentView compilationResult simulatorState
       , mainFooter
       ]
 
@@ -162,8 +162,8 @@ editorMain contractDemos currentView editorState compilationResult =
     , editorWrapper contractDemos currentView editorState compilationResult
     ]
 
-simulatorMain :: forall m. MonadAff m => Array KnownCurrency -> View -> WebCompilationResult -> Simulator.State -> Chain.State -> ComponentHTML HAction ChildSlots m
-simulatorMain knownCurrencies currentView compilationResult simulatorState@(Simulator.State { simulations, evaluationResult, transactionsOpen }) blockchainVisualisationState =
+simulatorMain :: forall m. MonadAff m => Array KnownCurrency -> View -> WebCompilationResult -> Simulator.State -> ComponentHTML HAction ChildSlots m
+simulatorMain knownCurrencies currentView compilationResult simulatorState@(Simulator.State { simulations, evaluationResult, transactionsOpen, blockchainVisualisationState }) =
   main
     [ classes $ mainComponentClasses currentView Simulator ]
     $ [ simulatorTitle ]

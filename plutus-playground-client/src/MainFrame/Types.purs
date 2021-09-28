@@ -44,7 +44,6 @@ newtype State
   , authStatus :: WebData AuthStatus
   , createGistResult :: WebData Gist
   , gistUrl :: Maybe String
-  , blockchainVisualisationState :: Chain.State
   }
 
 derive instance newtypeState :: Newtype State _
@@ -84,8 +83,6 @@ data HAction
   | EditorAction Editor.Action
   | CompileProgram
   | SimulatorAction Simulator.Action
-  | EvaluateActions
-  | ChainAction (Chain.Action)
 
 type ChildSlots
   = ( editorSlot :: H.Slot Monaco.Query Monaco.Message Unit
@@ -110,7 +107,3 @@ instance actionIsEvent :: IsEvent HAction where
   toEvent (ChangeView view) = Just $ (defaultEvent "View") { label = Just $ show view }
   toEvent (LoadScript script) = Just $ (defaultEvent "LoadScript") { label = Just script }
   toEvent (SimulatorAction action) = toEvent action
-  toEvent EvaluateActions = Just $ (defaultEvent "EvaluateActions") { category = Just "Action" }
-  toEvent (ChainAction (FocusTx (Just _))) = Just $ (defaultEvent "BlockchainFocus") { category = Just "Transaction" }
-  toEvent (ChainAction (FocusTx Nothing)) = Nothing
-  toEvent (ChainAction (ClipboardAction (Clipboard.CopyToClipboard _))) = Just $ (defaultEvent "ClipboardAction") { category = Just "CopyToClipboard" }

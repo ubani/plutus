@@ -8,6 +8,8 @@ module Simulator.Types
   ) where
 
 import Analytics (class IsEvent, defaultEvent)
+import Chain.Types (Action(..), State) as Chain
+import Clipboard (Action(..)) as Clipboard
 import Cursor (Cursor)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
@@ -25,6 +27,7 @@ newtype State
   , evaluationResult :: WebEvaluationResult
   , lastEvaluatedSimulation :: Maybe Simulation
   , transactionsOpen :: Boolean
+  , blockchainVisualisationState :: Chain.State
   }
 
 derive instance newtypeState :: Newtype State _
@@ -41,7 +44,9 @@ data Action
   | ActionDragAndDrop Int DragAndDropEventType DragEvent
   | ModifyWallets WalletEvent
   | ChangeSimulation SimulationAction
+  | EvaluateActions
   | SetTransactionsOpen Boolean
+  | ChainAction (Chain.Action)
 
 -- this synonym is defined in playground-common/src/Playground/Types.hs
 type SimulatorAction
@@ -86,5 +91,9 @@ instance actionIsEvent :: IsEvent Action where
   toEvent (ChangeSimulation (ModifyActions (SetPayToWalletRecipient _ _))) = Just $ (defaultEvent "SetPayToWalletRecipient") { category = Just "Action" }
   toEvent (ChangeSimulation (ModifyActions (SetWaitTime _ _))) = Just $ (defaultEvent "SetWaitTime") { category = Just "Action" }
   toEvent (ChangeSimulation (ModifyActions (SetWaitUntilTime _ _))) = Just $ (defaultEvent "SetWaitUntilTime") { category = Just "Action" }
+  toEvent EvaluateActions = Just $ (defaultEvent "EvaluateActions") { category = Just "Action" }
   toEvent (SetTransactionsOpen true) = Just $ defaultEvent "OpenTransactions"
   toEvent (SetTransactionsOpen false) = Just $ defaultEvent "CloseTransactions"
+  toEvent (ChainAction (Chain.FocusTx (Just _))) = Just $ (defaultEvent "BlockchainFocus") { category = Just "Transaction" }
+  toEvent (ChainAction (Chain.FocusTx Nothing)) = Nothing
+  toEvent (ChainAction (Chain.ClipboardAction (Clipboard.CopyToClipboard _))) = Just $ (defaultEvent "ClipboardAction") { category = Just "CopyToClipboard" }

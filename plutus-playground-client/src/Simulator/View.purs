@@ -143,7 +143,7 @@ evaluateActionsButton simulationWallets simulationActions evaluationResult =
   button
     [ classes [ btn, ClassName "btn-green" ]
     , disabled $ not valid
-    , onClick $ const $ Just EvaluateActions
+    , onClick $ const $ Just $ SimulatorAction Simulator.EvaluateActions
     ]
     [ btnText evaluationResult valid ]
   where

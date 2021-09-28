@@ -4,43 +4,35 @@ module MainFrame.State
   , mkInitialState
   ) where
 
-import AjaxUtils (AjaxErrorPaneAction(..), ajaxErrorRefLabel, renderForeignErrors)
+import AjaxUtils (AjaxErrorPaneAction(..), renderForeignErrors)
 import Analytics (analyticsTracking)
-import Animation (class MonadAnimate, animate)
-import Chain.State (handleAction) as Chain
-import Chain.Types (Action(..), AnnotatedBlockchain(..), _chainFocusAppearing, _txIdOf)
-import Chain.Types (initialState) as Chain
+import Animation (class MonadAnimate)
 import Clipboard (class MonadClipboard)
 import Control.Monad.Error.Class (class MonadThrow)
 import Control.Monad.Error.Extra (mapError)
 import Control.Monad.Except.Extra (noteT)
 import Control.Monad.Except.Trans (ExceptT(..), except, mapExceptT, withExceptT, runExceptT)
 import Control.Monad.Maybe.Extra (hoistMaybe)
-import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
+import Control.Monad.Maybe.Trans (runMaybeT)
 import Control.Monad.Reader (class MonadAsk, runReaderT)
-import Control.Monad.State.Class (class MonadState, gets)
-import Control.Monad.State.Extra (zoomStateT)
+import Control.Monad.State.Class (class MonadState)
 import Control.Monad.Trans.Class (lift)
-import Cursor (_current)
-import Cursor as Cursor
+import Cursor (empty, fromArray, singleton) as Cursor
 import Data.Array (catMaybes)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..), note)
-import Data.Lens (Traversal', _Right, assign, modifying, to, traversed, use, view)
-import Data.Lens.Extra (peruse)
-import Data.Lens.Fold (lastOf, preview)
+import Data.Lens (Traversal', _Right, assign, modifying, use, view)
+import Data.Lens.Fold (preview)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
-import Data.RawJson (RawJson(..))
-import Data.String as String
-import Data.Traversable (traverse)
+import Data.String (joinWith) as String
 import Editor.Lenses (_currentCodeIsCompiled, _feedbackPaneMinimised, _lastCompiledCode)
 import Editor.State (initialState) as Editor
 import Editor.Types (Action(..), State) as Editor
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
-import Foreign.Generic (decodeJSON, encodeJSON)
+import Foreign.Generic (decodeJSON)
 import Gist (_GistId, gistId)
 import Gists.Types (GistAction(..))
 import Gists.Types as Gists
@@ -49,23 +41,21 @@ import Halogen as H
 import Halogen.HTML (HTML)
 import Halogen.Query (HalogenM)
 import Language.Haskell.Interpreter (CompilationError(..), InterpreterError(..), InterpreterResult, SourceCode(..), _InterpreterResult)
-import MainFrame.Lenses (_authStatus, _blockchainVisualisationState, _compilationResult, _contractDemos, _createGistResult, _currentDemoName, _currentView, _demoFilesMenuVisible, _editorState, _functionSchema, _gistErrorPaneVisible, _gistUrl, _knownCurrencies, _result, _resultRollup, _simulatorState, getKnownCurrencies)
-import MainFrame.MonadApp (class MonadApp, editorGetContents, editorHandleAction, editorSetAnnotations, editorSetContents, getGistByGistId, getOauthStatus, postContract, postEvaluation, postGist, postGistByGistId, resizeBalancesChart, resizeEditor, runHalogenApp, saveBuffer, scrollIntoView)
+import MainFrame.Lenses (_authStatus, _compilationResult, _contractDemos, _createGistResult, _currentDemoName, _currentView, _demoFilesMenuVisible, _editorState, _functionSchema, _gistErrorPaneVisible, _gistUrl, _knownCurrencies, _result, _simulatorState, getKnownCurrencies)
+import MainFrame.MonadApp (class MonadApp, editorGetContents, editorHandleAction, editorSetAnnotations, editorSetContents, getGistByGistId, getOauthStatus, postContract, postGist, postGistByGistId, resizeBalancesChart, resizeEditor, runHalogenApp, saveBuffer)
 import MainFrame.Types (ChildSlots, HAction(..), Query, State(..), View(..))
 import MainFrame.View (render)
 import Monaco (IMarkerData, markerSeverity)
 import Network.RemoteData (RemoteData(..), _Success, isSuccess)
 import Playground.Gists (mkNewGist, playgroundGistFile, simulationGistFile)
 import Playground.Server (SPParams_(..))
-import Playground.Types (ContractCall(..), ContractDemo(..), Evaluation(..), Simulation(..))
-import Prelude (class Applicative, Unit, Void, bind, const, discard, flip, identity, join, mempty, not, pure, show, unit, unless, void, when, ($), (&&), (<$>), (<*>), (<<<), (<>), (==))
-import Schema.Types (Expression, FormArgument, formArgumentToJson, traverseFunctionSchema)
+import Playground.Types (ContractDemo(..))
+import Prelude (Unit, Void, bind, const, discard, flip, mempty, not, pure, show, unit, unless, void, when, ($), (&&), (<$>), (<<<), (<>), (==))
 import Servant.PureScript.Ajax (errorToString)
 import Servant.PureScript.Settings (SPSettings_, defaultSettings)
-import Simulator.Lenses (_evaluationResult, _lastEvaluatedSimulation, _simulations, _successfulEvaluationResult, _transactionsOpen)
+import Simulator.Lenses (_evaluationResult, _simulations)
 import Simulator.State (handleAction, initialState, mkSimulation) as Simulator
 import Simulator.Types (Input(..)) as Simulator
-import Simulator.View (simulatorTitleRefLabel, simulationsErrorRefLabel)
 import StaticData (mkContractDemos, lookupContractDemo)
 import Types (WebData)
 
@@ -85,7 +75,6 @@ mkInitialState editorState = do
         , authStatus: NotAsked
         , createGistResult: NotAsked
         , gistUrl: Nothing
-        , blockchainVisualisationState: Chain.initialState
         }
 
 ------------------------------------------------------------
@@ -229,50 +218,6 @@ handleAction (SimulatorAction simulatorAction) = do
     input = Simulator.Input { knownCurrencies }
   Simulator.handleAction input simulatorAction
 
-handleAction EvaluateActions =
-  void
-    $ runMaybeT
-    $ do
-        simulation <- peruse (_simulatorState <<< _simulations <<< _current)
-        evaluation <-
-          MaybeT do
-            contents <- editorGetContents
-            pure $ join $ toEvaluation <$> contents <*> simulation
-        assign (_simulatorState <<< _evaluationResult) Loading
-        result <- lift $ postEvaluation evaluation
-        assign (_simulatorState <<< _evaluationResult) result
-        case result of
-          Success (Right _) -> do
-            -- on successful evaluation, update last evaluated simulation, and reset and show transactions
-            when (isSuccess result) do
-              assign (_simulatorState <<< _lastEvaluatedSimulation) simulation
-              assign _blockchainVisualisationState Chain.initialState
-              -- preselect the first transaction (if any)
-              mAnnotatedBlockchain <- peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
-              txId <- (gets <<< lastOf) (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< traversed <<< traversed <<< _txIdOf)
-              lift $ zoomStateT _blockchainVisualisationState $ Chain.handleAction (FocusTx txId) mAnnotatedBlockchain
-            when (isSuccess result) (assign (_simulatorState <<< _transactionsOpen) true)
-            lift $ scrollIntoView simulatorTitleRefLabel
-          Success (Left _) -> do
-            -- on failed evaluation, scroll the error pane into view
-            lift $ scrollIntoView simulationsErrorRefLabel
-          Failure _ -> do
-            -- on failed response, scroll the ajax error pane into view
-            lift $ scrollIntoView ajaxErrorRefLabel
-          _ -> pure unit
-        pure unit
-
-handleAction (ChainAction subaction) = do
-  mAnnotatedBlockchain <-
-    peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
-  let
-    wrapper = case subaction of
-      (FocusTx _) -> animate (_blockchainVisualisationState <<< _chainFocusAppearing)
-      _ -> identity
-  wrapper
-    $ zoomStateT _blockchainVisualisationState
-    $ Chain.handleAction subaction mAnnotatedBlockchain
-
 _details :: forall a. Traversal' (WebData (Either InterpreterError (InterpreterResult a))) a
 _details = _Success <<< _Right <<< _InterpreterResult <<< _result
 
@@ -338,37 +283,6 @@ handleGistAction LoadGist =
 handleGistAction (AjaxErrorPaneAction CloseErrorPane) = assign _gistErrorPaneVisible false
 
 ------------------------------------------------------------
-toEvaluation :: SourceCode -> Simulation -> Maybe Evaluation
-toEvaluation sourceCode (Simulation { simulationActions, simulationWallets }) = do
-  program <- RawJson <<< encodeJSON <$> traverse toExpression simulationActions
-  pure
-    $ Evaluation
-        { wallets: simulationWallets
-        , program
-        , sourceCode
-        }
-
-toExpression :: ContractCall FormArgument -> Maybe Expression
-toExpression = traverseContractCall encodeForm
-  where
-  encodeForm :: FormArgument -> Maybe RawJson
-  encodeForm argument = (RawJson <<< encodeJSON) <$> formArgumentToJson argument
-
-traverseContractCall ::
-  forall m b a.
-  Applicative m =>
-  (a -> m b) ->
-  ContractCall a -> m (ContractCall b)
-traverseContractCall _ (AddBlocks addBlocks) = pure $ AddBlocks addBlocks
-
-traverseContractCall _ (AddBlocksUntil addBlocksUntil) = pure $ AddBlocksUntil addBlocksUntil
-
-traverseContractCall _ (PayToWallet payToWallet) = pure $ PayToWallet payToWallet
-
-traverseContractCall f (CallEndpoint { caller, argumentValues: oldArgumentValues }) = rewrap <$> traverseFunctionSchema f oldArgumentValues
-  where
-  rewrap newArgumentValues = CallEndpoint { caller, argumentValues: newArgumentValues }
-
 toAnnotations :: InterpreterError -> Array IMarkerData
 toAnnotations (TimeoutError _) = []
 

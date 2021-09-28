@@ -61,7 +61,7 @@ evaluationPane state evaluationResult@(EvaluationResult { emulatorLog, emulatorT
             ]
             [ icon Close ]
         ]
-    , ChainAction <$> chainView namingFn state (wrap resultRollup)
+    , (SimulatorAction <<< Simulator.ChainAction) <$> chainView namingFn state (wrap resultRollup)
     , div
         [ class_ $ ClassName "final-balances" ]
         [ h3_ [ text "Final Balances" ]

@@ -11,16 +11,10 @@ module MainFrame.Lenses
   , _authStatus
   , _createGistResult
   , _gistUrl
-  , _blockchainVisualisationState
   , _editorSlot
   , _balancesChartSlot
   , _contractDemoEditorContents
-  , _simulationId
-  , _simulationActions
-  , _simulationWallets
-  , _resultRollup
   , _functionSchema
-  , _walletKeys
   , _knownCurrencies
   , _result
   , _warnings
@@ -89,9 +83,6 @@ _createGistResult = _Newtype <<< prop (SProxy :: SProxy "createGistResult")
 _gistUrl :: Lens' State (Maybe String)
 _gistUrl = _Newtype <<< prop (SProxy :: SProxy "gistUrl")
 
-_blockchainVisualisationState :: Lens' State Chain.State
-_blockchainVisualisationState = _Newtype <<< prop (SProxy :: SProxy "blockchainVisualisationState")
-
 ------------------------------------------------------------
 _editorSlot :: SProxy "editorSlot"
 _editorSlot = SProxy
@@ -103,23 +94,8 @@ _balancesChartSlot = SProxy
 _contractDemoEditorContents :: Lens' ContractDemo SourceCode
 _contractDemoEditorContents = _Newtype <<< prop (SProxy :: SProxy "contractDemoEditorContents")
 
-_simulationId :: Lens' Simulation Int
-_simulationId = _Newtype <<< prop (SProxy :: SProxy "simulationId")
-
-_simulationActions :: Lens' Simulation (Array (ContractCall FormArgument))
-_simulationActions = _Newtype <<< prop (SProxy :: SProxy "simulationActions")
-
-_simulationWallets :: Lens' Simulation (Array SimulatorWallet)
-_simulationWallets = _Newtype <<< prop (SProxy :: SProxy "simulationWallets")
-
-_resultRollup :: Lens' EvaluationResult (Array (Array AnnotatedTx))
-_resultRollup = _Newtype <<< prop (SProxy :: SProxy "resultRollup")
-
 _functionSchema :: Lens' CompilationResult (Array (FunctionSchema FormSchema))
 _functionSchema = _Newtype <<< prop (SProxy :: SProxy "functionSchema")
-
-_walletKeys :: Lens' EvaluationResult (Array (JsonTuple PubKeyHash WalletNumber))
-_walletKeys = _Newtype <<< prop (SProxy :: SProxy "walletKeys")
 
 _knownCurrencies :: Lens' CompilationResult (Array KnownCurrency)
 _knownCurrencies = _Newtype <<< prop (SProxy :: SProxy "knownCurrencies")
