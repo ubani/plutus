@@ -4,6 +4,7 @@ module Simulator.Lenses
   , _evaluationResult
   , _successfulEvaluationResult
   , _lastEvaluatedSimulation
+  , _transactionsOpen
   ) where
 
 import Cursor (Cursor)
@@ -33,3 +34,6 @@ _successfulEvaluationResult = _evaluationResult <<< _Success <<< _Right
 
 _lastEvaluatedSimulation :: Lens' State (Maybe Simulation)
 _lastEvaluatedSimulation = _Newtype <<< prop (SProxy :: SProxy "lastEvaluatedSimulation")
+
+_transactionsOpen :: Lens' State Boolean
+_transactionsOpen = _Newtype <<< prop (SProxy :: SProxy "transactionsOpen")

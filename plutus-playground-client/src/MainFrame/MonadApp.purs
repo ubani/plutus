@@ -47,7 +47,7 @@ import Halogen.Extra as HE
 import Halogen.Monaco as Monaco
 import Language.Haskell.Interpreter (InterpreterError, SourceCode(SourceCode), InterpreterResult)
 import MainFrame.Lenses (_balancesChartSlot, _editorSlot, _editorState)
-import MainFrame.Types (ChildSlots, HAction, State)
+import MainFrame.Types (ChildSlots, HAction(..), State)
 import Monaco (IMarkerData)
 import Network.RemoteData as RemoteData
 import Playground.Server (SPParams_)
@@ -136,7 +136,7 @@ instance monadAppHalogenApp ::
     mText <- wrap $ query _editorSlot unit $ Monaco.GetText identity
     pure $ map SourceCode mText
   editorSetContents (SourceCode contents) cursor = wrap $ void $ query _editorSlot unit $ tell $ Monaco.SetText contents
-  editorHandleAction action = wrap $ HE.imapState _editorState $ Editor.handleAction bufferLocalStorageKey action
+  editorHandleAction action = wrap $ HE.mapSubmodule _editorState EditorAction $ Editor.handleAction bufferLocalStorageKey action
   editorSetAnnotations annotations = wrap $ void $ query _editorSlot unit $ Monaco.SetModelMarkers annotations identity
   setDropEffect dropEffect event = wrap $ liftEffect $ DataTransfer.setDropEffect dropEffect $ dataTransfer event
   setDataTransferData event mimeType value = wrap $ liftEffect $ DataTransfer.setData mimeType value $ dataTransfer event

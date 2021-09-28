@@ -23,25 +23,19 @@ import Control.Monad.State.Extra (zoomStateT)
 import Control.Monad.Trans.Class (lift)
 import Cursor (_current)
 import Cursor as Cursor
-import Data.Array (catMaybes, (..))
-import Data.Array (deleteAt, snoc) as Array
-import Data.Array.Extra (move) as Array
+import Data.Array (catMaybes)
 import Data.Bifunctor (lmap)
-import Data.BigInteger (BigInteger)
-import Data.BigInteger as BigInteger
 import Data.Either (Either(..), note)
-import Data.Lens (Traversal', _Right, assign, modifying, over, to, traversed, use, view)
+import Data.Lens (Traversal', _Right, assign, modifying, to, traversed, use, view)
 import Data.Lens.Extra (peruse)
-import Data.Lens.Fold (maximumOf, lastOf, preview)
-import Data.Lens.Index (ix)
-import Data.Maybe (Maybe(..), fromMaybe)
-import Data.MediaType.Common (textPlain)
+import Data.Lens.Fold (lastOf, preview)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.RawJson (RawJson(..))
 import Data.String as String
 import Data.Traversable (traverse)
-import Editor.State (initialState) as Editor
 import Editor.Lenses (_currentCodeIsCompiled, _feedbackPaneMinimised, _lastCompiledCode)
+import Editor.State (initialState) as Editor
 import Editor.Types (Action(..), State) as Editor
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -55,47 +49,25 @@ import Halogen as H
 import Halogen.HTML (HTML)
 import Halogen.Query (HalogenM)
 import Language.Haskell.Interpreter (CompilationError(..), InterpreterError(..), InterpreterResult, SourceCode(..), _InterpreterResult)
-import MainFrame.Lenses (_authStatus, _blockchainVisualisationState, _compilationResult, _contractDemos, _createGistResult, _currentDemoName, _currentView, _demoFilesMenuVisible, _editorState, _functionSchema, _gistErrorPaneVisible, _gistUrl, _knownCurrencies, _result, _resultRollup, _simulationActions, _simulationId, _simulationWallets, _simulatorState, _successfulCompilationResult, getKnownCurrencies)
-import MainFrame.MonadApp (class MonadApp, editorGetContents, editorHandleAction, editorSetAnnotations, editorSetContents, getGistByGistId, getOauthStatus, postGistByGistId, postContract, postEvaluation, postGist, preventDefault, resizeBalancesChart, resizeEditor, runHalogenApp, saveBuffer, scrollIntoView, setDataTransferData, setDropEffect)
+import MainFrame.Lenses (_authStatus, _blockchainVisualisationState, _compilationResult, _contractDemos, _createGistResult, _currentDemoName, _currentView, _demoFilesMenuVisible, _editorState, _functionSchema, _gistErrorPaneVisible, _gistUrl, _knownCurrencies, _result, _resultRollup, _simulatorState, getKnownCurrencies)
+import MainFrame.MonadApp (class MonadApp, editorGetContents, editorHandleAction, editorSetAnnotations, editorSetContents, getGistByGistId, getOauthStatus, postContract, postEvaluation, postGist, postGistByGistId, resizeBalancesChart, resizeEditor, runHalogenApp, saveBuffer, scrollIntoView)
 import MainFrame.Types (ChildSlots, HAction(..), Query, State(..), View(..))
 import MainFrame.View (render)
 import Monaco (IMarkerData, markerSeverity)
 import Network.RemoteData (RemoteData(..), _Success, isSuccess)
 import Playground.Gists (mkNewGist, playgroundGistFile, simulationGistFile)
 import Playground.Server (SPParams_(..))
-import Playground.Types (ContractCall(..), ContractDemo(..), Evaluation(..), KnownCurrency, Simulation(..), SimulatorWallet(..), _CallEndpoint, _FunctionSchema)
-import Plutus.V1.Ledger.Value (Value)
-import Prelude (class Applicative, Unit, Void, add, const, bind, discard, flip, identity, join, not, mempty, one, pure, show, unit, unless, void, when, zero, (+), ($), (&&), (==), (<>), (<$>), (<*>), (>>=), (<<<))
-import Schema.Types (Expression, FormArgument, SimulationAction(..), formArgumentToJson, handleActionEvent, handleFormEvent, handleValueEvent, mkInitialValue, traverseFunctionSchema)
+import Playground.Types (ContractCall(..), ContractDemo(..), Evaluation(..), Simulation(..))
+import Prelude (class Applicative, Unit, Void, bind, const, discard, flip, identity, join, mempty, not, pure, show, unit, unless, void, when, ($), (&&), (<$>), (<*>), (<<<), (<>), (==))
+import Schema.Types (Expression, FormArgument, formArgumentToJson, traverseFunctionSchema)
 import Servant.PureScript.Ajax (errorToString)
 import Servant.PureScript.Settings (SPSettings_, defaultSettings)
-import Simulator.Lenses (_actionDrag, _evaluationResult, _lastEvaluatedSimulation, _simulations, _successfulEvaluationResult)
-import Simulator.State (initialState) as Simulator
-import Simulator.Types (DragAndDropEventType(..), SimulatorAction, WalletEvent(..))
-import Simulator.Types (Action(..)) as Simulator
+import Simulator.Lenses (_evaluationResult, _lastEvaluatedSimulation, _simulations, _successfulEvaluationResult)
+import Simulator.State (handleAction, initialState, mkSimulation) as Simulator
+import Simulator.Types (Input(..)) as Simulator
 import Simulator.View (simulatorTitleRefLabel, simulationsErrorRefLabel)
 import StaticData (mkContractDemos, lookupContractDemo)
 import Types (WebData)
-import Validation (_argumentValues, _argument)
-import Wallet.Emulator.Wallet (WalletNumber(WalletNumber))
-import Wallet.Lenses (_simulatorWalletBalance, _simulatorWalletWallet, _walletId)
-import Web.HTML.Event.DataTransfer as DataTransfer
-
-mkSimulatorWallet :: Array KnownCurrency -> BigInteger -> SimulatorWallet
-mkSimulatorWallet currencies walletId =
-  SimulatorWallet
-    { simulatorWalletWallet: WalletNumber { getWallet: walletId }
-    , simulatorWalletBalance: mkInitialValue currencies (BigInteger.fromInt 100_000_000)
-    }
-
-mkSimulation :: Array KnownCurrency -> Int -> Simulation
-mkSimulation simulationCurrencies simulationId =
-  Simulation
-    { simulationName: "Simulation " <> show simulationId
-    , simulationId
-    , simulationActions: []
-    , simulationWallets: mkSimulatorWallet simulationCurrencies <<< BigInteger.fromInt <$> 1 .. 2
-    }
 
 mkInitialState :: forall m. MonadThrow Error m => Editor.State -> m State
 mkInitialState editorState = do
@@ -200,7 +172,7 @@ handleAction (LoadScript key) = do
 handleAction (ChangeView view) = do
   assign _currentView view
   when (view == Editor) resizeEditor
-  when (view == Transactions) resizeBalancesChart
+  when (view == Simulator) resizeBalancesChart
 
 handleAction (EditorAction action) = editorHandleAction action
 
@@ -246,12 +218,16 @@ handleAction CompileProgram = do
         )
         ( assign (_simulatorState <<< _simulations)
             $ case newCurrencies of
-                Just currencies -> Cursor.singleton $ mkSimulation currencies 1
+                Just currencies -> Cursor.singleton $ Simulator.mkSimulation currencies 1
                 Nothing -> Cursor.empty
         )
       pure unit
 
-handleAction (SimulatorAction simulatorAction) = handleSimulatorAction simulatorAction
+handleAction (SimulatorAction simulatorAction) = do
+  knownCurrencies <- getKnownCurrencies
+  let
+    input = Simulator.Input { knownCurrencies }
+  Simulator.handleAction input simulatorAction
 
 handleAction EvaluateActions =
   void
@@ -275,7 +251,7 @@ handleAction EvaluateActions =
               mAnnotatedBlockchain <- peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
               txId <- (gets <<< lastOf) (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< traversed <<< traversed <<< _txIdOf)
               lift $ zoomStateT _blockchainVisualisationState $ Chain.handleAction (FocusTx txId) mAnnotatedBlockchain
-            replaceViewOnSuccess result Simulations Transactions
+            -- FIXME replaceViewOnSuccess result Simulations Transactions
             lift $ scrollIntoView simulatorTitleRefLabel
           Success (Left _) -> do
             -- on failed evaluation, scroll the error pane into view
@@ -360,124 +336,6 @@ handleGistAction LoadGist =
   toEither x NotAsked = x
 
 handleGistAction (AjaxErrorPaneAction CloseErrorPane) = assign _gistErrorPaneVisible false
-
-handleSimulatorAction ::
-  forall m.
-  MonadState State m =>
-  MonadClipboard m =>
-  MonadAsk (SPSettings_ SPParams_) m =>
-  MonadApp m =>
-  MonadAnimate m State =>
-  Simulator.Action -> m Unit
--- Note: the following three cases involve some temporary fudges that should become
--- unnecessary when we remodel and have one evaluationResult per simulation. In
--- particular: we prevent simulation changes while the evaluationResult is Loading,
--- and switch to the simulations view (from transactions) following any change
-handleSimulatorAction Simulator.AddSimulationSlot = do
-  evaluationResult <- use (_simulatorState <<< _evaluationResult)
-  case evaluationResult of
-    Loading -> pure unit
-    _ -> do
-      knownCurrencies <- getKnownCurrencies
-      mSignatures <- peruse (_successfulCompilationResult <<< _functionSchema)
-      case mSignatures of
-        Just signatures ->
-          modifying (_simulatorState <<< _simulations)
-            ( \simulations ->
-                let
-                  maxsimulationId = fromMaybe 0 $ maximumOf (traversed <<< _simulationId) simulations
-
-                  simulationId = maxsimulationId + 1
-                in
-                  Cursor.snoc simulations
-                    (mkSimulation knownCurrencies simulationId)
-            )
-        Nothing -> pure unit
-      assign _currentView Simulations
-
-handleSimulatorAction (Simulator.SetSimulationSlot index) = do
-  evaluationResult <- use (_simulatorState <<< _evaluationResult)
-  case evaluationResult of
-    Loading -> pure unit
-    _ -> do
-      modifying (_simulatorState <<< _simulations) (Cursor.setIndex index)
-      assign _currentView Simulations
-
-handleSimulatorAction (Simulator.RemoveSimulationSlot index) = do
-  evaluationResult <- use (_simulatorState <<< _evaluationResult)
-  case evaluationResult of
-    Loading -> pure unit
-    _ -> do
-      simulations <- use (_simulatorState <<< _simulations)
-      if (Cursor.getIndex simulations) == index then
-        assign _currentView Simulations
-      else
-        pure unit
-      modifying (_simulatorState <<< _simulations) (Cursor.deleteAt index)
-
-handleSimulatorAction (Simulator.ActionDragAndDrop index DragStart event) = do
-  setDataTransferData event textPlain (show index)
-  assign (_simulatorState <<< _actionDrag) (Just index)
-
-handleSimulatorAction (Simulator.ActionDragAndDrop _ DragEnd event) = assign (_simulatorState <<< _actionDrag) Nothing
-
-handleSimulatorAction (Simulator.ActionDragAndDrop _ DragEnter event) = do
-  preventDefault event
-  setDropEffect DataTransfer.Move event
-
-handleSimulatorAction (Simulator.ActionDragAndDrop _ DragOver event) = do
-  preventDefault event
-  setDropEffect DataTransfer.Move event
-
-handleSimulatorAction (Simulator.ActionDragAndDrop _ DragLeave event) = pure unit
-
-handleSimulatorAction (Simulator.ActionDragAndDrop destination Drop event) = do
-  use (_simulatorState <<< _actionDrag)
-    >>= case _ of
-        Just source -> modifying (_simulatorState <<< _simulations <<< _current <<< _simulationActions) (Array.move source destination)
-        _ -> pure unit
-  preventDefault event
-  assign (_simulatorState <<< _actionDrag) Nothing
-
-handleSimulatorAction (Simulator.ModifyWallets action) = do
-  knownCurrencies <- getKnownCurrencies
-  modifying (_simulatorState <<< _simulations <<< _current <<< _simulationWallets) (handleActionWalletEvent (mkSimulatorWallet knownCurrencies) action)
-
-handleSimulatorAction (Simulator.ChangeSimulation subaction) = do
-  knownCurrencies <- getKnownCurrencies
-  let
-    initialValue = mkInitialValue knownCurrencies zero
-  modifying (_simulatorState <<< _simulations <<< _current <<< _simulationActions) (handleSimulationAction initialValue subaction)
-
-handleActionWalletEvent :: (BigInteger -> SimulatorWallet) -> WalletEvent -> Array SimulatorWallet -> Array SimulatorWallet
-handleActionWalletEvent mkWallet AddWallet wallets =
-  let
-    maxWalletId = fromMaybe zero $ maximumOf (traversed <<< _simulatorWalletWallet <<< _walletId) wallets
-
-    newWallet = mkWallet (add one maxWalletId)
-  in
-    Array.snoc wallets newWallet
-
-handleActionWalletEvent _ (RemoveWallet index) wallets = fromMaybe wallets $ Array.deleteAt index wallets
-
-handleActionWalletEvent _ (ModifyBalance walletIndex action) wallets =
-  over
-    (ix walletIndex <<< _simulatorWalletBalance)
-    (handleValueEvent action)
-    wallets
-
-handleSimulationAction :: Value -> SimulationAction -> Array SimulatorAction -> Array SimulatorAction
-handleSimulationAction _ (ModifyActions actionEvent) = handleActionEvent actionEvent
-
-handleSimulationAction initialValue (PopulateAction n event) = do
-  over
-    ( ix n
-        <<< _CallEndpoint
-        <<< _argumentValues
-        <<< _FunctionSchema
-        <<< _argument
-    )
-    $ handleFormEvent initialValue event
 
 replaceViewOnSuccess :: forall m e a. MonadState State m => RemoteData e a -> View -> View -> m Unit
 replaceViewOnSuccess result source target = do

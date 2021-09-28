@@ -24,8 +24,8 @@ import Language.Haskell.Interpreter (_SourceCode)
 import MainFrame.Lenses (getKnownCurrencies, _contractDemoEditorContents)
 import MainFrame.Types (ChildSlots, HAction(..), State(..), View(..))
 import Network.RemoteData (RemoteData(..))
-import Playground.Types (ContractDemo(..), Simulation)
-import Prelude (class Eq, const, ($), (<$>), (<<<), (==))
+import Playground.Types (ContractDemo(..), KnownCurrency, Simulation)
+import Prelude (class Eq, const, ($), (<>), (<$>), (<<<), (==))
 import Schema.Types (mkInitialValue)
 import Simulator.Types (State(..)) as Simulator
 import Simulator.View (simulatorTitle, simulationsPane, simulationsNav)
@@ -37,16 +37,18 @@ foreign import plutusLogo :: String
 
 render :: forall m. MonadAff m => State -> ComponentHTML HAction ChildSlots m
 render state@(State { contractDemos, currentView, editorState, compilationResult, simulatorState, blockchainVisualisationState }) =
-  div
-    [ class_ $ ClassName "frame" ]
-    [ releaseBanner
-    , mainHeader
-    , subHeader state
-    , editorMain contractDemos currentView editorState compilationResult
-    , simulationsMain state
-    , transactionsMain currentView simulatorState blockchainVisualisationState
-    , mainFooter
-    ]
+  let
+    knownCurrencies = evalState getKnownCurrencies state
+  in
+    div
+      [ class_ $ ClassName "frame" ]
+      [ releaseBanner
+      , mainHeader
+      , subHeader state
+      , editorMain contractDemos currentView editorState compilationResult
+      , simulatorMain knownCurrencies currentView compilationResult simulatorState blockchainVisualisationState
+      , mainFooter
+      ]
 
 releaseBanner :: forall p. HTML p HAction
 releaseBanner =
@@ -160,21 +162,15 @@ editorMain contractDemos currentView editorState compilationResult =
     , editorWrapper contractDemos currentView editorState compilationResult
     ]
 
-simulationsMain :: forall m. MonadAff m => State -> ComponentHTML HAction ChildSlots m
-simulationsMain state@(State { currentView }) =
+simulatorMain :: forall m. MonadAff m => Array KnownCurrency -> View -> WebCompilationResult -> Simulator.State -> Chain.State -> ComponentHTML HAction ChildSlots m
+simulatorMain knownCurrencies currentView compilationResult simulatorState@(Simulator.State { simulations, evaluationResult, transactionsOpen }) blockchainVisualisationState =
   main
-    [ classes $ mainComponentClasses currentView Simulations ]
-    [ simulatorTitle
-    , simulationsWrapper state
-    ]
-
-transactionsMain :: forall m. MonadAff m => View -> Simulator.State -> Chain.State -> ComponentHTML HAction ChildSlots m
-transactionsMain currentView simulatorState@(Simulator.State { simulations, evaluationResult }) blockchainVisualisationState =
-  main
-    [ classes $ mainComponentClasses currentView Transactions ]
-    [ simulatorTitle
-    , transactionsWrapper simulations evaluationResult blockchainVisualisationState
-    ]
+    [ classes $ mainComponentClasses currentView Simulator ]
+    $ [ simulatorTitle ]
+    <> if transactionsOpen then
+        [ transactionsWrapper simulations evaluationResult blockchainVisualisationState ]
+      else
+        [ simulationsWrapper knownCurrencies compilationResult simulatorState ]
 
 mainComponentClasses :: forall view. Eq view => view -> view -> Array (ClassName)
 mainComponentClasses currentView targetView =
@@ -207,20 +203,14 @@ editorWrapper contractDemos currentView editorState compilationResult =
   defaultContents :: Maybe String
   defaultContents = view (_contractDemoEditorContents <<< _SourceCode) <$> lookupContractDemo "Vesting" contractDemos
 
-simulationsWrapper :: forall p. State -> HTML p HAction
-simulationsWrapper state@(State { compilationResult, simulatorState }) =
+simulationsWrapper :: forall p. Array KnownCurrency -> WebCompilationResult -> Simulator.State -> HTML p HAction
+simulationsWrapper knownCurrencies compilationResult simulatorState =
   let
-    knownCurrencies = evalState getKnownCurrencies state
-
     initialValue = mkInitialValue knownCurrencies zero
   in
     div
       [ classes [ ClassName "main-body", ClassName "simulator" ] ]
-      [ simulationsPane
-          initialValue
-          compilationResult
-          simulatorState
-      ]
+      [ simulationsPane initialValue compilationResult simulatorState ]
 
 transactionsWrapper :: forall m. MonadAff m => Cursor Simulation -> WebEvaluationResult -> Chain.State -> ComponentHTML HAction ChildSlots m
 transactionsWrapper simulations evaluationResult blockchainVisualisationState =

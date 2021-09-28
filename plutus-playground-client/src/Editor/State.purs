@@ -11,7 +11,7 @@ import Data.Lens (assign, modifying, use)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Ord (clamp)
 import Editor.Lenses (_currentCodeIsCompiled, _feedbackPaneDragStart, _feedbackPaneExtend, _feedbackPaneMinimised, _feedbackPanePreviousExtend, _keyBindings, _lastCompiledCode)
-import Editor.Types (State(State), Action(..), readKeyBindings)
+import Editor.Types (State(..), Action(..), readKeyBindings)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect)
 import Halogen (HalogenM, liftEffect, query, tell)
@@ -22,7 +22,7 @@ import LocalStorage (Key, getItem, setItem)
 import MainFrame.Lenses (_editorSlot)
 import MainFrame.Types (ChildSlots)
 import Monaco (Editor, getModel, layout, focus, setPosition, setValue) as Monaco
-import Prelude (Unit, bind, discard, not, pure, show, unit, void, (+), (-), ($), (<$>), (==))
+import Prelude (Unit, Void, bind, discard, not, pure, show, unit, void, (+), (-), ($), (<$>), (==))
 import StaticData (keybindingsLocalStorageKey)
 import Web.Event.Extra (preventDefault, readFileFromDragEvent)
 import Web.UIEvent.MouseEvent (pageY)
@@ -43,12 +43,10 @@ initialState =
           }
 
 handleAction ::
-  forall action output m.
+  forall m.
   MonadEffect m =>
   MonadAff m =>
-  Key ->
-  Action ->
-  HalogenM State action ChildSlots output m Unit
+  Key -> Action -> HalogenM State Action ChildSlots Void m Unit
 handleAction bufferLocalStorageKey Init = do
   binding <- loadKeyBindings
   assign _keyBindings binding

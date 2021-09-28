@@ -1,5 +1,6 @@
 module Simulator.Types
   ( State(..)
+  , Input(..)
   , Action(..)
   , SimulatorAction(..)
   , DragAndDropEventType(..)
@@ -10,7 +11,7 @@ import Analytics (class IsEvent, defaultEvent)
 import Cursor (Cursor)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
-import Playground.Types (ContractCall, Simulation)
+import Playground.Types (ContractCall, KnownCurrency, Simulation)
 import Prelude (class Show, show, ($))
 import Schema.Types (ActionEvent(..), FormArgument, SimulationAction(..))
 import Types (WebEvaluationResult)
@@ -23,19 +24,24 @@ newtype State
   , actionDrag :: Maybe Int
   , evaluationResult :: WebEvaluationResult
   , lastEvaluatedSimulation :: Maybe Simulation
+  , transactionsOpen :: Boolean
   }
 
 derive instance newtypeState :: Newtype State _
+
+newtype Input
+  = Input
+  { knownCurrencies :: Array KnownCurrency
+  }
 
 data Action
   = AddSimulationSlot
   | SetSimulationSlot Int
   | RemoveSimulationSlot Int
   | ActionDragAndDrop Int DragAndDropEventType DragEvent
-  -- Wallets.
   | ModifyWallets WalletEvent
-  -- Actions.
   | ChangeSimulation SimulationAction
+  | SetTransactionsOpen Boolean
 
 -- this synonym is defined in playground-common/src/Playground/Types.hs
 type SimulatorAction
@@ -80,3 +86,5 @@ instance actionIsEvent :: IsEvent Action where
   toEvent (ChangeSimulation (ModifyActions (SetPayToWalletRecipient _ _))) = Just $ (defaultEvent "SetPayToWalletRecipient") { category = Just "Action" }
   toEvent (ChangeSimulation (ModifyActions (SetWaitTime _ _))) = Just $ (defaultEvent "SetWaitTime") { category = Just "Action" }
   toEvent (ChangeSimulation (ModifyActions (SetWaitUntilTime _ _))) = Just $ (defaultEvent "SetWaitUntilTime") { category = Just "Action" }
+  toEvent (SetTransactionsOpen true) = Just $ defaultEvent "OpenTransactions"
+  toEvent (SetTransactionsOpen false) = Just $ defaultEvent "CloseTransactions"

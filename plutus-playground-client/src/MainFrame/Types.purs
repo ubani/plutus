@@ -51,20 +51,18 @@ derive instance newtypeState :: Newtype State _
 
 data View
   = Editor
-  | Simulations
-  | Transactions
+  | Simulator
 
 derive instance eqView :: Eq View
 
 derive instance genericView :: Generic View _
 
 instance arbitraryView :: Arbitrary View where
-  arbitrary = Gen.elements (Editor :| [ Simulations, Transactions ])
+  arbitrary = Gen.elements (Editor :| [ Simulator ])
 
 instance showView :: Show View where
   show Editor = "Editor"
-  show Simulations = "Simulation"
-  show Transactions = "Transactions"
+  show Simulator = "Simulator"
 
 type ChainSlot
   = Array Tx
@@ -77,23 +75,16 @@ data Query a
 data HAction
   = Init
   | Mounted
-  -- SubEvents.
   | HandleBalancesChartMessage Chartist.Message
-  -- Gist support.
   | CheckAuthStatus
   | GistAction GistAction
-  -- Demo files menu.
   | ToggleDemoFilesMenu
   | LoadScript String
-  -- Tabs.
   | ChangeView View
-  -- Editor.
   | EditorAction Editor.Action
   | CompileProgram
-  -- Simulations.
   | SimulatorAction Simulator.Action
   | EvaluateActions
-  -- Chain.
   | ChainAction (Chain.Action)
 
 type ChildSlots

@@ -31,7 +31,7 @@ import Halogen.HTML.Properties (class_, classes)
 import Icons (Icon(..), icon)
 import PlutusTx.AssocMap as AssocMap
 import MainFrame.Lenses (_balancesChartSlot)
-import MainFrame.Types (ChildSlots, HAction(..), View(..))
+import MainFrame.Types (ChildSlots, HAction(..))
 import Playground.Lenses (_tokenName, _contractInstanceTag)
 import Playground.Types (EvaluationResult(EvaluationResult), SimulatorWallet)
 import Plutus.Trace.Emulator.Types (ContractInstanceLog(..))
@@ -41,6 +41,7 @@ import Plutus.V1.Ledger.Value (CurrencySymbol, TokenName)
 import Prelude (const, map, show, unit, ($), (<$>), (<<<), (<>))
 import Wallet.Emulator.Chain (ChainEvent(..))
 import Plutus.ChainIndex.ChainIndexLog (ChainIndexLog(..))
+import Simulator.Types (Action(..)) as Simulator
 import Wallet.Emulator.MultiAgent (EmulatorEvent'(..))
 import Wallet.Emulator.MultiAgent as MultiAgent
 import Wallet.Emulator.NodeClient (NodeClientEvent(..))
@@ -56,7 +57,7 @@ evaluationPane state evaluationResult@(EvaluationResult { emulatorLog, emulatorT
         [ h2_ [ text "Transactions" ]
         , button
             [ classes [ btn ]
-            , onClick $ const $ Just $ ChangeView Simulations
+            , onClick $ const $ Just $ SimulatorAction $ Simulator.SetTransactionsOpen false
             ]
             [ icon Close ]
         ]

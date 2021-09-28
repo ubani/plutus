@@ -160,7 +160,7 @@ viewTransactionsButton simulations lastEvaluatedSimulation evaluationResult =
   button
     [ classes [ btn, ClassName "btn-turquoise" ]
     , disabled isDisabled
-    , onClick $ const $ Just $ ChangeView Transactions
+    , onClick $ const $ Just $ SimulatorAction $ Simulator.SetTransactionsOpen true
     ]
     [ text "Transactions" ]
   where
