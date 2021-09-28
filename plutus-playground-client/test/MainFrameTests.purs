@@ -34,10 +34,10 @@ import Gist (Gist, GistId, gistId)
 import Gists.Types (GistAction(..))
 import Halogen.Monaco (KeyBindings(..)) as Editor
 import Language.Haskell.Interpreter (InterpreterError, InterpreterResult, SourceCode(..))
-import MainFrame.Lenses (_authStatus, _contractDemoEditorContents, _createGistResult, _currentView, _simulations)
+import MainFrame.Lenses (_authStatus, _contractDemoEditorContents, _createGistResult, _currentView, _simulatorState)
 import MainFrame.MonadApp (class MonadApp)
 import MainFrame.State (handleAction, mkInitialState)
-import MainFrame.Types (HAction(..), State, View(Editor, Simulations), WebData)
+import MainFrame.Types (HAction(..), State, View(..))
 import Network.RemoteData (RemoteData(..), isNotAsked, isSuccess)
 import Network.RemoteData as RemoteData
 import Node.Encoding (Encoding(..))
@@ -46,11 +46,13 @@ import Playground.Gists (playgroundGistFile)
 import Playground.Server (SPParams_(..))
 import Playground.Types (CompilationResult, ContractDemo, EvaluationResult)
 import Servant.PureScript.Settings (SPSettings_, defaultSettings)
+import Simulator.Lenses (_simulations)
 import StaticData (bufferLocalStorageKey, lookupContractDemo, mkContractDemos)
 import Test.QuickCheck ((<?>))
 import Test.Unit (TestSuite, failure, suite, test)
 import Test.Unit.Assert (assert, equal, equal')
 import Test.Unit.QuickCheck (quickCheck)
+import Types (WebData)
 
 all :: TestSuite
 all =
@@ -221,7 +223,7 @@ evalTests =
             assert "Gist gets loaded." $ isSuccess (view _createGistResult finalState)
             equal
               2
-              (Cursor.length (view _simulations finalState))
+              (Cursor.length (view (_simulatorState <<< _simulations) finalState))
             case view playgroundGistFile gist of
               Nothing -> failure "Could not read gist content. Sample test data may be incorrect."
               Just sourceFile -> do
@@ -247,7 +249,7 @@ evalTests =
             Right compilationResult -> do
               Tuple _ finalState <-
                 execMockApp (mockWorld { compilationResult = compilationResult })
-                  [ ChangeView Simulations
+                  [ ChangeView Simulator
                   , LoadScript "Game"
                   ]
               equal' "View is reset." Editor $ view _currentView finalState
