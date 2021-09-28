@@ -62,7 +62,7 @@ import Prelude (class Applicative, Unit, Void, bind, const, discard, flip, ident
 import Schema.Types (Expression, FormArgument, formArgumentToJson, traverseFunctionSchema)
 import Servant.PureScript.Ajax (errorToString)
 import Servant.PureScript.Settings (SPSettings_, defaultSettings)
-import Simulator.Lenses (_evaluationResult, _lastEvaluatedSimulation, _simulations, _successfulEvaluationResult)
+import Simulator.Lenses (_evaluationResult, _lastEvaluatedSimulation, _simulations, _successfulEvaluationResult, _transactionsOpen)
 import Simulator.State (handleAction, initialState, mkSimulation) as Simulator
 import Simulator.Types (Input(..)) as Simulator
 import Simulator.View (simulatorTitleRefLabel, simulationsErrorRefLabel)
@@ -251,7 +251,7 @@ handleAction EvaluateActions =
               mAnnotatedBlockchain <- peruse (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< to AnnotatedBlockchain)
               txId <- (gets <<< lastOf) (_simulatorState <<< _successfulEvaluationResult <<< _resultRollup <<< traversed <<< traversed <<< _txIdOf)
               lift $ zoomStateT _blockchainVisualisationState $ Chain.handleAction (FocusTx txId) mAnnotatedBlockchain
-            -- FIXME replaceViewOnSuccess result Simulations Transactions
+            when (isSuccess result) (assign (_simulatorState <<< _transactionsOpen) true)
             lift $ scrollIntoView simulatorTitleRefLabel
           Success (Left _) -> do
             -- on failed evaluation, scroll the error pane into view
@@ -336,12 +336,6 @@ handleGistAction LoadGist =
   toEither x NotAsked = x
 
 handleGistAction (AjaxErrorPaneAction CloseErrorPane) = assign _gistErrorPaneVisible false
-
-replaceViewOnSuccess :: forall m e a. MonadState State m => RemoteData e a -> View -> View -> m Unit
-replaceViewOnSuccess result source target = do
-  currentView <- use _currentView
-  when (isSuccess result && currentView == source)
-    (assign _currentView target)
 
 ------------------------------------------------------------
 toEvaluation :: SourceCode -> Simulation -> Maybe Evaluation
