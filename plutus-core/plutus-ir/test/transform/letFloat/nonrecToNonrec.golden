@@ -3,15 +3,8 @@
   (termbind
     (strict)
     (vardecl r (con integer))
-    (let
-      (nonrec)
-      (termbind
-        (strict)
-        (vardecl i (con integer))
-        (let (nonrec) (termbind (strict) (vardecl j (con integer)) r) j)
-      )
-      i
-    )
+    (let (nonrec) (termbind (strict) (vardecl i (con integer)) j) i)
   )
+  (termbind (strict) (vardecl j (con integer)) r)
   (con integer 3)
 )

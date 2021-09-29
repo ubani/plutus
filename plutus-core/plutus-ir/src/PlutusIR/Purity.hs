@@ -77,6 +77,7 @@ isPure varStrictness = go
             TyAbs {} -> True
             Constant {} -> True
             IWrap _ _ _ t -> go t
+            Unwrap _ t -> go t
 
             x | Just bapp@(BuiltinApp _ args) <- asBuiltinApp x ->
                 -- Pure only if we can tell that the builtin application is not saturated

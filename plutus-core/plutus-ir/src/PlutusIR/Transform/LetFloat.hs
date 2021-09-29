@@ -146,7 +146,7 @@ representativeBindingUnique =
 -- | Every term and type variable in current scope
 -- is paired with its own computed marker (maximum dependent position)
 -- OPTIMIZE: use UniqueMap instead
-type Scope = M.Map PLC.Unique Pos
+type Scope = M.Map PLC.Unique (Pos, Strictness)
 
 -- | The first pass has a reader context of current depth, and (term&type)variables in scope.
 data MarkCtx = MarkCtx { _markCtxDepth :: Depth, _markCtxScope :: Scope }
@@ -154,7 +154,8 @@ makeLenses ''MarkCtx
 
 -- | The result of the first pass is a subset(union of all computed scopes).
 -- This subset contains only the marks of the floatable lets.
-type Marks = Scope
+-- OPTIMIZE: use UniqueMap instead
+type Marks = M.Map PLC.Unique Pos
 
 {-|
 A 'BindingGrp' is a group of bindings and a *minimum* recursivity for the group.
@@ -191,7 +192,7 @@ mark :: forall tyname name uni fun a.
       (Ord tyname, Ord name, PLC.HasUnique tyname PLC.TypeUnique, PLC.HasUnique name PLC.TermUnique, PLC.ToBuiltinMeaning uni fun)
      => Term tyname name uni fun a
      -> Marks
-mark = snd . runWriter . flip runReaderT (MarkCtx topDepth mempty) . go
+mark = execWriter . flip runReaderT (MarkCtx topDepth mempty) . go
   where
     go :: Term tyname name uni fun a -> ReaderT MarkCtx (Writer Marks) ()
     go = breakNonRec >>> \case
@@ -200,11 +201,11 @@ mark = snd . runWriter . flip runReaderT (MarkCtx topDepth mempty) . go
         TyAbs _ n _ tBody   -> withLam n $ go tBody
 
         -- main operation: for letrec or single letnonrec
-        Let ann r bs@(representativeBindingUnique -> letU) tIn ->
-          let letN = BindingGrp ann r bs in
-          if floatable letN
+        Let ann r bs@(representativeBindingUnique -> letU) tIn -> do
+          let letN = BindingGrp ann r bs
+          scope <- asks _markCtxScope
+          if floatable scope letN
           then do
-            scope <- asks _markCtxScope
             let freeVars =
                     -- if Rec, remove the here-bindings from free
                     ifRec r (S.\\ setOf (traversed.bindingIds) bs) $
@@ -398,8 +399,8 @@ floatTerm t =
 
 -- HELPERS
 
-maxPos :: M.Map k Pos -> Pos
-maxPos = foldr max topPos
+maxPos :: Scope -> Pos
+maxPos = foldr (max . fst) topPos
 
 withDepth :: (r ~ MarkCtx, MonadReader r m)
           => (Depth -> Depth) -> m a -> m a
@@ -412,14 +413,17 @@ withLam n = local $ \ (MarkCtx d scope) ->
     let u = n^.PLC.theUnique
         d' = d+1
         pos' = Pos d' u LamBody
-    in MarkCtx d' (M.insert u pos' scope)
+    in MarkCtx d' (M.insert u (pos', Strict) scope)
 
 withBs :: (r ~ MarkCtx, MonadReader r m, PLC.HasUnique name PLC.TermUnique, PLC.HasUnique tyname PLC.TypeUnique)
        => NE.NonEmpty (Binding tyname name uni fun a3)
        -> Pos
        -> m a -> m a
 withBs bs pos = local . over markCtxScope $ \scope ->
-    M.fromList [(bid, pos) | bid <- bs^..traversed.bindingIds] <> scope
+    M.fromList (concatMap (\b ->
+            [(bid, (pos, bindingStrictness b)) | bid <- b^..bindingIds]
+    ) bs) <> scope
+
 
 -- A helper to apply a function iff recursive
 ifRec :: Recursivity -> (a -> a) -> a -> a
@@ -427,22 +431,24 @@ ifRec r f a = case r of
     Rec    -> f a
     NonRec -> a
 
-floatable :: PLC.ToBuiltinMeaning uni fun => BindingGrp tyname name uni fun a -> Bool
-floatable (BindingGrp _ _ bs) = all hasNoEffects bs
+floatable :: (PLC.HasUnique name PLC.TermUnique, PLC.ToBuiltinMeaning uni fun)
+          => Scope -> BindingGrp tyname name uni fun a -> Bool
+floatable scope (BindingGrp _ _ bs) = all (hasNoEffects scope) bs
 
 {-| Returns if a binding has absolutely no effects  (see Value.hs)
 See Note [Purity, strictness, and variables]
 An extreme alternative implementation is to treat *all strict* bindings as unfloatable, e.g.:
 `hasNoEffects = \case {TermBind _ Strict _  _ -> False; _ -> True}`
 -}
-hasNoEffects :: PLC.ToBuiltinMeaning uni fun => Binding tyname name uni fun a -> Bool
-hasNoEffects = \case
+hasNoEffects :: (PLC.HasUnique name PLC.TermUnique, PLC.ToBuiltinMeaning uni fun)
+             => Scope -> Binding tyname name uni fun a -> Bool
+hasNoEffects scope = \case
     TypeBind{}               -> True
     DatatypeBind{}           -> True
     TermBind _ NonStrict _ _ -> True
     -- have to check for purity
     -- TODO: We could maybe do better here, but not worth it at the moment
-    TermBind _ Strict _ t    -> isPure (const NonStrict) t
+    TermBind _ Strict _ t    -> isPure (\ n -> M.findWithDefault NonStrict (n^.PLC.theUnique) $ fmap snd scope)  t
 
 -- | Breaks down linear let nonrecs by
 -- the rule: {let nonrec (b:bs) in t} === {let nonrec b in let nonrec bs in t}
@@ -478,3 +484,12 @@ The end result is that no nested, floatable let will appear anymore inside anoth
 *EXCEPT* if the nested let is intercepted by a lam/Lam anchor (depends on a lam/Lam that is located inside the parent-let's rhs)
 e.g. valid output: let x= \z -> (let y = 3+z in y) in ...
 -}
+
+
+-- TODO: refactor
+bindingStrictness :: Binding tyname name uni fun a
+                  -> Strictness
+bindingStrictness = \case
+    TermBind _ strictness _ _ -> strictness
+    TypeBind {}               -> Strict
+    DatatypeBind _ _          -> Strict
