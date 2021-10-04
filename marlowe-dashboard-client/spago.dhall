@@ -20,6 +20,7 @@ You can edit this file as you like.
   , "psci-support"
   , "remotedata"
   , "servant-support"
+  , "simple-json"
   , "test-unit"
   , "undefinable"
   , "unfoldable"

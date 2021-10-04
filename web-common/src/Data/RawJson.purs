@@ -9,7 +9,7 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Newtype (class Newtype)
 import Foreign (readString, unsafeToForeign)
 import Foreign.Class (class Decode, class Encode)
-import Global.Unsafe (unsafeStringify)
+import Simple.JSON (unsafeStringify)
 
 newtype RawJson
   = RawJson String
