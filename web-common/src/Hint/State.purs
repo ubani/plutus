@@ -13,8 +13,8 @@ import Effect.Aff.Class (class MonadAff)
 import Halogen (Component, HalogenM, Slot, get, getHTMLElementRef, liftEffect, mkComponent, modify_)
 import Halogen as H
 import Halogen.HTML (ComponentHTML, HTML, PlainHTML, slot)
-import Halogen.Query.EventSource (EventSource)
-import Halogen.Query.EventSource as EventSource
+import Halogen.Query.Event (EventSource)
+import Halogen.Query.Event as EventSource
 import Hint.Lenses (_active, _content, _mGlobalClickSubscription, _mPopperInstance, _placement)
 import Hint.Types (Action(..), Input, State, arrowRef, hintRef, popoutRef)
 import Hint.View (render)

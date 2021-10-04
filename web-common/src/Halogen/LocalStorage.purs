@@ -6,8 +6,8 @@ import Data.Maybe (Maybe(..))
 import Effect.Aff (forkAff, killFiber)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Exception (error)
-import Halogen.Query.EventSource (EventSource)
-import Halogen.Query.EventSource as EventSource
+import Halogen.Query.Event (EventSource)
+import Halogen.Query.Event as EventSource
 import LocalStorage (RawStorageEvent)
 import LocalStorage as LocalStorage
 

@@ -12,7 +12,7 @@ import Effect.Aff.Class (class MonadAff)
 import Halogen (Component, HalogenM, Slot, get, getHTMLElementRef, liftEffect, mkComponent, modify_)
 import Halogen as H
 import Halogen.HTML (ComponentHTML, HTML, slot)
-import Halogen.Query.EventSource (eventListenerEventSource)
+import Halogen.Query.Event (eventListenerEventSource)
 import Popper (OffsetOption(..), PaddingOption(..), Placement, PositioningStrategy(..), arrow, createPopper, defaultFlip, defaultModifiers, defaultPreventOverflow, destroyPopper, flipPlacement, forceUpdate, offset, pAll, preventOverflow)
 import Tooltip.Lenses (_active, _mPopperInstance, _message, _placement)
 import Tooltip.Types (Action(..), Input, ReferenceId(..), State, arrowRef, tooltipRef)

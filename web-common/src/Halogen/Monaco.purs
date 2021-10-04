@@ -31,7 +31,7 @@ import Halogen as H
 import Halogen.ElementResize (elementResize)
 import Halogen.HTML (HTML, div)
 import Halogen.HTML.Properties (class_, ref)
-import Halogen.Query.EventSource (Emitter(..), Finalizer, effectEventSource)
+import Halogen.Query.Event (Emitter(..), Finalizer, effectEventSource)
 import Monaco (CodeActionProvider, CompletionItemProvider, DocumentFormattingEditProvider, Editor, HoverProvider, IDisposable, IMarker, IMarkerData, IModelDeltaDecoration, IPosition, IRange, LanguageExtensionPoint, MonarchLanguage, Theme, TokensProvider, dispose)
 import Monaco as Monaco
 import Web.DOM.ResizeObserver (ResizeObserverBoxOptions(..))

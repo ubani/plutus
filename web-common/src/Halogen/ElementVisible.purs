@@ -4,8 +4,8 @@ import Prelude
 import Data.Array (head)
 import Data.Foldable (for_)
 import Effect.Aff.Class (class MonadAff)
-import Halogen.Query.EventSource (EventSource)
-import Halogen.Query.EventSource as EventSource
+import Halogen.Query.Event (EventSource)
+import Halogen.Query.Event as EventSource
 import Web.DOM (Element)
 import Web.DOM.IntersectionObserver (intersectionObserver, observe, unobserve)
 

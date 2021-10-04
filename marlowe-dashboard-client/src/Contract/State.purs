@@ -48,8 +48,8 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Exception.Unsafe (unsafeThrow)
 import Env (DataProvider(..), Env)
 import Halogen (HalogenM, getHTMLElementRef, liftEffect, put, query, subscribe, tell, unsubscribe)
-import Halogen.Query.EventSource (EventSource)
-import Halogen.Query.EventSource as EventSource
+import Halogen.Query.Event (EventSource)
+import Halogen.Query.Event as EventSource
 import LoadingSubmitButton.Types (Query(..), _submitButtonSlot)
 import MainFrame.Types (Action(..)) as MainFrame
 import MainFrame.Types (ChildSlots, Msg)

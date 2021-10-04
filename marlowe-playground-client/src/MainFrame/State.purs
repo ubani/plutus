@@ -39,7 +39,7 @@ import Halogen.HTML (HTML)
 import Halogen.Monaco (KeyBindings(DefaultBindings))
 import Halogen.Monaco as Monaco
 import Halogen.Query (HalogenM)
-import Halogen.Query.EventSource (eventListenerEventSource)
+import Halogen.Query.Event (eventListenerEventSource)
 import HaskellEditor.State as HaskellEditor
 import HaskellEditor.Types (Action(..), State, _ContractString, _metadataHintInfo, initialState) as HE
 import JavascriptEditor.State as JavascriptEditor

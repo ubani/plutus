@@ -13,8 +13,8 @@ import Effect.Aff as Aff
 import Effect.Aff.Class (class MonadAff)
 import Halogen (HalogenM, RefLabel(..), getHTMLElementRef, subscribe, unsubscribe)
 import Halogen.Animation (animateAndWaitUntilFinishSubscription)
-import Halogen.Query.EventSource (EventSource)
-import Halogen.Query.EventSource as EventSource
+import Halogen.Query.Event (EventSource)
+import Halogen.Query.Event as EventSource
 import Toast.Lenses (_expanded, _mToast, _timeoutSubscription)
 import Toast.Types (Action(..), State, ToastMessage)
 
