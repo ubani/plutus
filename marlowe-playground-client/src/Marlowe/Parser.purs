@@ -8,7 +8,7 @@ import Data.BigInteger as BigInteger
 import Data.Either (Either(..))
 import Data.Function.Uncurried (Fn5, runFn5)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Show.Generic (genericShow)
 import Effect.Exception.Unsafe (unsafeThrow)
 import Marlowe.Holes (AccountId, Action(..), Bound(..), Case(..), ChoiceId(..), Contract(..), Location(..), Observation(..), Party(..), Payee(..), Term(..), TermWrapper(..), Timeout(SlotParam), Token(..), Value(..), ValueId(..), getLocation, mkHole)
 import Marlowe.Holes as H

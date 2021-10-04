@@ -20,7 +20,7 @@ import Control.Monad.Reader (class MonadAsk)
 import Dashboard.Types (Action(..)) as Dashboard
 import Data.Array (any)
 import Data.BigInteger (BigInteger)
-import Data.Char.Unicode (isAlphaNum)
+import Data.CodePoint.Unicode (codePointFromChar, isAlphaNum)
 import Data.Foldable (for_)
 import Data.Lens (assign, modifying, set, use)
 import Data.Map (isEmpty, filter, insert, lookup, member)
@@ -202,11 +202,10 @@ walletNicknameError _ "" = Just EmptyWalletNickname
 walletNicknameError walletLibrary walletNickname =
   if member walletNickname walletLibrary then
     Just DuplicateWalletNickname
+  else if any (\char -> not $ isAlphaNum $ codePointFromChar char) $ toCharArray walletNickname then
+    Just BadWalletNickname
   else
-    if any (\char -> not $ isAlphaNum char) $ toCharArray walletNickname then
-      Just BadWalletNickname
-    else
-      Nothing
+    Nothing
 
 walletIdError :: WebData WalletInfo -> WalletLibrary -> String -> Maybe WalletIdError
 walletIdError _ _ "" = Just EmptyWalletId

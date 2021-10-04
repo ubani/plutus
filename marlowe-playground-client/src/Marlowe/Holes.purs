@@ -9,9 +9,9 @@ import Data.Enum (class BoundedEnum, class Enum, upFromIncluding)
 import Data.Foldable (intercalate)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Bounded (genericBottom, genericTop)
-import Data.Generic.Rep.Enum (genericCardinality, genericFromEnum, genericPred, genericSucc, genericToEnum)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Bounded.Generic (genericBottom, genericTop)
+import Data.Enum.Generic (genericCardinality, genericFromEnum, genericPred, genericSucc, genericToEnum)
+import Data.Show.Generic (genericShow)
 import Data.Lens (Lens', over, to, view)
 import Data.Lens.Record (prop)
 import Data.List (List(..), fromFoldable, (:))
@@ -1299,10 +1299,9 @@ reduceContractStep env state contract = case contract of
     in
       if endSlot < sTimeout then
         NotReduced
+      else if sTimeout <= startSlot then
+        Reduced nextContract
       else
-        if sTimeout <= startSlot then
-          Reduced nextContract
-        else
-          ReduceError "AmbiguousSlotIntervalReductionError"
+        ReduceError "AmbiguousSlotIntervalReductionError"
   Let _ _ nextContract -> Reduced nextContract
   Assert _ cont -> Reduced cont

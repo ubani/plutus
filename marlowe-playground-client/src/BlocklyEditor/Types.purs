@@ -7,7 +7,7 @@ import BlocklyComponent.Types as Blockly
 import BottomPanel.Types as BottomPanel
 import Data.BigInteger (BigInteger)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Show.Generic (genericShow)
 import Data.Lens (Lens')
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(..))

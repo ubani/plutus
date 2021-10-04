@@ -8,7 +8,7 @@ import Data.BigInteger (BigInteger, fromInt)
 import Data.Foldable (class Foldable, any, foldl, minimum)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Show.Generic (genericShow)
 import Data.Identity (Identity)
 import Data.Lens (Lens', over, to, view)
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -1411,14 +1411,13 @@ evalValue env state value =
                 in
                   if ar < ad then
                     q -- reminder < 1/2
+                  else if ar > ad then
+                    q + signum n * signum d -- reminder > 1/2
                   else
-                    if ar > ad then
-                      q + signum n * signum d -- reminder > 1/2
-                    else
-                      let -- reminder == 1/2
-                        qIsEven = q `mod` fromInt 2 == fromInt 0
-                      in
-                        if qIsEven then q else q + signum n * signum d
+                    let -- reminder == 1/2
+                      qIsEven = q `mod` fromInt 2 == fromInt 0
+                    in
+                      if qIsEven then q else q + signum n * signum d
       Scale (Rational n d) rhs ->
         let
           nn = eval rhs * n
@@ -1558,11 +1557,10 @@ reduceContractStep env state contract = case contract of
     in
       if endSlot < timeout then
         NotReduced
+      else if timeout <= startSlot then
+        Reduced ReduceNoWarning ReduceNoPayment state nextContract
       else
-        if timeout <= startSlot then
-          Reduced ReduceNoWarning ReduceNoPayment state nextContract
-        else
-          AmbiguousSlotIntervalReductionError
+        AmbiguousSlotIntervalReductionError
   Let valId val nextContract ->
     let
       evaluatedValue = evalValue env state val
