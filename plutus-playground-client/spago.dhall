@@ -29,7 +29,7 @@ You can edit this file as you like.
   , "uuid"
   , "web-socket"
   ]
-, packages = ./packages.dhall
+, packages = ../packages.dhall
 , sources =
   [ "src/**/*.purs"
   , "test/**/*.purs"
