@@ -7,7 +7,7 @@ let
   inherit (pkgs) stdenv lib utillinux python3 nixpkgs-fmt;
   inherit (plutus) haskell agdaPackages stylish-haskell sphinxcontrib-haddock sphinx-markdown-tables sphinxemoji nix-pre-commit-hooks cardano-cli cardano-node;
   inherit (plutus) agdaWithStdlib;
-  inherit (plutus) purty purty-pre-commit purs spargo;
+  inherit (plutus) purty purty-pre-commit purs spago;
 
   # For Sphinx, and ad-hoc usage
   sphinxTools = python3.withPackages (ps: [
@@ -72,7 +72,6 @@ let
     yq
     z3
     zlib
-    nodePackages.purescript-language-server
   ] ++ (lib.optionals (!stdenv.isDarwin) [ rPackages.plotly R ]));
 
   # local build inputs ( -> ./nix/pkgs/default.nix )
@@ -99,6 +98,7 @@ let
     plutus-pab.start-all-servers
     plutus-pab.start-all-servers-m
     purs
+    purescript-language-server
     purty
     spago
     spago2nix

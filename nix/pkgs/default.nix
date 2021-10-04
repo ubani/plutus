@@ -149,7 +149,7 @@ let
   # We pull out some packages from easyPS that are a pain to get otherwise.
   # In particular, we used to build purty ourselves, but now its build is a nightmare.
   # This does mean we can't as easily control the version we get, though.
-  inherit (easyPS) purty purs psc-package spago;
+  inherit (easyPS) purty purs psc-package purescript-language-server spago;
 
   # There is a spago2nix in easyPS, but it doesn't (currently) work. It doesn't
   # matter because it's actually just a thin call to spago2nix's nix build
@@ -212,7 +212,7 @@ in
   inherit sphinx-markdown-tables sphinxemoji sphinxcontrib-haddock;
   inherit nix-pre-commit-hooks;
   inherit haskell agdaPackages cabal-install cardano-repo-tool stylish-haskell hlint haskell-language-server haskell-language-server-wrapper hie-bios cardano-cli cardano-node;
-  inherit purty purty-pre-commit purs spago spago2nix;
+  inherit purty purty-pre-commit purs purescript-language-server spago spago2nix;
   inherit fixPurty fixStylishHaskell fixPngOptimization updateMaterialized updateClientDeps;
   inherit web-ghc;
   inherit easyPS plutus-haddock-combined;
