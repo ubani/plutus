@@ -8,11 +8,9 @@ import Data.Array (filter)
 import Data.Traversable (traverse)
 import Effect (Effect)
 import Effect.Aff (Aff)
-import Effect.Aff.Class (class MonadAff)
 import Effect.Class (liftEffect)
 import Effect.Uncurried (EffectFn1, EffectFn2, runEffectFn1, runEffectFn2)
-import Halogen.Query.Event (EventSource)
-import Halogen.Query.Event as EventSource
+import Halogen.Subscription as HS
 import Web.DOM.DOMTokenList as DOMTokenList
 import Web.HTML (HTMLElement)
 import Web.HTML.HTMLElement (classList)
@@ -47,14 +45,13 @@ animationFinished = toAffE <<< runEffectFn1 animationFinished_
 -- You don't need to unsubscribe as the EventSource closes itself after firing the action.
 -- https://tailwindcss.com/docs/animation
 animateAndWaitUntilFinishSubscription ::
-  forall m action.
-  MonadAff m =>
+  forall action.
   String ->
   action ->
   HTMLElement ->
-  EventSource m action
+  HS.Emitter action
 animateAndWaitUntilFinishSubscription animationName action element =
-  EventSource.effectEventSource \emitter -> do
+  HS.makeEmitter \push -> do
     let
       className = "animate-" <> animationName
     -- Adding the class to the element starts the animation
@@ -64,14 +61,13 @@ animateAndWaitUntilFinishSubscription animationName action element =
     let
       cb :: Effect Unit
       cb = do
-        EventSource.emit emitter action
-        EventSource.close emitter
+        push action
         -- We remove the css class so we can redo the animation if necessary
         DOMTokenList.remove classes className
     case animations of
       [ animation ] -> setOnFinishHandler animation cb
       _ -> cb
-    pure $ EventSource.Finalizer mempty
+    pure $ pure mempty
 
 -- same as `animateAndWaitUntilFinishSubscription` but works with Aff instead of subscriptions so it allows
 -- to sequence animations.

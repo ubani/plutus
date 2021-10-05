@@ -90,8 +90,8 @@ renderInput options state =
                 in
                   div
                     [ classNames $ Css.pseudoDropdown (dropdownOpen && not null matchingValueOptions)
-                    , onMouseEnter $ const $ Just $ SetDropdownLocked true
-                    , onMouseLeave $ const $ Just $ SetDropdownLocked false
+                    , onMouseEnter $ const $ SetDropdownLocked true
+                    , onMouseLeave $ const $ SetDropdownLocked false
                     ]
                     ( matchingValueOptions
                         <#> \option ->

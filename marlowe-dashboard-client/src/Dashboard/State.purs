@@ -33,6 +33,7 @@ import Data.Lens.Index (ix)
 import Data.Lens.Traversal (traversed)
 import Data.List (filter, fromFoldable) as List
 import Data.Map (Map, delete, filterKeys, findMin, insert, lookup, mapMaybe, mapMaybeWithKey, toUnfoldable)
+import Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Set (delete, fromFoldable, isEmpty) as Set
 import Data.Time.Duration (Milliseconds(..))
@@ -40,7 +41,7 @@ import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff.Class (class MonadAff)
 import Env (DataProvider(..), Env)
-import Halogen (HalogenM, modify_, query, tell)
+import Halogen (HalogenM, modify_, tell)
 import Halogen.Extra (mapMaybeSubmodule, mapSubmodule)
 import InputField.Lenses (_value)
 import InputField.Types (Action(..)) as InputField
@@ -62,7 +63,7 @@ import Toast.Types (ajaxErrorToast, decodedAjaxErrorToast, errorToast, successTo
 
 -- see note [dummyState] in MainFrame.State
 dummyState :: State
-dummyState = mkInitialState mempty defaultWalletDetails mempty mempty (Slot zero)
+dummyState = mkInitialState Map.empty defaultWalletDetails Map.empty Map.empty (Slot zero)
 
 {- [Workflow 2][4] Connect a wallet
 When we connect a wallet, it has this initial state. Notable is the walletCompanionStatus of
@@ -374,7 +375,7 @@ handleAction input@{ currentSlot } (TemplateAction templateAction) = case templa
     templateState <- use _templateState
     case instantiateExtendedContract currentSlot templateState of
       Nothing -> do
-        void $ query _submitButtonSlot "action-pay-and-start" $ tell $ SubmitResult (Milliseconds 600.0) (Left "Error")
+        void $ tell _submitButtonSlot "action-pay-and-start" $ SubmitResult (Milliseconds 600.0) (Left "Error")
         addToast $ errorToast "Failed to instantiate contract." $ Just "Something went wrong when trying to instantiate a contract from this template using the parameters you specified."
       Just contract -> do
         -- the user enters wallet nicknames for roles; here we convert these into pubKeyHashes
@@ -389,7 +390,7 @@ handleAction input@{ currentSlot } (TemplateAction templateAction) = case templa
         case ajaxCreateContract of
           -- TODO: make this error message more informative
           Left ajaxError -> do
-            void $ query _submitButtonSlot "action-pay-and-start" $ tell $ SubmitResult (Milliseconds 600.0) (Left "Error")
+            void $ tell _submitButtonSlot "action-pay-and-start" $ SubmitResult (Milliseconds 600.0) (Left "Error")
             addToast $ ajaxErrorToast "Failed to initialise contract." ajaxError
           _ -> do
             -- Here we create a `MarloweFollower` app with no `MarloweParams`; when the next status
@@ -399,7 +400,7 @@ handleAction input@{ currentSlot } (TemplateAction templateAction) = case templa
             ajaxPendingFollowerApp <- createPendingFollowerApp walletDetails
             case ajaxPendingFollowerApp of
               Left ajaxError -> do
-                void $ query _submitButtonSlot "action-pay-and-start" $ tell $ SubmitResult (Milliseconds 600.0) (Left "Error")
+                void $ tell _submitButtonSlot "action-pay-and-start" $ SubmitResult (Milliseconds 600.0) (Left "Error")
                 addToast $ ajaxErrorToast "Failed to initialise contract." ajaxError
               Right followerAppId -> do
                 contractNickname <- use (_templateState <<< _contractNicknameInput <<< _value)
@@ -407,7 +408,7 @@ handleAction input@{ currentSlot } (TemplateAction templateAction) = case templa
                 metaData <- use (_templateState <<< _contractTemplate <<< _metaData)
                 modifying _contracts $ insert followerAppId $ Contract.mkPlaceholderState contractNickname metaData contract
                 handleAction input CloseCard
-                void $ query _submitButtonSlot "action-pay-and-start" $ tell $ SubmitResult (Milliseconds 600.0) (Right "")
+                void $ tell _submitButtonSlot "action-pay-and-start" $ SubmitResult (Milliseconds 600.0) (Right "")
                 addToast $ successToast "The request to initialise this contract has been submitted."
                 { dataProvider } <- ask
                 when (dataProvider == LocalStorage) (handleAction input UpdateFromStorage)

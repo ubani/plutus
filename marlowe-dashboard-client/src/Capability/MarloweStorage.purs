@@ -16,11 +16,11 @@ module Capability.MarloweStorage
 import Prologue
 import AppM (AppM)
 import Control.Monad.Except (lift, runExcept)
-import Data.Array (find)
 import Data.Either (hush)
-import Data.Foldable (for_)
+import Data.Foldable (find, for_)
 import Data.Lens (set, view)
 import Data.Map (Map, insert, lookup)
+import Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Effect.Class (liftEffect)
 import Foreign.Generic (decodeJSON, encodeJSON)
@@ -70,7 +70,7 @@ instance manageMarloweStorageAppM :: ManageMarloweStorage AppM where
   -- wallet library
   getWalletLibrary = do
     mWalletLibraryJson <- liftEffect $ getItem walletLibraryLocalStorageKey
-    pure $ fromMaybe mempty $ hush <<< runExcept <<< decodeJSON =<< mWalletLibraryJson
+    pure $ fromMaybe Map.empty $ hush <<< runExcept <<< decodeJSON =<< mWalletLibraryJson
   insertIntoWalletLibrary walletDetails = do
     walletLibrary <- getWalletLibrary
     let
@@ -81,7 +81,7 @@ instance manageMarloweStorageAppM :: ManageMarloweStorage AppM where
   -- contract nicknames
   getContractNicknames = do
     mContractNicknamesJson <- liftEffect $ getItem contractNicknamesLocalStorageKey
-    pure $ fromMaybe mempty $ hush <<< runExcept <<< decodeJSON =<< mContractNicknamesJson
+    pure $ fromMaybe Map.empty $ hush <<< runExcept <<< decodeJSON =<< mContractNicknamesJson
   insertIntoContractNicknames plutusAppId nickname = do
     contractNicknames <- getContractNicknames
     let
@@ -101,7 +101,7 @@ instance manageMarloweStorageAppM :: ManageMarloweStorage AppM where
         insertIntoWalletLibrary updatedDetails
   getContracts = do
     mContractsJson <- liftEffect $ getItem contractsLocalStorageKey
-    pure $ fromMaybe mempty $ hush <<< runExcept <<< decodeJSON =<< mContractsJson
+    pure $ fromMaybe Map.empty $ hush <<< runExcept <<< decodeJSON =<< mContractsJson
   insertContract marloweParams contractData = do
     existingContracts <- getContracts
     let
@@ -109,10 +109,10 @@ instance manageMarloweStorageAppM :: ManageMarloweStorage AppM where
     void $ liftEffect $ setItem contractsLocalStorageKey $ encodeJSON newContracts
   getAllWalletRoleContracts = do
     mAllWalletRoleContracts <- liftEffect $ getItem walletRoleContractsLocalStorageKey
-    pure $ fromMaybe mempty $ hush <<< runExcept <<< decodeJSON =<< mAllWalletRoleContracts
+    pure $ fromMaybe Map.empty $ hush <<< runExcept <<< decodeJSON =<< mAllWalletRoleContracts
   getWalletRoleContracts walletId = do
     allWalletRoleContracts <- getAllWalletRoleContracts
-    pure $ fromMaybe mempty $ lookup walletId allWalletRoleContracts
+    pure $ fromMaybe Map.empty $ lookup walletId allWalletRoleContracts
   insertWalletRoleContracts walletId marloweParams marloweData = do
     allWalletRoleContracts <- getAllWalletRoleContracts
     walletRoleContracts <- getWalletRoleContracts walletId

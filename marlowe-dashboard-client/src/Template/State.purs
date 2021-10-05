@@ -57,9 +57,9 @@ initialState =
     { contractSetupStage: Start
     , contractTemplate: Escrow.contractTemplate
     , contractNicknameInput: InputField.mkInitialState Nothing
-    , roleWalletInputs: mempty
-    , slotContentInputs: mempty
-    , valueContentInputs: mempty
+    , roleWalletInputs: Map.empty
+    , slotContentInputs: Map.empty
+    , valueContentInputs: Map.empty
     }
 
 -- Some actions are handled in `Dashboard.State` because they involve
@@ -150,7 +150,7 @@ mkSlotContentInputs metaData slotContent =
       Swap -> Swap.defaultSlotContent
       ZeroCouponBond -> ZeroCouponBond.defaultSlotContent
       ContractForDifferences -> ContractForDifferences.defaultSlotContent
-      _ -> mempty
+      _ -> Map.empty
 
     mkSlotContentInput key _ =
       let

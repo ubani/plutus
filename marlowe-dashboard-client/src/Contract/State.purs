@@ -47,9 +47,8 @@ import Effect.Aff.AVar as AVar
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Exception.Unsafe (unsafeThrow)
 import Env (DataProvider(..), Env)
-import Halogen (HalogenM, getHTMLElementRef, liftEffect, put, query, subscribe, tell, unsubscribe)
-import Halogen.Query.Event (EventSource)
-import Halogen.Query.Event as EventSource
+import Halogen (HalogenM, getHTMLElementRef, liftEffect, put, subscribe, tell, unsubscribe)
+import Halogen.Subscription as HS
 import LoadingSubmitButton.Types (Query(..), _submitButtonSlot)
 import MainFrame.Types (Action(..)) as MainFrame
 import MainFrame.Types (ChildSlots, Msg)
@@ -81,7 +80,7 @@ dummyState =
   Starting
     { nickname: mempty
     , metadata: emptyContractMetadata
-    , participants: mempty
+    , participants: Map.empty
     }
 
 -- this is for making a placeholder state for the user who created the contract, used for displaying
@@ -249,11 +248,11 @@ handleAction input@{ currentSlot, walletDetails } (ConfirmAction namedAction) =
     ajaxApplyInputs <- applyTransactionInput walletDetails marloweParams txInput
     case ajaxApplyInputs of
       Left ajaxError -> do
-        void $ query _submitButtonSlot "action-confirm-button" $ tell $ SubmitResult (Milliseconds 600.0) (Left "Error")
+        void $ tell _submitButtonSlot "action-confirm-button" $ SubmitResult (Milliseconds 600.0) (Left "Error")
         addToast $ ajaxErrorToast "Failed to submit transaction." ajaxError
       Right _ -> do
         put $ Started started { pendingTransaction = Just txInput }
-        void $ query _submitButtonSlot "action-confirm-button" $ tell $ SubmitResult (Milliseconds 600.0) (Right "")
+        void $ tell _submitButtonSlot "action-confirm-button" $ SubmitResult (Milliseconds 600.0) (Right "")
         addToast $ successToast "Transaction submitted, awating confirmation."
         { dataProvider } <- ask
         when (dataProvider == LocalStorage) (callMainFrameAction $ MainFrame.DashboardAction $ Dashboard.UpdateFromStorage)
@@ -532,13 +531,9 @@ scrollStepToCenter behavior stepNumber parentElement = do
 
 -- This EventSource is responsible for selecting the step closest to the center of the scroll container
 -- when scrolling
-selectCenteredStepEventSource ::
-  forall m.
-  MonadAff m =>
-  HTMLElement ->
-  EventSource m Action
+selectCenteredStepEventSource :: HTMLElement -> HS.Emitter Action
 selectCenteredStepEventSource scrollContainer =
-  EventSource.effectEventSource \emitter -> do
+  HS.makeEmitter \push -> do
     -- Calculate where the left coordinate of the center step should be
     -- (relative to the visible part of the scroll container)
     parentWidth <- _.width <$> getBoundingClientRect scrollContainer
@@ -571,7 +566,7 @@ selectCenteredStepEventSource scrollContainer =
       throttledOnScroll
         50.0
         (HTMLElement.toElement scrollContainer)
-        (calculateClosestStep >>> \index -> EventSource.emit emitter $ SelectStep index)
+        (push <<< SelectStep <<< calculateClosestStep)
     -- * The second one is responsible for snapping the card to the center position. Initially this was
     --   handled by CSS using the `scroll-snap-type` and `scroll-snap-align` properties. But I found a bug
     --   in chrome when those properties were used at the same time of a `smooth` scrollTo, so I ended up
@@ -586,8 +581,7 @@ selectCenteredStepEventSource scrollContainer =
             let
               index = calculateClosestStep scrollPos
             scrollStepToCenter Smooth index scrollContainer
-            EventSource.emit emitter $ SelectStep index
-    pure $ EventSource.Finalizer
-      $ do
-          unsubscribeSelectEventListener
-          unsubscribeSnapEventListener
+            push $ SelectStep index
+    pure do
+      unsubscribeSelectEventListener
+      unsubscribeSnapEventListener

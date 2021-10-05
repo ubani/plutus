@@ -263,17 +263,17 @@ instance decodeJsonValue :: Decode Value where
               <*> decodeProp "by" a
         )
       <|> ( \_ ->
-            if (hasProperty "divide_by" a) then
-              ( Scale
-                  <$> ( S.Rational <$> decodeProp "times" a
-                        <*> decodeProp "divide_by" a
-                    )
-                  <*> decodeProp "multiply" a
-              )
-            else
-              ( MulValue <$> decodeProp "multiply" a
-                  <*> decodeProp "times" a
-              )
+            -- if (hasProperty "divide_by" a) then
+            --   ( Scale
+            --       <$> ( S.Rational <$> decodeProp "times" a
+            --             <*> decodeProp "divide_by" a
+            --         )
+            --       <*> decodeProp "multiply" a
+            --   )
+            -- else
+            ( MulValue <$> decodeProp "multiply" a
+                <*> decodeProp "times" a
+            )
         )
       <|> ( \_ ->
             ChoiceValue <$> decodeProp "value_of_choice" a

@@ -41,12 +41,13 @@ render { caption, styles, status, enabled } =
     div
       [ classNames $ styles <> [ "flex", "justify-center" ] ]
       [ button
-          [ classNames classes
-          , ref buttonRef
-          , disabled $ not enabled
-          , onClick \_ -> case status of
-              NotAsked -> Just Submit
-              _ -> Nothing
-          ]
+          ( [ classNames classes
+            , ref buttonRef
+            , disabled $ not enabled
+            ]
+              <> case status of
+                  NotAsked -> [ onClick $ const Submit ]
+                  _ -> mempty
+          )
           content
       ]

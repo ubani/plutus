@@ -31,7 +31,7 @@ import Halogen as H
 import Halogen.ElementResize (elementResize)
 import Halogen.HTML (HTML, div)
 import Halogen.HTML.Properties (class_, ref)
-import Halogen.Query.Event (Emitter(..), Finalizer, effectEventSource)
+import Halogen.Subscription as HS
 import Monaco (CodeActionProvider, CompletionItemProvider, DocumentFormattingEditProvider, Editor, HoverProvider, IDisposable, IMarker, IMarkerData, IModelDeltaDecoration, IPosition, IRange, LanguageExtensionPoint, MonarchLanguage, Theme, TokensProvider, dispose)
 import Monaco as Monaco
 import Web.DOM.ResizeObserver (ResizeObserverBoxOptions(..))
@@ -139,7 +139,7 @@ type Settings m
     , setup :: Editor -> m Unit
     }
 
-monacoComponent :: forall m. MonadAff m => Settings m -> H.Component HTML Query Unit Message m
+monacoComponent :: forall m. MonadAff m => Settings m -> H.Component Query Unit Message m
 monacoComponent settings =
   H.mkComponent
     { initialState:
@@ -221,7 +221,7 @@ handleAction settings Init = do
       void $ H.subscribe $ elementResize ContentBox (const ResizeWorkspace) (HTMLElement.toElement element)
       H.raise EditorReady
       H.raise $ TextChanged (Monaco.getValue model)
-      void $ H.subscribe $ effectEventSource (changeContentHandler editor)
+      void $ H.subscribe $ changeContentHandler editor
     Nothing -> pure unit
 
 handleAction _ Finalize = do
@@ -235,18 +235,15 @@ handleAction _ ResizeWorkspace = do
   for_ mEditor \editor ->
     liftEffect $ Monaco.layout editor
 
-changeContentHandler ::
-  forall m.
-  Applicative m =>
-  Editor ->
-  Emitter Effect Action -> Effect (Finalizer m)
-changeContentHandler editor (Emitter emitter) = do
-  Monaco.onDidChangeContent editor
-    ( \_ -> do
-        model <- Monaco.getModel editor
-        emitter $ Left $ HandleChange (Monaco.getValue model)
-    )
-  pure mempty
+changeContentHandler :: Editor -> HS.Emitter Action
+changeContentHandler editor =
+  HS.makeEmitter \push -> do
+    Monaco.onDidChangeContent editor
+      ( \_ -> do
+          model <- Monaco.getModel editor
+          push $ HandleChange (Monaco.getValue model)
+      )
+    pure $ pure unit
 
 -- If the editor has been set then we can use it when handling our Query
 withEditor :: forall input m a. MonadEffect m => (Editor -> HalogenM State Action input Message m a) -> HalogenM State Action input Message m (Maybe a)

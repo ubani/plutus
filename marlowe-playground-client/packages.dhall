@@ -20,11 +20,17 @@ let additions =
           , repo = "https://github.com/shmish111/purescript-servant-support"
           , version = "1805f896560751c48a04d3e29f9c109df850d8d3"
           }
-      -- , datetime-iso =
-      --     { dependencies = [ "newtype", "datetime", "parsing" ]
-      --     , repo = "https://github.com/shmish111/purescript-datetime-iso"
-      --     , version = "3a7cbe9fe22509393ddb6bd271f77c095326f6b3"
-      --     }
+      , concurrent-queues =
+          { dependencies = [ "aff", "avar" ]
+          , repo = "https://github.com/purescript-contrib/purescript-concurrent-queues.git"
+          , version = "v1.1.0"
+          }
+        --   https://github.com/jmackie/purescript-datetime-iso/pull/11
+      , datetime-iso =
+          { dependencies = [ "newtype", "datetime", "parsing" ]
+          , repo = "https://github.com/shmish111/purescript-datetime-iso"
+          , version = "3a7cbe9fe22509393ddb6bd271f77c095326f6b3"
+          }
       , foreign-generic =
             upstream.foreign-generic
           ⫽ { repo = "https://github.com/shmish111/purescript-foreign-generic"
@@ -41,6 +47,24 @@ let additions =
             [ "prelude", "fixed-points", "free", "transformers", "profunctor" ]
           , repo = "https://github.com/slamdata/purescript-matryoshka.git"
           , version = "v0.4.0"
+          }
+      , filterable =
+          { dependencies =
+            [ "arrays" , "either" , "foldable-traversable" , "identity" , "lists" , "ordered-collections" ]
+          , repo = "https://github.com/LiamGoodacre/purescript-filterable"
+          , version = "v3.0.1"
+          }
+      , numerics =
+          { dependencies =
+            [ "prelude", "integers", "rationals", "uint", "bigints" ]
+          , repo = "https://github.com/Proclivis/purescript-numerics"
+          , version = "v0.1.2"
+          }
+      , precise =
+          { dependencies =
+            [ "arrays", "console", "effect", "exceptions", "gen", "integers", "lists", "numbers", "prelude", "strings" ]
+          , repo = "https://github.com/purescript-contrib/purescript-precise"
+          , version = "v5.1.0"
           }
       }
 

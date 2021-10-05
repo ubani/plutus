@@ -7,7 +7,7 @@ module Component.Input.View
 import Prelude
 import Component.Input.Types (Input, InputType(..))
 import Data.Maybe (Maybe(..), isNothing, maybe)
-import Data.Traversable (sequence)
+import Data.Foldable (foldMap)
 import Halogen as H
 import Halogen.Css (classNames)
 import Halogen.HTML as HH
@@ -49,13 +49,13 @@ renderWithChildren input renderChildren =
       , HP.value input.value
       , HP.readOnly $ isNothing input.onChange
       , HP.tabIndex $ maybe (-1) (const 0) input.onChange
-      , HE.onValueInput $ sequence input.onChange
-      , HE.onBlur $ const input.onBlur
-      , HE.onFocus $ const input.onFocus
       , HP.type_ case input.inputType of
           Text -> HP.InputText
           Numeric -> HP.InputNumber
       ]
+    <> foldMap (pure <<< HE.onValueInput) input.onChange
+    <> foldMap (pure <<< HE.onBlur <<< const) input.onBlur
+    <> foldMap (pure <<< HE.onFocus <<< const) input.onFocus
   where
   containerStyles =
     [ "border-2"

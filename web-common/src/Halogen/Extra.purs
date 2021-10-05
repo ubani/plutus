@@ -9,7 +9,7 @@ import Data.Foldable (for_)
 import Data.Lens (Lens', Traversal', preview, set, view)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (over)
-import Data.Symbol (SProxy(..))
+import Type.Proxy (Proxy(..))
 import Data.Tuple (Tuple(..))
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Uncurried (EffectFn1, runEffectFn1)
@@ -140,8 +140,8 @@ lifeCycleEventProperty handlers = (unsafeCoerce :: Prop (Input action) -> IProp 
 
   onLifecycleEvent Nothing = Input.Action <$> handlers.onFinalize
 
-_lifeCycleSlot :: SProxy "lifeCycleSlot"
-_lifeCycleSlot = SProxy
+_lifeCycleSlot :: Proxy "lifeCycleSlot"
+_lifeCycleSlot = Proxy
 
 data LifecycleEvent
   = OnInit
@@ -149,7 +149,7 @@ data LifecycleEvent
 
 lifeCycleComponent ::
   forall m query.
-  Component HTML query Unit LifecycleEvent m
+  Component query Unit LifecycleEvent m
 lifeCycleComponent =
   mkComponent
     { initialState: identity
@@ -167,7 +167,7 @@ lifeCycleComponent =
 lifeCycleSlot ::
   forall slots m action.
   String ->
-  (LifecycleEvent -> Maybe action) ->
+  (LifecycleEvent -> action) ->
   ComponentHTML action ( lifeCycleSlot :: forall query. Slot query LifecycleEvent String | slots ) m
 lifeCycleSlot ref handler =
   slot

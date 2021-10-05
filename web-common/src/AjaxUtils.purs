@@ -10,7 +10,6 @@ module AjaxUtils
 import Prelude hiding (div)
 import Bootstrap (alertDanger_, btn, floatRight)
 import Data.Foldable (intercalate)
-import Data.Maybe (Maybe(Just))
 import Foreign (MultipleErrors, renderForeignError)
 import Foreign.Generic.Class (Options, aesonSumEncoding, defaultOptions)
 import Halogen (RefLabel(RefLabel))
@@ -43,7 +42,7 @@ closeableAjaxErrorPane error =
     [ alertDanger_
         [ button
             [ classes [ btn, floatRight, ClassName "ajax-error-close-button" ]
-            , onClick $ const $ Just CloseErrorPane
+            , onClick $ const $ CloseErrorPane
             ]
             [ icon Close ]
         , p_ [ showAjaxError error ]

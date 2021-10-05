@@ -205,18 +205,16 @@ dashboardBreadcrumb mSelectedContractState =
   div [ classNames [ "border-b", "border-gray" ] ]
     [ nav [ classNames $ Css.maxWidthContainer <> [ "flex", "gap-2", "py-2" ] ]
         $ [ a
-              [ id_ "goToDashboard"
-              , onClick \_ ->
-                  if (isJust mSelectedContractState) then
-                    Just $ SelectContract Nothing
-                  else
-                    Nothing
-              , classNames
-                  $ if (isJust mSelectedContractState) then
-                      [ "text-lightpurple", "font-bold" ]
-                    else
-                      [ "cursor-default" ]
-              ]
+              ( if (isJust mSelectedContractState) then
+                  [ id_ "goToDashboard"
+                  , classNames [ "text-lightpurple", "font-bold" ]
+                  , onClick $ const $ SelectContract Nothing
+                  ]
+                else
+                  [ id_ "goToDashboard"
+                  , classNames [ "cursor-default" ]
+                  ]
+              )
               [ text "Dashboard" ]
           ]
         <> case mSelectedContractState of

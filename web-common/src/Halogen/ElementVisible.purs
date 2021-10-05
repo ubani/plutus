@@ -2,27 +2,24 @@ module Halogen.ElementVisible where
 
 import Prelude
 import Data.Array (head)
-import Data.Foldable (for_)
-import Effect.Aff.Class (class MonadAff)
-import Halogen.Query.Event (EventSource)
-import Halogen.Query.Event as EventSource
+import Data.Traversable (traverse_)
+import Halogen.Subscription as HS
 import Web.DOM (Element)
 import Web.DOM.IntersectionObserver (intersectionObserver, observe, unobserve)
 
--- This Halogen EventSource uses the IntersectionObserver to detect if an element is visible in the
+-- This Halogen Emitter uses the IntersectionObserver to detect if an element is visible in the
 -- viewport.
 -- The `toAction` callback allows the subscriber to dispatch a particular action when the element is
 -- visible or not.
 elementVisible ::
-  forall m action.
-  MonadAff m =>
+  forall action.
   (Boolean -> action) ->
   Element ->
-  EventSource m action
+  HS.Emitter action
 elementVisible toAction element =
-  EventSource.effectEventSource \emitter -> do
+  HS.makeEmitter \push -> do
     observer <-
       intersectionObserver {} \entries _ ->
-        for_ (head entries) \entry -> EventSource.emit emitter (toAction entry.isIntersecting)
+        traverse_ (push <<< toAction <<< _.isIntersecting) $ head entries
     observe element observer
-    pure $ EventSource.Finalizer $ unobserve element observer
+    pure $ unobserve element observer

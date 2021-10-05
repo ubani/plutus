@@ -274,10 +274,7 @@ contractReview assets state =
                       , caption: "Pay and start"
                       , styles: [ "flex-1" ]
                       , enabled: true
-                      , handler:
-                          \msg -> case msg of
-                            OnSubmit -> Just $ StartContract
-                            _ -> Nothing
+                      , onSubmit: StartContract
                       }
                   ]
               , div

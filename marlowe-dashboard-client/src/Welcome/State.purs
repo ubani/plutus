@@ -15,6 +15,7 @@ import Control.Monad.Reader (class MonadAsk)
 import Data.Foldable (for_)
 import Data.Lens (assign, modifying, set, use, view, (^.))
 import Data.Map (filter, findMin, insert, lookup)
+import Data.Map as Map
 import Data.Newtype (unwrap)
 import Data.UUID (emptyUUID, toString) as UUID
 import Effect.Aff.Class (class MonadAff)
@@ -41,7 +42,7 @@ import Welcome.Types (Action(..), Card(..), State, WalletNicknameOrIdError(..))
 
 -- see note [dummyState] in MainFrame.State
 dummyState :: State
-dummyState = mkInitialState mempty
+dummyState = mkInitialState Map.empty
 
 mkInitialState :: WalletLibrary -> State
 mkInitialState walletLibrary =

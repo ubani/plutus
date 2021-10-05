@@ -186,10 +186,10 @@ emptyContractMetadata =
   , contractName: ""
   , contractShortDescription: ""
   , contractLongDescription: ""
-  , roleDescriptions: mempty
+  , roleDescriptions: Map.empty
   , slotParameterDescriptions: mempty
   , valueParameterInfo: mempty
-  , choiceInfo: mempty
+  , choiceInfo: Map.empty
   }
 
 getChoiceFormat :: MetaData -> String -> NumberFormat

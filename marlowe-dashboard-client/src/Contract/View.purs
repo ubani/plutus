@@ -168,8 +168,8 @@ contractScreen viewInput state =
     div
       [ classNames [ "flex", "flex-col", "items-center", "pt-3", "h-full", "w-screen", "relative" ] ]
       [ lifeCycleSlot "carousel-lifecycle" case _ of
-          OnInit -> Just CarouselOpened
-          OnFinalize -> Just CarouselClosed
+          OnInit -> CarouselOpened
+          OnFinalize -> CarouselClosed
       -- NOTE: The card is allowed to grow in an h-full container and the navigation buttons are absolute positioned
       --       because the cards x-scrolling can't coexist with a visible y-overflow. To avoid clipping the cards shadow
       --       we need the cards container to grow (hence the flex-grow).
@@ -281,10 +281,7 @@ actionConfirmationCard assets namedAction state =
                       , caption: cta
                       , styles: [ "flex-1" ]
                       , enabled: hasSufficientFunds
-                      , handler:
-                          \msg -> case msg of
-                            OnSubmit -> Just $ ConfirmAction namedAction
-                            _ -> Nothing
+                      , onSubmit: ConfirmAction namedAction
                       }
                   ]
               , div
@@ -326,17 +323,16 @@ statusIndicatorMessage (Started state) =
   in
     if contract == Close then
       "Contract completed"
+    else if Set.isEmpty (Set.intersection userParties participantsWithAction) then
+      "Waiting for "
+        <> if Set.size participantsWithAction > 1 then
+            "multiple participants"
+          else case Set.findMin participantsWithAction of
+            Just (Role roleName) -> roleName
+            Just (PK pubKey) -> take 4 pubKey
+            Nothing -> " a timeout"
     else
-      if Set.isEmpty (Set.intersection userParties participantsWithAction) then
-        "Waiting for "
-          <> if Set.size participantsWithAction > 1 then
-              "multiple participants"
-            else case Set.findMin participantsWithAction of
-              Just (Role roleName) -> roleName
-              Just (PK pubKey) -> take 4 pubKey
-              Nothing -> " a timeout"
-      else
-        "Your turn…"
+      "Your turn…"
 
 cardNavigationButtons :: forall m. MonadAff m => State -> ComponentHTML Action ChildSlots m
 cardNavigationButtons (Starting _) = div [] []
@@ -357,22 +353,30 @@ cardNavigationButtons (Started state) =
 
     leftButton =
       [ button
-          [ classNames $ buttonClasses hasLeftStep
-          , onClick \_ -> if hasLeftStep then (Just $ MoveToStep $ selectedStep - 1) else Nothing
-          , enabled hasLeftStep
-          , id_ "previousStepButton"
-          ]
+          ( [ classNames $ buttonClasses hasLeftStep
+            , enabled hasLeftStep
+            , id_ "previousStepButton"
+            ]
+              <> if hasLeftStep then
+                  [ onClick $ const $ MoveToStep $ selectedStep - 1 ]
+                else
+                  []
+          )
           [ icon_ Icon.ArrowLeft ]
       , tooltip "Previous step" (RefId "previousStepButton") Bottom
       ]
 
     rightButton =
       [ button
-          [ classNames $ buttonClasses hasRightStep
-          , onClick \_ -> if hasRightStep then (Just $ MoveToStep $ selectedStep + 1) else Nothing
-          , enabled hasRightStep
-          , id_ "nextStepButton"
-          ]
+          ( [ classNames $ buttonClasses hasRightStep
+            , enabled hasRightStep
+            , id_ "nextStepButton"
+            ]
+              <> if hasRightStep then
+                  [ onClick $ const $ MoveToStep $ selectedStep + 1 ]
+                else
+                  []
+          )
           [ icon_ Icon.ArrowRight ]
       , tooltip "Next step" (RefId "nextStepButton") Bottom
       ]
@@ -440,7 +444,7 @@ groupTransactionInputByParticipant (TransactionInput { inputs, interval }) =
     foldr
       (\elem accu -> accu { inputs = elem.inputs <> accu.inputs })
       (NonEmptyArray.head elements # \{ party } -> { inputs: [], party, interval })
-      elements
+      (NonEmptyArray.toArray elements)
 
 renderPastStepTasksTab ::
   forall m.
@@ -868,12 +872,11 @@ renderAction state party namedAction@(MakeDeposit intoAccountOf by token value) 
     toDescription =
       if Set.member intoAccountOf userParties then
         "your"
-      else
-        if by == intoAccountOf then
-          "their"
-        else case intoAccountOf of
-          PK publicKey -> publicKey <> " public key"
-          Role roleName -> roleName <> "'s"
+      else if by == intoAccountOf then
+        "their"
+      else case intoAccountOf of
+        PK publicKey -> publicKey <> " public key"
+        Role roleName -> roleName <> "'s"
 
     description = fromDescription <> " a deposit into " <> toDescription <> " account"
   in

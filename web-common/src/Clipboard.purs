@@ -64,7 +64,7 @@ clipboardButton str =
     [ class_ $ ClassName "clipboard" ]
     [ button
         [ classes [ btn, btnLink ]
-        , onClick $ const $ Just $ CopyToClipboard str
+        , onClick $ const $ CopyToClipboard str
         ]
         [ icon Clipboard ]
     ]

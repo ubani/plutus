@@ -12,7 +12,7 @@ import Data.Newtype (class Newtype)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Symbol (SProxy(..))
-import Data.Traversable (foldMap)
+import Data.Foldable (foldl, foldMap)
 import Data.Map.Ordered.OMap (OMap)
 import Data.Map.Ordered.OMap as OMap
 import Data.Set.Ordered.OSet (OSet)
@@ -58,12 +58,8 @@ typeToLens ValueContent = _valueContent
 
 derive instance newTypeTemplateContent :: Newtype TemplateContent _
 
-derive newtype instance semigroupTemplateContent :: Semigroup TemplateContent
-
-derive newtype instance monoidTemplateContent :: Monoid TemplateContent
-
 initializeWith :: forall a b. Ord a => (a -> b) -> Set a -> Map a b
-initializeWith f = foldMap (\x -> Map.singleton x $ f x)
+initializeWith f = foldl (\m a -> Map.insert a (f a) m) Map.empty
 
 initializeTemplateContent :: Placeholders -> TemplateContent
 initializeTemplateContent ( Placeholders

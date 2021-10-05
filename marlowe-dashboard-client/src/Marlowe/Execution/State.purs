@@ -188,7 +188,7 @@ extractActionsFromContract currentSlot semanticState contract@(When cases timeou
 -- In reality other situations should never occur as contracts always reduce to When or Close
 -- however someone could in theory publish a contract that starts with another Contract constructor
 -- and we would want to enable moving forward with Evaluate
-extractActionsFromContract _ _ _ = [ Evaluate mempty ]
+extractActionsFromContract _ _ _ = [ Evaluate { bindings: Map.empty, payments: mempty } ]
 
 -- This function expands the balances inside the Semantic.State to all participants and tokens,
 -- using zero if the participant does not have balance for that token.

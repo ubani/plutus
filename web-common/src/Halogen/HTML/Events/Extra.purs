@@ -9,13 +9,13 @@ import Web.UIEvent.FocusEvent (FocusEvent)
 import Web.UIEvent.MouseEvent (MouseEvent)
 
 onClick_ :: forall a b. a -> IProp ( onClick :: MouseEvent | b ) a
-onClick_ = onClick <<< const <<< Just
+onClick_ = onClick <<< const
 
 onValueInput_ :: forall a b. (String -> a) -> IProp ( onInput :: Event, value :: String | b ) a
-onValueInput_ a = onValueInput $ Just <<< a
+onValueInput_ = onValueInput
 
 onFocus_ :: forall a b. a -> IProp ( onFocus :: FocusEvent | b ) a
-onFocus_ = onFocus <<< const <<< Just
+onFocus_ = onFocus <<< const
 
 onBlur_ :: forall a b. a -> IProp ( onBlur :: FocusEvent | b ) a
-onBlur_ = onBlur <<< const <<< Just
+onBlur_ = onBlur <<< const

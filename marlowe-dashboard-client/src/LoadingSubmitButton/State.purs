@@ -10,7 +10,7 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 import Halogen (Component, HalogenM, Slot, getHTMLElementRef, liftEffect, mkComponent, modify_, raise)
 import Halogen as H
 import Halogen.Animation (waitForAllAnimations)
-import Halogen.HTML (ComponentHTML, HTML, slot)
+import Halogen.HTML (ComponentHTML, HTML, slot, slot_)
 import LoadingSubmitButton.Lenses (_buttonHeight, _caption, _enabled, _status, _styles)
 import LoadingSubmitButton.Types (Action(..), Input, Message(..), Query(..), State, _submitButtonSlot, buttonRef)
 import LoadingSubmitButton.View (render)
@@ -26,16 +26,16 @@ loadingSubmitButton ::
   , styles :: Array String
   , enabled :: Boolean
   , caption :: String
-  , handler :: (Message -> Maybe action)
+  , onSubmit :: action
   } ->
   ComponentHTML action ( submitButtonSlot :: Slot Query Message String | slots ) m
-loadingSubmitButton { ref, styles, enabled, caption, handler } =
+loadingSubmitButton { ref, styles, enabled, caption, onSubmit } =
   slot
     _submitButtonSlot
     ref
     component
     { styles, caption, enabled }
-    handler
+    (const onSubmit)
 
 initialState :: Input -> State
 initialState { caption
@@ -52,7 +52,7 @@ initialState { caption
 component ::
   forall m.
   MonadAff m =>
-  Component HTML Query Input Message m
+  Component Query Input Message m
 component =
   mkComponent
     { initialState
@@ -129,5 +129,4 @@ handleQuery (SubmitResult timeout result next) =
     liftAff $ Aff.delay timeout
     assign _status NotAsked
     liftEffect $ removeAttribute "style" $ toElement buttonElem
-    lift $ raise OnResultAnimationFinish
     MaybeT $ pure $ Just next

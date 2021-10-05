@@ -20,12 +20,14 @@ import Control.Monad.Reader (class MonadAsk)
 import Dashboard.Types (Action(..)) as Dashboard
 import Data.Array (any)
 import Data.BigInteger (BigInteger)
-import Data.CodePoint.Unicode (codePointFromChar, isAlphaNum)
+import Data.CodePoint.Unicode (isAlphaNum)
 import Data.Foldable (for_)
 import Data.Lens (assign, modifying, set, use)
 import Data.Map (isEmpty, filter, insert, lookup, member)
+import Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Newtype (unwrap)
+import Data.String.CodePoints (codePointFromChar)
 import Data.String.CodeUnits (toCharArray)
 import Data.UUID (emptyUUID, parseUUID)
 import Effect.Aff.Class (class MonadAff)
@@ -39,7 +41,7 @@ import InputField.Types (Action(..), State) as InputField
 import MainFrame.Types (Action(..)) as MainFrame
 import MainFrame.Types (ChildSlots, Msg)
 import Marlowe.PAB (PlutusAppId(..))
-import Marlowe.Semantics (Assets, Token(..))
+import Marlowe.Semantics (Assets(..), Token(..))
 import Network.RemoteData (RemoteData(..), fromEither)
 import Toast.Types (errorToast, successToast)
 import Types (WebData)
@@ -61,7 +63,7 @@ defaultWalletDetails =
   , companionAppId: PlutusAppId emptyUUID
   , marloweAppId: PlutusAppId emptyUUID
   , walletInfo: defaultWalletInfo
-  , assets: mempty
+  , assets: Assets Map.empty
   , previousCompanionAppState: Nothing
   }
 

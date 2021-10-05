@@ -6,7 +6,7 @@ import Capability.PlutusApps.MarloweApp as MarloweApp
 import Control.Coroutine (Consumer, Process, connect, consumer, runProcess)
 import Effect (Effect)
 import Effect.AVar as AVar
-import Effect.Aff (Aff, forkAff)
+import Effect.Aff (Aff, forkAff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Unsafe (unsafePerformEffect)
@@ -15,6 +15,7 @@ import Foreign.Generic (defaultOptions)
 import Halogen (Component, hoist)
 import Halogen.Aff (awaitBody, runHalogenAff)
 import Halogen.HTML (HTML)
+import Halogen.Subscription as HS
 import Halogen.VDom.Driver (runUI)
 import LocalStorage (RawStorageEvent)
 import LocalStorage as LocalStorage
@@ -50,7 +51,7 @@ main :: Effect Unit
 main = do
   environment <- mkEnvironment
   let
-    mainFrame :: Component HTML Query Action Msg Aff
+    mainFrame :: Component Query Action Msg Aff
     mainFrame = hoist (runAppM environment) mkMainFrame
   runHalogenAff do
     body <- awaitBody
@@ -68,17 +69,14 @@ main = do
           (WS.URI "/ws")
           (\msg -> void $ forkAff $ driver.query $ ReceiveWebSocketMessage msg unit)
           wsManager
-    driver.subscribe
-      $ consumer
+    void
+      $ liftEffect
+      $ HS.subscribe driver.messages
       $ case _ of
-          (SendWebSocketMessage msg) -> do
-            WS.managerWriteOutbound wsManager $ WS.SendMessage msg
-            pure Nothing
+          (SendWebSocketMessage msg) -> launchAff_ $ WS.managerWriteOutbound wsManager $ WS.SendMessage msg
           -- This handler allows us to call an action in the MainFrame from a child component
           -- (more info in the MainFrameLoop capability)
-          (MainFrameActionMsg action) -> do
-            void $ driver.query $ MainFrameActionQuery action unit
-            pure Nothing
+          (MainFrameActionMsg action) -> launchAff_ $ void $ driver.query $ MainFrameActionQuery action unit
 
 watchLocalStorageProcess :: Process Aff Unit
 watchLocalStorageProcess = connect LocalStorage.listen watchLocalStorage

@@ -150,7 +150,7 @@ instance semigroupAssets :: Semigroup Assets where
     f = Map.unionWith (+)
 
 instance monoidAssets :: Monoid Assets where
-  mempty = Assets mempty
+  mempty = Assets Map.empty
 
 newtype Slot
   = Slot BigInteger
@@ -410,17 +410,17 @@ instance decodeJsonValue :: Decode Value where
               <*> decodeProp "by" a
         )
       <|> ( \_ ->
-            if (hasProperty "divide_by" a) then
-              ( Scale
-                  <$> ( Rational <$> decodeProp "times" a
-                        <*> decodeProp "divide_by" a
-                    )
-                  <*> decodeProp "multiply" a
-              )
-            else
-              ( MulValue <$> decodeProp "multiply" a
-                  <*> decodeProp "times" a
-              )
+            -- if (hasProperty "divide_by" a) then
+            --   ( Scale
+            --       <$> ( Rational <$> decodeProp "times" a
+            --             <*> decodeProp "divide_by" a
+            --         )
+            --       <*> decodeProp "multiply" a
+            --   )
+            -- else
+            ( MulValue <$> decodeProp "multiply" a
+                <*> decodeProp "times" a
+            )
         )
       <|> ( \_ ->
             ChoiceValue <$> decodeProp "value_of_choice" a
@@ -1177,19 +1177,19 @@ instance decodeTransactionWarning :: Decode TransactionWarning where
               <*> decodeProp "asked_to_deposit" a
         )
       <|> ( \_ ->
-            if (hasProperty "but_only_paid" a) then
-              ( TransactionPartialPay <$> decodeProp "account" a
-                  <*> decodeProp "to_payee" a
-                  <*> decodeProp "of_token" a
-                  <*> decodeProp "but_only_paid" a
-                  <*> decodeProp "asked_to_pay" a
-              )
-            else
-              ( TransactionNonPositivePay <$> decodeProp "account" a
-                  <*> decodeProp "to_payee" a
-                  <*> decodeProp "of_token" a
-                  <*> decodeProp "asked_to_pay" a
-              )
+            -- if (hasProperty "but_only_paid" a) then
+            --   ( TransactionPartialPay <$> decodeProp "account" a
+            --       <*> decodeProp "to_payee" a
+            --       <*> decodeProp "of_token" a
+            --       <*> decodeProp "but_only_paid" a
+            --       <*> decodeProp "asked_to_pay" a
+            --   )
+            -- else
+            ( TransactionNonPositivePay <$> decodeProp "account" a
+                <*> decodeProp "to_payee" a
+                <*> decodeProp "of_token" a
+                <*> decodeProp "asked_to_pay" a
+            )
         )
       <|> ( \_ ->
             TransactionShadowing <$> decodeProp "value_id" a
@@ -1338,9 +1338,9 @@ type ValidatorHash
 emptyState :: Slot -> State
 emptyState sn =
   State
-    { accounts: mempty
-    , choices: mempty
-    , boundValues: mempty
+    { accounts: Map.empty
+    , choices: Map.empty
+    , boundValues: Map.empty
     , minSlot: sn
     }
 

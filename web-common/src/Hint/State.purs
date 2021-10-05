@@ -1,20 +1,22 @@
 module Hint.State (component, hint) where
 
 import Prelude
+import Control.MonadPlus (guard)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
-import Data.Array (all)
-import Data.Foldable (for_)
+import Data.Filterable (filterMap)
+import Data.Foldable (for_, and)
 import Data.Int (toNumber)
 import Data.Lens (assign, set, use)
 import Data.Maybe (Maybe(..))
-import Data.Symbol (SProxy(..))
+import Type.Proxy (Proxy(..))
 import Data.Traversable (for, traverse)
+import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
 import Halogen (Component, HalogenM, Slot, get, getHTMLElementRef, liftEffect, mkComponent, modify_)
 import Halogen as H
 import Halogen.HTML (ComponentHTML, HTML, PlainHTML, slot)
-import Halogen.Query.Event (EventSource)
-import Halogen.Query.Event as EventSource
+import Halogen.Query.Event.Extra (eventListenerEffect)
+import Halogen.Subscription as HS
 import Hint.Lenses (_active, _content, _mGlobalClickSubscription, _mPopperInstance, _placement)
 import Hint.Types (Action(..), Input, State, arrowRef, hintRef, popoutRef)
 import Hint.View (render)
@@ -22,13 +24,13 @@ import Popper (OffsetOption(..), PaddingOption(..), Placement, PositioningStrate
 import Web.Event.Event (EventType(..))
 import Web.Event.EventTarget (addEventListener, eventListener, removeEventListener)
 import Web.HTML (HTMLElement, window)
-import Web.HTML.HTMLDocument as HTMLDocument
+import Web.HTML.HTMLDocument (toEventTarget)
 import Web.HTML.HTMLElement (DOMRect, getBoundingClientRect)
 import Web.HTML.Window (document)
 import Web.UIEvent.MouseEvent as MouseEvent
 
-_hintSlot :: SProxy "hintSlot"
-_hintSlot = SProxy
+_hintSlot :: Proxy "hintSlot"
+_hintSlot = Proxy
 
 hint ::
   forall slots m action.
@@ -59,7 +61,7 @@ initialState { content, placement, hintElementClasses } =
 component ::
   forall m query.
   MonadAff m =>
-  Component HTML query Input Void m
+  Component query Input Void m
 component =
   mkComponent
     { initialState
@@ -114,7 +116,7 @@ handleAction Open = do
   let
     mElements :: Maybe (Array HTMLElement)
     mElements = (\a b -> [ a, b ]) <$> mHintElem <*> mPopoutElem
-  mGlobalClickSubscription <- traverse (H.subscribe <<< clickOutsideEventSource) mElements
+  mGlobalClickSubscription <- traverse (H.subscribe <=< liftEffect <<< clickOutsideEventSource) mElements
   modify_
     $ set _active true
     <<< set _mGlobalClickSubscription mGlobalClickSubscription
@@ -151,33 +153,29 @@ inside rect = not <<< outside rect
 -- (as you don't need to manually add and remove the event listener)
 -- but it had a problem of not being able to perform effects, so we couldn't recalculate
 -- the client rect on each click.
-clickOutsideEventSource ::
-  forall m.
-  MonadAff m =>
-  Array HTMLElement ->
-  EventSource m Action
-clickOutsideEventSource elements =
-  EventSource.effectEventSource \emitter -> do
-    listener <-
-      eventListener \evt -> do
+clickOutsideEventSource :: Array HTMLElement -> Effect (HS.Emitter Action)
+clickOutsideEventSource elements = do
+  doc <- document =<< window
+  pure
+    $ eventListenerEffect (EventType "click") (toEventTarget doc) \evt -> do
         -- We recalculate the client rect for each element because Popper might move them
         clientRects <- for elements getBoundingClientRect
         let
-          mClickOutside =
-            MouseEvent.fromEvent evt
-              <#> \mouseEvent ->
-                  let
-                    point =
-                      { x: toNumber $ MouseEvent.clientX mouseEvent
-                      , y: toNumber $ MouseEvent.clientY mouseEvent
-                      }
-                  in
-                    all (\rect -> outside rect point) clientRects
-        when (mClickOutside == Just true) $ EventSource.emit emitter Close
-    -- Add the event listener and remove it once the subscription finalizes
-    docTarget <- liftEffect $ map HTMLDocument.toEventTarget $ document =<< window
-    addEventListener (EventType "click") listener false docTarget
-    pure $ EventSource.Finalizer $ removeEventListener (EventType "click") listener false docTarget
+          mouseEventOutside mouseEvent rect =
+            outside
+              rect
+              { x: toNumber $ MouseEvent.clientX mouseEvent
+              , y: toNumber $ MouseEvent.clientY mouseEvent
+              }
+
+          clickOutside =
+            clientRects
+              # filterMap
+                  ( \rect ->
+                      mouseEventOutside <$> MouseEvent.fromEvent evt <*> pure rect
+                  )
+              # and
+        pure $ guard clickOutside $> Close
 
 forceUpdatePopper :: forall m slots. MonadAff m => HalogenM State Action slots Void m Unit
 forceUpdatePopper = do

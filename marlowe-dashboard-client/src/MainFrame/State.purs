@@ -27,7 +27,6 @@ import Env (DataProvider(..), Env)
 import Foreign.Generic (decodeJSON)
 import Halogen (Component, HalogenM, liftEffect, mkComponent, mkEval, modify_, subscribe)
 import Halogen.Extra (mapMaybeSubmodule, mapSubmodule)
-import Halogen.HTML (HTML)
 import Halogen.LocalStorage (localStorageEvents)
 import Humanize (getTimezoneOffset)
 import MainFrame.Lenses (_currentSlot, _dashboardState, _subState, _toast, _tzOffset, _webSocketStatus, _welcomeState)
@@ -72,7 +71,7 @@ mkMainFrame ::
   ManageMarlowe m =>
   Toast m =>
   MonadClipboard m =>
-  Component HTML Query Action Msg m
+  Component Query Action Msg m
 mkMainFrame =
   mkComponent
     { initialState: const initialState

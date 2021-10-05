@@ -1,6 +1,6 @@
 module PlutusTx.AssocMap where
 
-import Prelude
+import Prologue
 import AjaxUtils (defaultJsonOptions)
 import Data.Array as Array
 import Data.Foldable (class Foldable, foldMap, foldl, foldr)
@@ -9,7 +9,8 @@ import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Json.JsonTuple (JsonTuple(..))
-import Data.Lens (Iso', lens, wander)
+import Data.Lens (Iso', lens)
+import Data.Lens.AffineTraversal (affineTraversal)
 import Data.Lens.At (class At)
 import Data.Lens.Index (class Index)
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -63,17 +64,19 @@ instance foldableWithIndexMap :: FoldableWithIndex k (Map k) where
   foldrWithIndex f z = foldr (\(Tuple k v) acc -> f k v acc) z <<< toTuples
 
 instance indexMap :: Eq k => Index (Map k a) k a where
-  ix key =
-    wander \f (Map values) ->
-      map Map
-        $ sequence
-        $ map
-            ( Newtype.traverse JsonTuple
-                ( \(Tuple k v) ->
-                    Tuple k <$> (if k == key then f v else pure v)
-                )
-            )
-            values
+  ix key = affineTraversal set pre
+    where
+    set :: Map k a -> a -> Map k a
+    set m v =
+      Newtype.over
+        Map
+        (map \(JsonTuple (Tuple k v')) -> JsonTuple $ Tuple k $ if k == key then v else v')
+        m
+
+    pre :: Map k a -> Either (Map k a) a
+    pre (Map map) = case Array.find ((_ == key) <<< fst <<< unwrap) map of
+      Just (JsonTuple (Tuple _ a)) -> Right a
+      Nothing -> Left $ Map map
 
 instance atMap :: Eq k => At (Map k a) k a where
   at key = lens get set

@@ -40,7 +40,7 @@ chartist ::
   MonadAff m =>
   MonadEffect m =>
   ChartistOptions ->
-  H.Component HH.HTML Query ChartistData Message m
+  H.Component Query ChartistData Message m
 chartist options =
   H.mkComponent
     { initialState: const { chart: Nothing }

@@ -2,24 +2,21 @@ module Halogen.ElementResize where
 
 import Prelude
 import Data.Array (head)
-import Data.Foldable (for_)
-import Effect.Aff.Class (class MonadAff)
-import Halogen.Query.Event (EventSource)
-import Halogen.Query.Event as EventSource
+import Data.Traversable (traverse_)
+import Halogen.Subscription as HS
 import Web.DOM (Element)
 import Web.DOM.ResizeObserver (ResizeObserverBoxOptions, ResizeObserverEntry, observe, resizeObserver, unobserve)
 
 elementResize ::
-  forall m action.
-  MonadAff m =>
+  forall action.
   ResizeObserverBoxOptions ->
   (ResizeObserverEntry -> action) ->
   Element ->
-  EventSource m action
+  HS.Emitter action
 elementResize options toAction element =
-  EventSource.effectEventSource \emitter -> do
+  HS.makeEmitter \push -> do
     observer <-
       resizeObserver \entries _ ->
-        for_ (head entries) \entry -> EventSource.emit emitter (toAction entry)
+        traverse_ (push <<< toAction) $ head entries
     observe element options observer
-    pure $ EventSource.Finalizer $ unobserve element observer
+    pure $ unobserve element observer

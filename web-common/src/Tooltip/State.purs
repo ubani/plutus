@@ -6,13 +6,13 @@ import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Data.Foldable (for_)
 import Data.Lens (assign, set, use)
 import Data.Maybe (Maybe(..))
-import Data.Symbol (SProxy(..))
+import Type.Proxy (Proxy(..))
 import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
 import Halogen (Component, HalogenM, Slot, get, getHTMLElementRef, liftEffect, mkComponent, modify_)
 import Halogen as H
 import Halogen.HTML (ComponentHTML, HTML, slot)
-import Halogen.Query.Event (eventListenerEventSource)
+import Halogen.Query.Event (eventListener)
 import Popper (OffsetOption(..), PaddingOption(..), Placement, PositioningStrategy(..), arrow, createPopper, defaultFlip, defaultModifiers, defaultPreventOverflow, destroyPopper, flipPlacement, forceUpdate, offset, pAll, preventOverflow)
 import Tooltip.Lenses (_active, _mPopperInstance, _message, _placement)
 import Tooltip.Types (Action(..), Input, ReferenceId(..), State, arrowRef, tooltipRef)
@@ -25,8 +25,8 @@ import Web.HTML.HTMLElement as HTMLElement
 import Web.HTML.Window (document)
 import Web.HTML.WindowExtra (matchMedia, matches)
 
-_tooltipSlot :: SProxy "tooltipSlot"
-_tooltipSlot = SProxy
+_tooltipSlot :: Proxy "tooltipSlot"
+_tooltipSlot = Proxy
 
 tooltip ::
   forall slots m action.
@@ -49,7 +49,7 @@ initialState { message, reference, placement } =
 component ::
   forall m query.
   MonadAff m =>
-  Component HTML query Input Void m
+  Component query Input Void m
 component =
   mkComponent
     { initialState
@@ -95,13 +95,13 @@ handleAction Init = do
       -- TODO: We could later implement the performance suggestions from https://popper.js.org/docs/v2/tutorial/#performance
       acceptsHover <- liftEffect $ matches =<< matchMedia "(hover: hover)" =<< window
       if acceptsHover then do
-        void $ MaybeT $ map pure $ H.subscribe $ eventListenerEventSource (EventType "mouseenter") (HTMLElement.toEventTarget refElem) (const $ Just Show)
-        void $ MaybeT $ map pure $ H.subscribe $ eventListenerEventSource (EventType "focus") (HTMLElement.toEventTarget refElem) (const $ Just Show)
-        void $ MaybeT $ map pure $ H.subscribe $ eventListenerEventSource (EventType "mouseleave") (HTMLElement.toEventTarget refElem) (const $ Just Hide)
-        void $ MaybeT $ map pure $ H.subscribe $ eventListenerEventSource (EventType "blur") (HTMLElement.toEventTarget refElem) (const $ Just Hide)
+        void $ MaybeT $ map pure $ H.subscribe $ eventListener (EventType "mouseenter") (HTMLElement.toEventTarget refElem) (const $ Just Show)
+        void $ MaybeT $ map pure $ H.subscribe $ eventListener (EventType "focus") (HTMLElement.toEventTarget refElem) (const $ Just Show)
+        void $ MaybeT $ map pure $ H.subscribe $ eventListener (EventType "mouseleave") (HTMLElement.toEventTarget refElem) (const $ Just Hide)
+        void $ MaybeT $ map pure $ H.subscribe $ eventListener (EventType "blur") (HTMLElement.toEventTarget refElem) (const $ Just Hide)
       else do
-        void $ MaybeT $ map pure $ H.subscribe $ eventListenerEventSource (EventType "touchstart") (HTMLElement.toEventTarget refElem) (const $ Just Show)
-        void $ MaybeT $ map pure $ H.subscribe $ eventListenerEventSource (EventType "touchend") (HTMLElement.toEventTarget refElem) (const $ Just Hide)
+        void $ MaybeT $ map pure $ H.subscribe $ eventListener (EventType "touchstart") (HTMLElement.toEventTarget refElem) (const $ Just Show)
+        void $ MaybeT $ map pure $ H.subscribe $ eventListener (EventType "touchend") (HTMLElement.toEventTarget refElem) (const $ Just Hide)
       pure popperInstance
   assign _mPopperInstance mPopperInstance
 
