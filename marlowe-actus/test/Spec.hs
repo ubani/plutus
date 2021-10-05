@@ -14,8 +14,9 @@ main :: IO ()
 main = do
   p <- getEnv "ACTUS_TEST_DATA_DIR"
 
-  pamTests <- testCasesFromFile ["pam25"] $ p ++ "actus-tests-pam.json" -- pam25: dates include hours, minutes, second
-  lamTests <- testCasesFromFile ["lam18"] $ p ++ "actus-tests-lam.json" -- lam18: dates include hours, minutes, second
+  -- pamTests <- testCasesFromFile ["pam25"] $ p ++ "actus-tests-pam.json" -- pam25: dates include hours, minutes, second
+  -- lamTests <- testCasesFromFile ["lam18"] $ p ++ "actus-tests-lam.json" -- lam18: dates include hours, minutes, second
+  laxTests <- testCasesFromFile [] $ p ++ "actus-tests-lax.json" -- lam18: dates include hours, minutes, second
 -- NAM, ANN temporarily commented - waiting for
 -- https://github.com/actusfrf/actus-tests/pull/1
   -- namTests <- testCasesFromFile []        $ p ++ "actus-tests-nam.json"
@@ -27,8 +28,9 @@ main = do
 
   defaultMain $ testGroup "ACTUS Contracts"
     [
-      Spec.Marlowe.Actus.tests "PAM" pamTests
-    , Spec.Marlowe.Actus.tests "LAM" lamTests
+      -- Spec.Marlowe.Actus.tests "PAM" pamTests
+    -- , Spec.Marlowe.Actus.tests "LAM" lamTests
+         Spec.Marlowe.Actus.tests "LAX" laxTests
 --    , Spec.Marlowe.Actus.tests "NAM" namTests
 --    , Spec.Marlowe.Actus.tests "ANN" annTests
     ]

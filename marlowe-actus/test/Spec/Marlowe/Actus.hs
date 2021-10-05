@@ -19,6 +19,8 @@ import           Spec.Marlowe.Util
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
+import           Debug.Trace
+
 tests :: String -> [TestCase] -> TestTree
 tests n t = testGroup n $ [ testCase (getField @"identifier" tc) (runTest tc) | tc <- t]
 
@@ -53,4 +55,4 @@ runTest tc@TestCase {..} =
 
       cashFlows = genProjectedCashflows getRiskFactors contract
       cashFlowsTo = maybe cashFlows (\d -> filter (\cf -> cashCalculationDay cf <= d) cashFlows) (parseDate to)
-   in assertTestResults cashFlowsTo results identifier
+   in assertTestResults (trace (show cashFlows) cashFlowsTo) results identifier

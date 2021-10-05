@@ -5,7 +5,7 @@ module Language.Marlowe.ACTUS.Ops where
 
 import           Data.Time                                             (Day)
 import           Language.Marlowe                                      (Observation (ValueGT, ValueLT),
-                                                                        Value (AddValue, Cond, Constant, MulValue, Scale, SubValue),
+                                                                        Value (AddValue, Cond, Constant, MulValue, NegValue, Scale, SubValue),
                                                                         (%))
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms      (CR, DCC)
 import           Language.Marlowe.ACTUS.Model.Utility.ContractRoleSign (contractRoleSign)
@@ -18,6 +18,7 @@ class ActusOps a where
     _min  :: a -> a -> a
     _max  :: a -> a -> a
     _abs  :: a -> a
+    _neg  :: a -> a
     _zero :: a
     _one  :: a
 
@@ -40,6 +41,7 @@ instance ActusOps Double where
     _min  = min
     _max  = max
     _abs  = abs
+    _neg  = negate
     _zero = 0.0
     _one  = 1.0
 
@@ -62,6 +64,7 @@ instance ActusOps (Value Observation) where
     _min a b = Cond (ValueLT a b) a b
     _max a b = Cond (ValueGT a b) a b
     _abs a = _max a (SubValue _zero a)
+    _neg a = NegValue a
     _zero = Constant 0
     _one  = Constant marloweFixedPoint
 

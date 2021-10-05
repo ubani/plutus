@@ -4,10 +4,12 @@ module Language.Marlowe.ACTUS.Model.SCHED.ContractScheduleModel where
 import           Control.Applicative                                    (liftA2)
 import           Control.Monad                                          (join, liftM4)
 import           Data.List                                              as L (find, nub)
-import           Data.Maybe                                             (fromMaybe, isJust, isNothing)
+import           Data.Maybe                                             (fromJust, fromMaybe, isJust, isNothing)
 import           Data.Time                                              (Day)
 import           Data.Time.Calendar                                     (addDays)
-import           Language.Marlowe.ACTUS.Definitions.ContractTerms       (ContractTerms (..), Cycle (..),
+import           Language.Marlowe.ACTUS.Definitions.BusinessEvents      (EventType (..))
+import           Language.Marlowe.ACTUS.Definitions.ContractTerms       (ARFIXVAR (..), ARINCDEC (..),
+                                                                         ContractTerms (..), Cycle (..),
                                                                          IPCB (IPCB_NTL), PPEF (..), PYTP (..),
                                                                          SCEF (..), ScheduleConfig)
 import           Language.Marlowe.ACTUS.Definitions.Schedule            (ShiftedDay (..), ShiftedSchedule)
@@ -209,3 +211,48 @@ _SCHED_PRF_ANN ct@ContractTerms{..} =
       rr  = _SCHED_RR_PAM ct
       rrf = _SCHED_RRF_PAM ct
   in Just $ fromMaybe [] prf ++ fromMaybe [] rr ++ fromMaybe [] rrf
+
+-- Exotic Linear Amortizer (LAX)
+
+_SCHED_PR_PI_LAX :: ContractTerms -> EventType -> Maybe ShiftedSchedule
+_SCHED_PR_PI_LAX ContractTerms{..} ev
+  | isJust ct_ARPRANXj && isJust ct_ARPRCLj && isJust ct_ARINCDEC =
+      Just (generatePRSched (fromJust ct_ARPRANXj) (fromJust ct_ARPRCLj) (fromJust ct_ARINCDEC) [] ++ [ShiftedDay (fromJust ct_MD) (fromJust ct_MD)])
+  | otherwise = Nothing
+      where -- TODO: add ct_MD check
+        generatePRSched (f:s:restPRANX) (c:restPRCL) (i:restINCDEC) schedules =
+          let
+            schedule = _S (Just f) ((\c -> c { includeEndDay = False }) <$> Just c) (Just s) (Just scfg)
+            newSched | ev == PR && i == DEC = schedule
+                     | ev == PI && i == INC = schedule
+                     | otherwise = Nothing
+          in generatePRSched (s:restPRANX) restPRCL restINCDEC (fromJust newSched ++ schedules)
+
+
+_SCHED_IP_LAX :: ContractTerms -> Maybe ShiftedSchedule
+_SCHED_IP_LAX ContractTerms{..} =
+  let
+    generateIPSched :: [Day] -> [Cycle] -> [ShiftedDay] -> ShiftedSchedule
+    generateIPSched = (\(f:s:restIPANX) (c:restIPCL) schedules ->
+                        let
+                          schedule = _S (Just f) ((\c -> c { includeEndDay = False }) <$> Just c) (Just s) (Just scfg)
+                        in generateIPSched (s:restIPANX) restIPCL (fromJust schedule ++ schedules))
+    sched | isJust ct_ARIPANXi && isJust ct_ARIPCLi = Just (generateIPSched (fromJust ct_ARIPANXi) (fromJust ct_ARIPCLi) [])
+          | otherwise = Nothing
+  in
+    filter (\ShiftedDay{..} -> Just calculationDay > ct_IPCED) <$> sched
+
+
+_SCHED_RR_RRF_LAX :: ContractTerms -> EventType -> Maybe ShiftedSchedule
+_SCHED_RR_RRF_LAX ContractTerms{..} ev
+  | isJust ct_ARRRANX && isJust ct_ARPRCLj && isJust ct_ARFIXVAR =
+      Just (generateRRSched (fromJust ct_ARRRANX) (fromJust ct_ARPRCLj) (fromJust ct_ARFIXVAR) [] ++ [ShiftedDay (fromJust ct_MD) (fromJust ct_MD)])
+  | otherwise = Nothing
+      where -- TODO: add ct_MD check
+        generateRRSched (f:s:restRRANX) (c:restRRCL) (i:restFIXVAR) schedules =
+          let
+            schedule = _S (Just f) ((\c -> c { includeEndDay = False }) <$> Just c) (Just s) (Just scfg)
+            newSched | ev == RRF && i == F = schedule
+                     | ev == RR && i == V = schedule
+                     | otherwise = Nothing
+          in generateRRSched (s:restRRANX) restRRCL restFIXVAR (fromJust newSched ++ schedules)

@@ -43,30 +43,40 @@ stateTransition
       stf PR ContractTerms {contractType = LAM} = _STF_PR_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
       stf PR ContractTerms {contractType = NAM} = _STF_PR_NAM st t pp_payoff y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
       stf PR ContractTerms {contractType = ANN} = _STF_PR_NAM st t pp_payoff y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
+      stf PR ContractTerms {contractType = LAX, ct_ARPRNXTj = Just arprnxt} = _STF_PR_LAX st t y_sd_t feeRate ct_CNTRL ct_IPCB (head arprnxt)
+      stf MD ContractTerms {contractType = LAM} = _STF_MD_LAM st t
+      stf MD ContractTerms {contractType = LAX} = _STF_MD_LAM st t
       stf MD _ = _STF_MD_PAM st t
+      stf PI ContractTerms {contractType = LAX, ct_ARPRNXTj = Just arprnxt} = _STF_PI_LAX st t y_sd_t feeRate ct_CNTRL ct_IPCB (head arprnxt)
       stf PP ContractTerms {contractType = PAM} = _STF_PP_PAM st t pp_payoff y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf PP ContractTerms {contractType = LAM} = _STF_PP_LAM st t pp_payoff y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
+      stf PP ContractTerms {contractType = LAX} = _STF_PP_LAM st t pp_payoff y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
       stf PP ContractTerms {contractType = NAM} = _STF_PP_LAM st t pp_payoff y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
       stf PP ContractTerms {contractType = ANN} = _STF_PP_LAM st t pp_payoff y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
       stf PY ContractTerms {contractType = PAM} = _STF_PY_PAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf PY ContractTerms {contractType = LAM} = _STF_PY_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
+      stf PY ContractTerms {contractType = LAX} = _STF_PY_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf PY ContractTerms {contractType = NAM} = _STF_PY_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf PY ContractTerms {contractType = ANN} = _STF_PY_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf FP ContractTerms {contractType = PAM} = _STF_FP_PAM st t y_sd_t
       stf FP ContractTerms {contractType = LAM} = _STF_FP_LAM st t y_sd_t
+      stf FP ContractTerms {contractType = LAX} = _STF_FP_LAM st t y_sd_t
       stf FP ContractTerms {contractType = NAM} = _STF_FP_LAM st t y_sd_t
       stf FP ContractTerms {contractType = ANN} = _STF_FP_LAM st t y_sd_t
       stf PRD ContractTerms {contractType = PAM} = _STF_PRD_PAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf PRD ContractTerms {contractType = LAM} = _STF_PRD_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
+      stf PRD ContractTerms {contractType = LAX} = _STF_PRD_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf PRD ContractTerms {contractType = NAM} = _STF_PRD_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf PRD ContractTerms {contractType = ANN} = _STF_PRD_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf TD _ = _STF_TD_PAM st t
       stf IP _ = _STF_IP_PAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf IPCI ContractTerms {contractType = PAM} = _STF_IPCI_PAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf IPCI ContractTerms {contractType = LAM} = _STF_IPCI_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
+      stf IPCI ContractTerms {contractType = LAX} = _STF_IPCI_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
       stf IPCI ContractTerms {contractType = NAM} = _STF_IPCI_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
       stf IPCI ContractTerms {contractType = ANN} = _STF_IPCI_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL ct_IPCB
       stf IPCB ContractTerms {contractType = LAM} = _STF_IPCB_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
+      stf IPCB ContractTerms {contractType = LAX} = _STF_IPCB_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf IPCB ContractTerms {contractType = NAM} = _STF_IPCB_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf IPCB ContractTerms {contractType = ANN} = _STF_IPCB_LAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus ct_FEB feeRate ct_CNTRL
       stf

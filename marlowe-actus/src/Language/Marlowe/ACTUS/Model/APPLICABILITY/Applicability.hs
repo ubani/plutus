@@ -94,3 +94,5 @@ validateTerms t =
             _X_I_1 [isJust $ ct_PYRT t, isJust $ ct_PYTP t] [isJust $ ct_PPEF t] t ["penalty rate", "penalty type"] ["prepayment effect"]
         ANN ->
             Success t
+        LAX ->
+            Success t

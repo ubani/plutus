@@ -57,8 +57,42 @@ payoff
   t =
     let y_sd_t = _y dayCountConvention sd t md
      in _POF_PR_NAM o_rf_CURS cntrl nsc prnxt ipac y_sd_t ipnr ipcb nt
+payoff
+   PR
+   RiskFactorsPoly {..}
+   ContractTerms
+     { contractType = ANN,
+       ct_DCC = Just dayCountConvention,
+       ct_CNTRL = cntrl,
+       ct_MD = md
+     }
+   ContractStatePoly {..}
+   t =
+     let y_sd_t = _y dayCountConvention sd t md
+      in _POF_PR_NAM o_rf_CURS cntrl nsc prnxt ipac y_sd_t ipnr ipcb nt
+payoff
+   PR
+   RiskFactorsPoly {..}
+   ContractTerms
+     { contractType = LAX,
+       ct_CNTRL = cntrl,
+       ct_ARPRNXTj = Just arprnxt
+     }
+   ContractStatePoly {..}
+   _ = _POF_PR_LAX o_rf_CURS cntrl (head arprnxt) nt nsc
 -- MD
 payoff MD RiskFactorsPoly {..} _ ContractStatePoly {..} _ = _POF_MD_PAM o_rf_CURS nsc nt isc ipac feac
+-- PI
+payoff
+   PI
+   RiskFactorsPoly {..}
+   ContractTerms
+     { contractType = LAX,
+       ct_CNTRL = cntrl,
+       ct_ARPRNXTj = Just arprnxt
+     }
+   ContractStatePoly {..}
+   _ = _POF_PR_LAX o_rf_CURS cntrl (head arprnxt) nt nsc
 -- PP
 payoff PP RiskFactorsPoly {..} _ _ _ = _POF_PP_PAM o_rf_CURS pp_payoff
 -- PY

@@ -14,6 +14,7 @@ data CT = PAM -- principal at maturity
         | LAM -- linear amortizer
         | NAM -- negative amortizer
         | ANN -- annuity
+        | LAX -- exotic linear amortizer
         deriving stock (Show, Read, Eq, Generic) deriving anyclass (FromJSON, ToJSON)
 
 -- ContractRole
@@ -143,6 +144,18 @@ data Cycle = Cycle
   deriving (Show, Eq, Ord, Generic)
   deriving anyclass (FromJSON, ToJSON)
 
+-- Array Increase Decrease
+data ARINCDEC = INC -- Increase
+              | DEC -- Decrease
+              deriving (Show, Read, Eq, Ord, Generic)
+              deriving anyclass (FromJSON, ToJSON)
+
+-- Array Fixed Variable
+data ARFIXVAR = F -- Fixed Rate
+              | V -- Variable Rate
+              deriving (Show, Read, Eq, Ord, Generic)
+              deriving anyclass (FromJSON, ToJSON)
+
 -- For applicability failures
 data TermValidationError =
     Required String
@@ -203,7 +216,9 @@ data ContractTerms = ContractTerms
 
   -- Interest
   , ct_IPANX         :: Maybe Day      -- Cycle Anchor Date Of Interest Payment
+  , ct_ARIPANXi      :: Maybe [Day]    -- Array Cycle Anchor Date Of Interest Payment
   , ct_IPCL          :: Maybe Cycle    -- Cycle Of Interest Payment
+  , ct_ARIPCLi       :: Maybe [Cycle]  -- Array Cycle Of Interest Payment
   , ct_IPAC          :: Maybe Double   -- Accrued Interest
   , ct_IPCED         :: Maybe Day      -- Capitalization End Date
   , ct_IPCBANX       :: Maybe Day      -- Cycle Anchor Date Of Interest Calculation Base
@@ -219,8 +234,12 @@ data ContractTerms = ContractTerms
   , ct_MD            :: Maybe Day      -- Maturity Date
   , ct_AD            :: Maybe Day      -- Amortization Date
   , ct_PRANX         :: Maybe Day      -- Cycle Anchor Date Of Principal Redemption
+  , ct_ARPRANXj      :: Maybe [Day]    -- Array Cycle Anchor Date Of Principal Redemption
   , ct_PRCL          :: Maybe Cycle    -- Cycle Of Principal Redemption
+  , ct_ARPRCLj       :: Maybe [Cycle]  -- Array Cycle of Principal Redemption
   , ct_PRNXT         :: Maybe Double   -- Next Principal Redemption Payment
+  , ct_ARPRNXTj      :: Maybe [Double] -- Array Next Principal Redemption Payment
+  , ct_ARINCDEC      :: Maybe [ARINCDEC] -- Array Increase Decrease
   , ct_PRD           :: Maybe Day      -- Purchase Date
   , ct_PPRD          :: Maybe Double   -- Price At Purchase Date
   , ct_TD            :: Maybe Day      -- Termination Date
@@ -243,7 +262,9 @@ data ContractTerms = ContractTerms
 
   -- Rate Reset
   , ct_RRCL          :: Maybe Cycle    -- Cycle Of Rate Reset
+  , ct_ARRRCL        :: Maybe [Cycle]  -- Array Cycle Of Rate Reset
   , ct_RRANX         :: Maybe Day      -- Cycle Anchor Date Of Rate Reset
+  , ct_ARRRANX       :: Maybe [Day]    -- Array Cycle Anchor Date Of Rate Reset
   , ct_RRNXT         :: Maybe Double   -- Next Reset Rate
   , ct_RRSP          :: Maybe Double   -- Rate Spread
   , ct_RRMLT         :: Maybe Double   -- Rate Multiplier
@@ -252,6 +273,8 @@ data ContractTerms = ContractTerms
   , ct_RRLC          :: Maybe Double   -- Life Cap
   , ct_RRLF          :: Maybe Double   -- Life Floor
   , ct_RRMO          :: Maybe String   -- Market Object Code Of Rate Reset
+  , ct_ARRATE        :: Maybe [Double] -- Array Rate
+  , ct_ARFIXVAR      :: Maybe [ARFIXVAR] -- Array Fixed Variable
 
   -- enable settlement currency
   , enableSettlement :: Bool
@@ -270,27 +293,28 @@ setDefaultContractTermValues ct@ContractTerms{..} =
         , bdc = applyDefault BDC_NULL bdc
         , calendar = applyDefault CLDR_NC calendar
         }
-    , ct_PRF   = applyDefault PRF_PF ct_PRF
-    , ct_IPCB  = applyDefault IPCB_NT ct_IPCB
-    , ct_PDIED = applyDefault 0.0 ct_PDIED
-    , ct_SCEF  = applyDefault SE_000 ct_SCEF
-    , ct_PYRT  = applyDefault 0.0 ct_PYRT
-    , ct_PYTP  = applyDefault PYTP_O ct_PYTP
-    , ct_PPEF  = applyDefault PPEF_N ct_PPEF
-    , ct_RRSP  = applyDefault 0.0 ct_RRSP
-    , ct_RRMLT = applyDefault 1.0 ct_RRMLT
-    , ct_FEAC  = applyDefault 0.0 ct_FEAC
-    , ct_FER   = applyDefault 0.0 ct_FER
-    , ct_IPAC  = applyDefault 0.0 ct_IPAC
-    , ct_IPNR  = applyDefault 0.0 ct_IPNR
-    , ct_PPRD  = applyDefault 0.0 ct_PPRD
-    , ct_PTD   = applyDefault 0.0 ct_PTD
-    , ct_SCCDD = applyDefault 0.0 ct_SCCDD
-    , ct_RRPF  = applyDefault (-infinity) ct_RRPF
-    , ct_RRPC  = applyDefault infinity ct_RRPC
-    , ct_RRLC  = applyDefault infinity ct_RRLC
-    , ct_RRLF  = applyDefault (-infinity) ct_RRLF
-    , ct_IPCBA = applyDefault 0.0 ct_IPCBA
+    , ct_PRF      = applyDefault PRF_PF ct_PRF
+    , ct_IPCB     = applyDefault IPCB_NT ct_IPCB
+    , ct_PDIED    = applyDefault 0.0 ct_PDIED
+    , ct_SCEF     = applyDefault SE_000 ct_SCEF
+    , ct_PYRT     = applyDefault 0.0 ct_PYRT
+    , ct_PYTP     = applyDefault PYTP_O ct_PYTP
+    , ct_PPEF     = applyDefault PPEF_N ct_PPEF
+    , ct_RRSP     = applyDefault 0.0 ct_RRSP
+    , ct_RRMLT    = applyDefault 1.0 ct_RRMLT
+    , ct_FEAC     = applyDefault 0.0 ct_FEAC
+    , ct_FER      = applyDefault 0.0 ct_FER
+    , ct_IPAC     = applyDefault 0.0 ct_IPAC
+    , ct_IPNR     = applyDefault 0.0 ct_IPNR
+    , ct_PPRD     = applyDefault 0.0 ct_PPRD
+    , ct_PTD      = applyDefault 0.0 ct_PTD
+    , ct_SCCDD    = applyDefault 0.0 ct_SCCDD
+    , ct_RRPF     = applyDefault (-infinity) ct_RRPF
+    , ct_RRPC     = applyDefault infinity ct_RRPC
+    , ct_RRLC     = applyDefault infinity ct_RRLC
+    , ct_RRLF     = applyDefault (-infinity) ct_RRLF
+    , ct_IPCBA    = applyDefault 0.0 ct_IPCBA
+    , ct_ARPRNXTj = applyDefault [] ct_ARPRNXTj -- check later
     }
   where
     infinity :: Double

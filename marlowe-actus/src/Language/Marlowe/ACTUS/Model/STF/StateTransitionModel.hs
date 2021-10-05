@@ -353,3 +353,67 @@ _STF_PRF_ANN st@ContractStatePoly{..} t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _
           prnxt = nextPrincipalRedemptionPayment,
           sd = statusDate
         }
+
+-- Exotic Linear Amortizer (LAX)
+
+_STF_PR_LAX :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> CR -> Maybe IPCB -> a -> ContractStatePoly a b
+_STF_PR_LAX st@ContractStatePoly{..} t y_sd_t _FER _CNTRL _IPCB _prnxt =
+  let redemption = _r _CNTRL * _prnxt - _r _CNTRL * _max _zero (_abs _prnxt - _abs nt)
+      ipac' = ipac + ipnr * ipcb * y_sd_t
+      feac' = feac + _FER * nt * y_sd_t
+      nt' = nt - redemption
+      ipcb' = case _IPCB of
+          Just IPCB_NTL -> ipcb
+          _             -> nt'
+   in st
+        { ipac = ipac',
+          feac = feac',
+          nt = nt',
+          ipcb = ipcb',
+          sd = t
+        }
+
+_STF_PI_LAX :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> CR -> Maybe IPCB -> a -> ContractStatePoly a b
+_STF_PI_LAX st@ContractStatePoly{..} t y_sd_t _FER _CNTRL _IPCB _prnxt =
+  let redemption = _r _CNTRL * _prnxt - _r _CNTRL * _max _zero (_abs _prnxt - _abs nt)
+      ipac' = ipac + ipnr * ipcb * y_sd_t
+      feac' = feac + _FER * nt * y_sd_t
+      nt' = nt + redemption
+      ipcb' = case _IPCB of
+          Just IPCB_NTL -> ipcb
+          _             -> nt'
+   in st
+        { ipac = ipac',
+          feac = feac',
+          nt = nt',
+          ipcb = ipcb',
+          sd = t
+        }
+
+-- _STF_RR_LAX :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> CR -> a -> ContractStatePoly a b
+_STF_RR_LAX st@ContractStatePoly{..} t y_sd_t _FER _RRMLT _RRLC _RRSP _RRPF _RRLF _RRPC _CNTRL _rate o_rf_RRMO =
+  let rate = o_rf_RRMO * _RRMLT + _RRSP + _rate - ipnr
+      deltaRate = _min (_max rate _RRPF) _RRPC
+      rate' = _min (_max (ipnr + deltaRate) _RRLF) _RRLC
+      ipac' = ipac + ipnr * ipcb * y_sd_t
+      feac' = feac + _FER * nt * y_sd_t
+   in st
+        { ipac = ipac',
+          feac = feac',
+          ipnr = rate',
+          sd = t
+        }
+
+-- _STF_RRF_LAX :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> CR -> a -> ContractStatePoly a b
+_STF_RRF_LAX st@ContractStatePoly{..} t y_sd_t _FER _RRMLT _RRLC _RRSP _RRPF _RRLF _RRPC _CNTRL _rate =
+  let rate = _rate * _RRMLT + _RRSP - ipnr
+      deltaRate = _min (_max rate _RRPF) _RRPC
+      rate' = _min (_max (ipnr + deltaRate) _RRLF) _RRLC
+      ipac' = ipac + ipnr * ipcb * y_sd_t
+      feac' = feac + _FER * nt * y_sd_t
+   in st
+        { ipac = ipac',
+          feac = feac',
+          ipnr = rate',
+          sd = t
+        }

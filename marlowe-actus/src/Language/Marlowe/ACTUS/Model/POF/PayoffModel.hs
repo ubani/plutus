@@ -2,7 +2,8 @@ module Language.Marlowe.ACTUS.Model.POF.PayoffModel where
 
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms (CR (..), FEB (FEB_A, FEB_N),
                                                                    PYTP (PYTP_A, PYTP_I, PYTP_N, PYTP_O))
-import           Language.Marlowe.ACTUS.Ops                       (ActusNum (..), ActusOps (_abs, _max, _zero),
+import           Language.Marlowe.ACTUS.Ops                       (ActusNum (..),
+                                                                   ActusOps (_abs, _max, _neg, _one, _zero),
                                                                    RoleSignOps (_r))
 import           Prelude                                          hiding (Fractional, Num, (*), (+), (-), (/))
 
@@ -59,3 +60,15 @@ _POF_PR_NAM o_rf_CURS _CNTRL nsc prnxt ipac y_sd_t ipnr ipcb nt =
   let ra = prnxt - _r _CNTRL * (ipac + y_sd_t * ipnr * ipcb)
       r = ra - _max _zero (ra - _abs nt)
    in o_rf_CURS * _r _CNTRL * nsc * r
+
+-- Exotic linear amortizer (LAX)
+
+_POF_PI_LAX :: (RoleSignOps a, ActusNum a, ActusOps a) => a -> CR -> a -> a -> a -> a
+_POF_PI_LAX o_rf_CURS _CNTRL prnxt nt nsc =
+  let redemption = prnxt - _r _CNTRL * _max _zero (_abs prnxt - _abs nt)
+   in o_rf_CURS * _neg _one * _r _CNTRL * nsc * redemption
+
+_POF_PR_LAX :: (RoleSignOps a, ActusNum a, ActusOps a) => a -> CR -> a -> a -> a -> a
+_POF_PR_LAX o_rf_CURS _CNTRL prnxt nt nsc =
+  let redemption = _r _CNTRL * prnxt - _r _CNTRL * _max _zero (_abs prnxt - _abs nt)
+   in o_rf_CURS * nsc * redemption

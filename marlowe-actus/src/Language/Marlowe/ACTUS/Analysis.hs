@@ -16,6 +16,7 @@ import qualified Data.List                                                  as L
 import           Data.Maybe                                                 (fromMaybe, isNothing)
 import           Data.Sort                                                  (sortOn)
 import           Data.Time                                                  (Day)
+import           Debug.Trace
 import           Language.Marlowe.ACTUS.Definitions.BusinessEvents          (EventType (..), RiskFactors)
 import           Language.Marlowe.ACTUS.Definitions.ContractState           (ContractState)
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms           (CT (..), ContractTerms (..))
@@ -41,25 +42,35 @@ genProjectedCashflows getRiskFactors ct@ContractTerms {..} = fromMaybe [] $
 
           events =
             let e = concatMap scheduleEvent eventTypes
-             in filter filtersEvents . postProcessSchedule . sortOn (paymentDay . snd) $ e
+             in trace (show $ filter filtersEvents . postProcessSchedule . sortOn (paymentDay . snd) $ e) filter filtersEvents . postProcessSchedule . sortOn (paymentDay . snd) $ e
 
           -- states
-          applyStateTransition (st, ev, date) (ev', date') =
-            let t = calculationDay date
+          applyStateTransition (states, terms@ContractTerms{ct_ARPRNXTj = arprnxt, ct_ARRATE = arrate}) (ev', date') =
+            let (st, ev, date) = last (trace (show states) states)
+                t = calculationDay date
                 rf = getRiskFactors ev t
-             in (stateTransition ev rf ct st t, ev', date')
+                terms' | elem ev' [PI, PR]  = terms {ct_ARPRNXTj = tail <$> arprnxt}
+                       | elem ev' [RR, RRF] = terms {ct_ARRATE = tail <$> arrate}
+                       | otherwise = terms
+
+                states' = states ++ [(stateTransition ev rf ct st t, ev', date')]
+             in (states', terms')
 
           states =
             let initialState = (st0, AD, ShiftedDay ct_SD ct_SD)
-             in filter filtersStates . tail $ scanl applyStateTransition initialState events
+                (states', _)      = foldl applyStateTransition ([initialState], ct) (trace (show events) events)
+             in filter filtersStates . tail $ states'
 
           -- payoff
-          calculatePayoff (st, ev, date) =
+          calculatePayoff (payoffs, terms@ContractTerms{ct_ARPRNXTj = arprnxt}) (st, ev, date) =
             let t = calculationDay date
                 rf = getRiskFactors ev t
-             in payoff ev rf ct st t
+                terms' | elem ev [PI, PR] = terms {ct_ARPRNXTj = tail <$> arprnxt}
+                       | otherwise = terms
+                pof = payoff ev rf terms st t
+             in (payoffs ++ [pof], terms')
 
-          payoffs = calculatePayoff <$> states
+          (payoffs, _) = foldl calculatePayoff ([], ct) states
 
           genCashflow ((_, ev, d), pff) =
             CashFlow
@@ -88,6 +99,7 @@ genProjectedCashflows getRiskFactors ct@ContractTerms {..} = fromMaybe [] $
           let b1 = isNothing ct_PRD || ev == PRD || Just calculationDay > ct_PRD
               b2 = let m = ct_MD <|> ct_AD <|> maturity ct in isNothing m || Just calculationDay <= m
            in b1 && b2
+        LAX -> True
 
     postProcessSchedule :: [(EventType, ShiftedDay)] -> [(EventType, ShiftedDay)]
     postProcessSchedule =
@@ -101,4 +113,3 @@ genProjectedCashflows getRiskFactors ct@ContractTerms {..} = fromMaybe [] $
 
           overwrite = map (sortOn priority) . regroup
        in concat . overwrite . trim
-

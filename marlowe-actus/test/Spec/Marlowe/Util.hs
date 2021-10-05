@@ -18,8 +18,10 @@ import           Data.Map                                          as Map (Map, 
 import           Data.Maybe                                        (fromJust)
 import           Data.Scientific                                   (toRealFloat)
 import           Data.Text                                         (unpack)
-import           Data.Time                                         (Day, defaultTimeLocale, parseTimeM)
+import           Data.Time                                         (Day, defaultTimeLocale, parseTimeM,
+                                                                    parseTimeOrError)
 import           Data.Vector                                       as Vector (map, toList)
+import           Debug.Trace
 import           GHC.Generics                                      (Generic)
 import           Language.Marlowe.ACTUS.Definitions.BusinessEvents (EventType)
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms
@@ -66,6 +68,9 @@ data TestCase = TestCase{
 termsToString :: Map String Value -> Map String String
 termsToString = Map.map (\case
   String t -> unpack t
+  Array  t -> show $ Prelude.map (\case
+                                    String t -> unpack t
+                                    Number t -> show (toRealFloat t :: Double)) (Vector.toList t)
   Number t -> show (toRealFloat t :: Double))
 
 parseObservedValues :: Map String Value -> DataObserved
@@ -90,6 +95,7 @@ parseObservedValues =
   )
 
 assertTestResults :: [CashFlow] -> [TestResult] -> String -> IO ()
+
 assertTestResults [] [] _ = return ()
 assertTestResults (cashFlow: restCash) (testResult: restTest) identifier' = do
   assertTestResult cashFlow testResult identifier'
@@ -150,7 +156,7 @@ testToContractTerms TestCase{terms = t} =
      , ct_SCIED         = readMaybe $ Map.lookup "scalingIndexAtStatusDate" terms' :: Maybe Double
      , ct_SCANX         = parseMaybeDate $ Map.lookup "cycleAnchorDateOfScalingIndex" terms'
      , ct_SCCL          = parseMaybeCycle $ Map.lookup "cycleOfScalingIndex" terms'
-     , ct_SCEF          = readMaybe (replace "O" "0" <$> (maybeConcatPrefix "SE_" (Map.lookup "scalingEffect" terms'))) :: Maybe SCEF
+     , ct_SCEF          = readMaybe (replace "O" "0" <$> maybeConcatPrefix "SE_" (Map.lookup "scalingEffect" terms')) :: Maybe SCEF
      , ct_SCCDD         = readMaybe $ Map.lookup "scalingIndexAtContractDealDate" terms' :: Maybe Double
      , ct_SCMO          = Map.lookup "marketObjectCodeOfScalingIndex" terms'
      , ct_SCNT          = readMaybe $ Map.lookup "notionalScalingMultiplier" terms' :: Maybe Double
@@ -170,6 +176,16 @@ testToContractTerms TestCase{terms = t} =
      , ct_RRLC          = readMaybe $ Map.lookup "lifeCap" terms' :: Maybe Double
      , ct_RRLF          = readMaybe $ Map.lookup "lifeFloor" terms' :: Maybe Double
      , ct_RRMO          = Map.lookup "marketObjectCodeOfRateReset" terms'
+     , ct_ARIPANXi      = parseMaybeDateL $ Map.lookup "arrayCycleAnchorDateOfInterestPayment" terms'
+     , ct_ARIPCLi       = parseMaybeCycleL $ Map.lookup "arrayCycleOfInterestPayment" terms'
+     , ct_ARPRANXj      = parseMaybeDateL $ Map.lookup "arrayCycleAnchorDateOfPrincipalRedemption" terms'
+     , ct_ARPRCLj       = parseMaybeCycleL $ Map.lookup "arrayCycleOfPrincipalRedemption" terms'
+     , ct_ARPRNXTj      = readMaybeL $ Map.lookup "arrayNextPrincipalRedemptionPayment" terms' :: Maybe [Double]
+     , ct_ARINCDEC      = readMaybeL $ Map.lookup "arrayIncreaseDecrease" terms' :: Maybe [ARINCDEC]
+     , ct_ARRRCL        = parseMaybeCycleL $ Map.lookup "arrayCycleOfRateReset" terms'
+     , ct_ARRRANX       = parseMaybeDateL $ Map.lookup "arrayCycleAnchorDateOfRateReset" terms'
+     , ct_ARRATE        = readMaybeL $ Map.lookup "arrayRate" terms' :: Maybe [Double]
+     , ct_ARFIXVAR      = readMaybeL $ Map.lookup "arrayFixedVariable" terms' :: Maybe [ARFIXVAR]
      , enableSettlement = False
      , constraints      = Nothing
      , collateralAmount = 0
@@ -178,26 +194,39 @@ testToContractTerms TestCase{terms = t} =
 readMaybe :: (Read a) => Maybe String -> Maybe a
 readMaybe = fmap read
 
+readMaybeL :: Read a => Maybe String -> Maybe [a]
+readMaybeL doubles = fmap read <$> (readMaybe doubles :: Maybe [String])
+
+parseMaybeCycleL :: Maybe String -> Maybe [Cycle]
+parseMaybeCycleL cycles = fmap parseCycle <$> (readMaybe cycles :: Maybe [String])
+
+parseMaybeDateL :: Maybe String -> Maybe [Day]
+parseMaybeDateL dates = fmap parseDateUnsafe <$> (readMaybe dates :: Maybe [String])
+
 parseMaybeDate :: Maybe String -> Maybe Day
 parseMaybeDate = maybe Nothing parseDate
 
+parseDateUnsafe :: String -> Day
+parseDateUnsafe date = parseTimeOrError True defaultTimeLocale (getFormat date) date :: Day
+
 parseDate :: String -> Maybe Day
-parseDate date =
-  let format | length date == 19 = "%Y-%-m-%-dT%T"
-             | otherwise = "%Y-%-m-%-dT%H:%M"
-  in
-    parseTimeM True defaultTimeLocale format date :: Maybe Day
+parseDate date = parseTimeM True defaultTimeLocale (getFormat date) date :: Maybe Day
+
+getFormat :: String -> String
+getFormat date
+  | length date == 19 = "%Y-%-m-%-dT%T"
+  | otherwise = "%Y-%-m-%-dT%R"
 
 parseMaybeCycle :: Maybe String -> Maybe Cycle
-parseMaybeCycle stringCycle =
-  case stringCycle of
-    Just (_:stringCycle') ->
-      let n' = read (takeWhile (< 'A') stringCycle') :: Integer
-          [p', _, s] = dropWhile (< 'A') stringCycle'
-      in
-          Just Cycle { n = n', p = read $ "P_" ++ [p'] :: Period, stub = parseStub [s], includeEndDay = False }
-    Nothing ->
-      Nothing
+parseMaybeCycle stringCycle = parseCycle <$> stringCycle
+
+parseCycle :: String -> Cycle
+parseCycle stringCycle =
+  let n' = read (takeWhile (< 'A') stringCycle) :: Integer
+      [p', _, s] = dropWhile (< 'A') (trace stringCycle stringCycle)
+  in
+      Cycle { n = n', p = read $ "P_" ++ [p'] :: Period, stub = parseStub [s], includeEndDay = False }
+
 
 parseStub :: String -> Stub
 parseStub "0" = LongStub

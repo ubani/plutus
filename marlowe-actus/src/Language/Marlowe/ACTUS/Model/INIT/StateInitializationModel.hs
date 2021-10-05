@@ -48,12 +48,7 @@ initialize ct@ContractTerms {..} =
                 | otherwise = ct_IPNR
            in ipnr
 
-        ipac <-
-          let ipac
-                | isNothing ct_IPNR = Just 0.0
-                | isJust ct_IPAC = ct_IPAC
-                | otherwise = (\d -> y d tminus t0 ct_MD * nt * ipnr) <$> ct_DCC
-           in ipac
+        ipac <- accruedInterest ct nt ipnr
 
         feac <- feeAccrued ct { ct_MD = mat }
 
@@ -157,9 +152,9 @@ initialize ct@ContractTerms {..} =
     interestPaymentCalculationBase :: ContractTerms -> Maybe Double
     interestPaymentCalculationBase
         ContractTerms
-            { contractType = LAM,
+            { contractType = contractType,
               ct_IED = Just initialExchangeDate
-            } | t0 < initialExchangeDate = Just 0.0
+            } | t0 < initialExchangeDate && elem contractType [LAM, LAX] = Just 0.0
     interestPaymentCalculationBase
         ContractTerms
             { ct_NT = Just notionalPrincipal,
@@ -178,6 +173,12 @@ initialize ct@ContractTerms {..} =
             } = Just 0.0
     feeAccrued
         ContractTerms
+            { contractType = LAX,
+              ct_FEAC = feac@(Just _),
+              ct_IED = Just initialExchangeDate
+            } | t0 >= initialExchangeDate = feac
+    feeAccrued
+        ContractTerms
             { ct_FEAC = feac@(Just _)
             } = feac
     feeAccrued
@@ -193,3 +194,15 @@ initialize ct@ContractTerms {..} =
               ct_FER = Just fer
             } = Just $ y dayCountConvention tfp_minus t0 ct_MD / y dayCountConvention tfp_minus tfp_plus ct_MD * fer
     feeAccrued _ = Nothing
+
+    accruedInterest :: ContractTerms -> Double -> Double -> Maybe Double
+    accruedInterest ContractTerms {contractType = LAX, ct_IED = Just initialExchangeDate, ct_IPAC = Just ipac} _ _
+     | t0 >= initialExchangeDate = Just $ r ct_CNTRL * ipac
+
+    accruedInterest ContractTerms {ct_IPNR = Nothing} _ _= Just 0.0
+
+    accruedInterest ContractTerms {ct_IPAC = ipac@(Just _)} _ _ = ipac
+
+    accruedInterest ContractTerms {..} nt ipnr = (\d -> y d tminus t0 ct_MD * nt * ipnr) <$> ct_DCC
+
+    accruedInterest _ _ _ = Nothing

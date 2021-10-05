@@ -17,8 +17,8 @@ import           Data.Ord                                                 (Down 
 import           Data.Sort                                                (sortOn)
 import           Data.Time                                                (Day)
 import           Language.Marlowe.ACTUS.Definitions.BusinessEvents        (EventType (..))
-import           Language.Marlowe.ACTUS.Definitions.ContractTerms         (CT (..), ContractTerms (..), Cycle (..),
-                                                                           ScheduleConfig (..))
+import           Language.Marlowe.ACTUS.Definitions.ContractTerms         (ARINCDEC (..), CT (..), ContractTerms (..),
+                                                                           Cycle (..), ScheduleConfig (..))
 import           Language.Marlowe.ACTUS.Definitions.Schedule              (ShiftedDay (..))
 import           Language.Marlowe.ACTUS.Model.SCHED.ContractScheduleModel
 import           Language.Marlowe.ACTUS.Model.Utility.DateShift           (applyBDCWithCfg)
@@ -91,6 +91,22 @@ schedule ev c = schedule' ev c { ct_MD = maturity c }
     schedule' RRF  ct@ContractTerms{ contractType = ANN } = _SCHED_RRF_PAM ct
     schedule' SC   ct@ContractTerms{ contractType = ANN } = _SCHED_SC_PAM ct
     schedule' PRF  ct@ContractTerms{ contractType = ANN } = _SCHED_PRF_ANN ct
+
+    schedule' IED  ct@ContractTerms{ contractType = LAX } = _SCHED_IED_PAM ct
+    schedule' MD   ct@ContractTerms{ contractType = LAX } = _SCHED_MD_PAM ct
+    schedule' PR   ct@ContractTerms{ contractType = LAX } = _SCHED_PR_PI_LAX ct PR
+    schedule' PI   ct@ContractTerms{ contractType = LAX } = _SCHED_PR_PI_LAX ct PI
+    schedule' PP   ct@ContractTerms{ contractType = LAX } = _SCHED_PP_PAM ct
+    schedule' PY   ct@ContractTerms{ contractType = LAX } = _SCHED_PY_PAM ct
+    schedule' FP   ct@ContractTerms{ contractType = LAX } = _SCHED_FP_PAM ct
+    schedule' PRD  ct@ContractTerms{ contractType = LAX } = _SCHED_PRD_PAM ct
+    schedule' TD   ct@ContractTerms{ contractType = LAX } = _SCHED_TD_PAM ct
+    schedule' IP   ct@ContractTerms{ contractType = LAX } = _SCHED_IP_LAX ct
+    schedule' IPCI ct@ContractTerms{ contractType = LAX } = _SCHED_IPCI_PAM ct
+    schedule' IPCB ct@ContractTerms{ contractType = LAX } = _SCHED_IPCB_LAM ct
+    schedule' RR   ct@ContractTerms{ contractType = LAX } = _SCHED_RR_RRF_LAX ct RR
+    schedule' RRF  ct@ContractTerms{ contractType = LAX } = _SCHED_RR_RRF_LAX ct RRF
+    schedule' SC   ct@ContractTerms{ contractType = LAX } = _SCHED_SC_PAM ct
 
     schedule' _ _                                         = Nothing
 
@@ -185,4 +201,68 @@ maturity
       ct_AD = Nothing,
       ct_MD = md@(Just _)
     } = md
+maturity
+  ContractTerms
+    { contractType = LAX,
+      ct_MD = md@(Just _)
+    } = md
+maturity
+  ContractTerms
+    { contractType = LAX,
+      ct_ARPRCLj = Nothing,
+      ct_ARPRANXj = Just arrayCycleAnchorDateOfPrincipalRedemption
+    } = Just $ last arrayCycleAnchorDateOfPrincipalRedemption
+maturity
+  ContractTerms
+    { contractType = LAX,
+      ct_ARPRCLj = Just arrayCycleOfPrincipalRedemption,
+      ct_ARPRANXj = Just arrayCycleAnchorDateOfPrincipalRedemption,
+      ct_ARPRNXTj = Just arrayNextPrincipalRedemptionPayment,
+      ct_ARINCDEC = Just arrayIncreaseDecrease,
+      ct_NT = Just notionalPrincipal,
+      ct_SD = statusDate,
+      scfg = scheduleConfig
+    }
+  | length arrayCycleOfPrincipalRedemption > 1 =
+      let
+        calculateMaturity :: Day -> Double -> Double -> Double -> [Day] -> [Cycle] -> [Double] -> [ARINCDEC] -> Bool -> Day
+        calculateMaturity t s index noOfPrEvents (f:k:restARPRANX) (c:l:restARPRCL) (n:u:restARPRNXT) (i:d:restARINCDEC) continue =
+          let
+            prSched = _S (Just f) ((\c -> c { includeEndDay = False }) <$> Just c) (Just k) (Just scheduleConfig)
+            incdecToDouble incdec
+              | incdec == INC = 1.0
+              | incdec == DEC = -1.0
+            noOfPrEvents'
+              | (fromIntegral (length prSched) * n * incdecToDouble i) + notionalPrincipal + s >= 0.0 = fromIntegral $ length prSched
+              | otherwise = fromIntegral $ floor ((notionalPrincipal + s) / n)
+            s' = noOfPrEvents' * incdecToDouble i * n
+            (noOfPrEvents'', t', s'')
+              | fromIntegral (length arrayCycleAnchorDateOfPrincipalRedemption - 2) == index =
+                  let noOfPrEvents'' = abs (fromIntegral (ceiling ((s' + notionalPrincipal) / n)))
+                      t' = foldl (\t' _ -> t' <+> l) k [0..noOfPrEvents'' - 1]
+                      s'' = s' + (noOfPrEvents'' * incdecToDouble d * u)
+                   in (noOfPrEvents'', t', s'')
+              | otherwise = (noOfPrEvents', foldl (\t' _ -> t' <+> c) f [0..noOfPrEvents'], s')
+         in
+          if continue then
+            calculateMaturity t' s'' (index + 1) noOfPrEvents' (k:restARPRANX) (l:restARPRCL) (u:restARPRNXT) (d:restARINCDEC) (s + notionalPrincipal > 0)
+          else
+            t
+     in
+      let t = calculateMaturity
+                statusDate
+                0.0
+                0.0
+                0.0
+                arrayCycleAnchorDateOfPrincipalRedemption
+                arrayCycleOfPrincipalRedemption
+                arrayNextPrincipalRedemptionPayment
+                arrayIncreaseDecrease
+                True
+       in Just $ calculationDay $ applyBDCWithCfg scheduleConfig t
+  | otherwise =
+      let noOfPrEvents = ceiling (notionalPrincipal / head arrayNextPrincipalRedemptionPayment)
+          t = foldl (\t' _ -> t' <+> head arrayCycleOfPrincipalRedemption) (head arrayCycleAnchorDateOfPrincipalRedemption) [0..noOfPrEvents - 1]
+       in Just $ calculationDay $ applyBDCWithCfg scheduleConfig t
+
 maturity _ = Nothing
