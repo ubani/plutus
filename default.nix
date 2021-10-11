@@ -35,7 +35,7 @@ rec {
   inherit pkgs plutus;
 
   tests = import ./nix/tests/default.nix {
-    inherit pkgs docs;
+    inherit pkgs;
     inherit (plutus.lib) gitignore-nix;
     inherit (plutus) fixStylishHaskell fixPngOptimization;
     src = ./.;
