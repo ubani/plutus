@@ -71,7 +71,6 @@ let
     cabal-install
     cardano-repo-tool
     fixPngOptimization
-    fixPurty
     fixStylishHaskell
     haskell-language-server
     haskell-language-server-wrapper
