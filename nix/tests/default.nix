@@ -1,17 +1,8 @@
 { pkgs
 , gitignore-nix
 , fixStylishHaskell
-, fixPurty
 , fixPngOptimization
 , src
-, plutus-playground
-, marlowe-playground
-, marlowe-dashboard
-, web-ghc
-, plutus-pab
-, marlowe-pab
-, docs
-, vmCompileTests ? false
 }:
 let
   inherit (pkgs) lib;
@@ -25,11 +16,6 @@ pkgs.recurseIntoAttrs {
     inherit fixStylishHaskell;
   };
 
-  purty = pkgs.callPackage ./purty.nix {
-    src = cleanSrc;
-    inherit fixPurty;
-  };
-
   nixpkgsFmt = pkgs.callPackage ./nixpkgs-fmt.nix {
     src = cleanSrc;
     inherit (pkgs) nixpkgs-fmt;
@@ -38,10 +24,5 @@ pkgs.recurseIntoAttrs {
   pngOptimization = pkgs.callPackage ./png-optimization.nix {
     src = cleanSrc;
     inherit fixPngOptimization;
-  };
-
-  vmTests = pkgs.callPackage ./vm.nix {
-    inherit vmCompileTests plutus-playground marlowe-playground
-      marlowe-dashboard web-ghc plutus-pab marlowe-pab docs;
   };
 }
