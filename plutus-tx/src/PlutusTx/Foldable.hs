@@ -1,6 +1,9 @@
 {-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 module PlutusTx.Foldable (
+  foldMapTR,
+  filterTR,
+  findTR,
   Foldable(..),
   -- * Special biased folds
   foldrM,
@@ -49,11 +52,29 @@ import           PlutusTx.Builtins     (Integer)
 import           PlutusTx.Either       (Either (..))
 import           PlutusTx.Eq           (Eq (..))
 import           PlutusTx.Maybe        (Maybe (..))
-import           PlutusTx.Monoid       (Monoid (..))
+import           PlutusTx.Monoid       (Monoid (..), mappend)
 import           PlutusTx.Numeric      (AdditiveMonoid, AdditiveSemigroup ((+)), MultiplicativeMonoid)
 import           PlutusTx.Semigroup    ((<>))
 
 import qualified Prelude               as Haskell (Monad, return, (>>), (>>=))
+
+{-# INLINABLE foldMapTR #-}
+foldMapTR :: Monoid m => (a -> m) -> [a] -> m
+foldMapTR f = go id where
+  go k []     = k mempty
+  go k (x:xs) = go (k . mappend (f x)) xs
+
+{-# INLINABLE foldrTR #-}
+foldrTR :: (a -> b -> b) -> b -> [a] -> b
+foldrTR f z t = appEndo (foldMapTR (Endo #. f) t) z
+
+{-# INLINABLE findTR #-}
+findTR :: (a -> Bool) -> [a] -> Maybe a
+findTR p = getFirst . foldMapTR (\ x -> First (if p x then Just x else Nothing))
+
+{-# INLINABLE filterTR #-}
+filterTR :: (a -> Bool) -> [a] -> [a]
+filterTR p = foldrTR (\e xs -> if p e then e:xs else xs) []
 
 -- | Plutus Tx version of 'Data.Foldable.Foldable'.
 class Foldable t where
