@@ -41,6 +41,7 @@ import Control.Monad.ST
 import Data.Array
 import Data.DList (DList)
 import Data.DList qualified as DList
+import Data.List.Extra ((!?))
 import Data.Proxy
 import Data.STRef
 import Data.Text (Text)
@@ -58,6 +59,7 @@ data CkValue uni fun =
   | VLamAbs Name (Type TyName uni ()) (Term TyName Name uni fun ())
   | VIWrap (Type TyName uni ()) (Type TyName uni ()) (CkValue uni fun)
   | VBuiltin (Term TyName Name uni fun ()) (BuiltinRuntime (CkValue uni fun))
+  | VProd [CkValue uni fun]
     deriving (Show)
 
 -- | Take pieces of a possibly partial builtin application and either create a 'CkValue' using
@@ -78,6 +80,7 @@ ckValueToTerm = \case
     VLamAbs name ty body -> LamAbs () name ty body
     VIWrap  ty1 ty2 val  -> IWrap  () ty1 ty2 $ ckValueToTerm val
     VBuiltin term _      -> term
+    VProd es             -> Prod () (fmap ckValueToTerm es)
 
 data CkEnv uni fun s = CkEnv
     { ckEnvRuntime    :: BuiltinsRuntime fun (CkValue uni fun)
@@ -131,6 +134,8 @@ data Frame uni fun
     | FrameTyInstArg (Type TyName uni ())                   -- ^ @{_ A}@
     | FrameUnwrap                                           -- ^ @(unwrap _)@
     | FrameIWrap (Type TyName uni ()) (Type TyName uni ())  -- ^ @(iwrap A B _)@
+    | FrameProd [Term TyName Name uni fun ()] [CkValue uni fun]
+    | FrameProj Int
 
 type Context uni fun = [Frame uni fun]
 
@@ -162,6 +167,8 @@ substituteDb varFor new = go where
          TyInst   () fun arg      -> TyInst   () (go fun) arg
          Unwrap   () term         -> Unwrap   () (go term)
          IWrap    () pat arg term -> IWrap    () pat arg (go term)
+         Prod     () es           -> Prod     () (fmap go es)
+         Proj     () i p          -> Proj     () i (go p)
          b@Builtin{}              -> b
          e@Error  {}              -> e
     goUnder var term = if var == varFor then term else go term
@@ -183,6 +190,8 @@ substTyInTerm tn0 ty0 = go where
          Unwrap  () term         -> Unwrap  () (go term)
          IWrap   () pat arg term -> IWrap   () (goTy pat) (goTy arg) (go term)
          Error   () ty           -> Error   () (goTy ty)
+         Prod    () es           -> Prod    () (fmap go es)
+         Proj    () i p          -> Proj    () i (go p)
     goUnder tn term = if tn == tn0 then term else go term
     goTy = substTyInTy tn0 ty0
 
@@ -199,6 +208,7 @@ substTyInTy tn0 ty0 = go where
          TyApp    () ty1 ty2 -> TyApp    () (go ty1) (go ty2)
          TyForall () tn k ty -> TyForall () tn k (goUnder tn ty)
          TyLam    () tn k ty -> TyLam    () tn k (goUnder tn ty)
+         TyProd   () tys     -> TyProd   () (fmap go tys)
          bt@TyBuiltin{}      -> bt
     goUnder tn ty = if tn == tn0 then ty else go ty
 
@@ -227,6 +237,10 @@ stack |> Builtin _ bn            = do
     runtime <- asksM $ lookupBuiltin bn . ckEnvRuntime
     stack <| VBuiltin (Builtin () bn) runtime
 stack |> Constant _ val          = stack <| VCon val
+stack |> Prod _ es               = case es of
+    []     -> stack <| VProd []
+    t : ts -> FrameProd ts [] : stack |> t
+stack |> Proj _ i p              = FrameProj i : stack |> p
 _     |> Error{}                 =
     throwingWithCause _EvaluationError (UserEvaluationError CkEvaluationFailure) Nothing
 _     |> var@Var{}               =
@@ -256,6 +270,16 @@ FrameUnwrap        : stack <| wrapped = case wrapped of
     VIWrap _ _ term -> stack <| term
     _               ->
         throwingWithCause _MachineError NonWrapUnwrappedMachineError $ Just $ ckValueToTerm wrapped
+FrameProd todo done : stack <| e =
+    let done' = e:done
+    in case todo of
+        []     -> stack <| VProd (reverse done')
+        t : ts -> FrameProd ts done' : stack |> t
+FrameProj i : stack <| prod = case prod of
+    VProd p -> case p !? i of
+        Just e  -> stack <| e
+        Nothing -> throwingWithCause _MachineError (ProductIndexOutOfBoundsMachineError i) $ Nothing
+    _ -> throwingWithCause _MachineError NonProductIndexedMachineError $ Nothing
 
 -- | Instantiate a term with a type and proceed.
 -- In case of 'TyAbs' just ignore the type. Otherwise check if the term is builtin application

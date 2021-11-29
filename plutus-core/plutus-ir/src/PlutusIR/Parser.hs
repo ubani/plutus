@@ -27,6 +27,7 @@ import PlutusCore.ParserCommon
 import PlutusIR as PIR
 import PlutusIR.MkPir qualified as PIR
 import Text.Megaparsec hiding (ParseError, State, many, parse, some)
+import Text.Megaparsec.Char.Lexer qualified as Lex
 
 import Control.Monad.Combinators.NonEmpty qualified as NE
 
@@ -56,6 +57,11 @@ ifixType
     :: PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni))
     => Parser SourcePos (Type TyName uni SourcePos)
 ifixType = TyIFix <$> wordPos "ifix" <*> typ <*> typ
+
+prodType
+    :: PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni))
+    => Parser SourcePos (Type TyName uni SourcePos)
+prodType = TyProd <$> wordPos "prod" <*> many typ
 
 conType
     :: PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni))
@@ -89,7 +95,7 @@ typ
     :: PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni))
     => Parser SourcePos (Type TyName uni SourcePos)
 typ = (tyName >>= (\n -> getSourcePos >>= \p -> return $ TyVar p n))
-    <|> (inParens $ funType <|> allType <|> lamType <|> ifixType <|> conType)
+    <|> (inParens $ funType <|> allType <|> lamType <|> ifixType <|> prodType <|> conType)
     <|> inBrackets appType
 
 varDecl
@@ -148,6 +154,12 @@ builtinTerm _term = PIR.builtin <$> wordPos "builtin" <*> builtinFunction
 unwrapTerm :: Parametric uni fun
 unwrapTerm tm = PIR.unwrap <$> wordPos "unwrap" <*> tm
 
+prodTerm :: Parametric uni fun
+prodTerm tm = PIR.prod <$> wordPos "prod" <*> many tm
+
+projTerm :: Parametric uni fun
+projTerm tm = PIR.proj <$> wordPos "proj" <*> lexeme Lex.decimal <*> tm
+
 errorTerm :: PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni)) => Parametric uni fun
 errorTerm _tm = PIR.error <$> wordPos "error" <*> typ
 
@@ -172,7 +184,7 @@ term'
        )
     => Parametric uni fun
 term' other = (name >>= (\n -> getSourcePos >>= \p -> return $ PIR.var p n))
-    <|> (inParens $ absTerm self <|> lamTerm self <|> conTerm self <|> iwrapTerm self <|> builtinTerm self <|> unwrapTerm self <|> errorTerm self <|> other)
+    <|> (inParens $ absTerm self <|> lamTerm self <|> conTerm self <|> iwrapTerm self <|> builtinTerm self <|> unwrapTerm self <|> errorTerm self <|> prodTerm self <|> projTerm self <|> other)
     <|> inBraces (tyInstTerm self)
     <|> inBrackets (appTerm self)
     where self = term' other

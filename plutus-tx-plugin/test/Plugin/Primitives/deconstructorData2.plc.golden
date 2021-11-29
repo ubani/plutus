@@ -44,7 +44,16 @@
                 [ [ Tuple2 c ] a ]
                 [
                   { [ { { Tuple2_match c } a } ds ] [ [ Tuple2 c ] b ] }
-                  (lam c c (lam a a [ [ { { Tuple2 c } b } c ] [ f a ] ]))
+                  (lam
+                    p
+                    (prod c a)
+                    (let
+                      (nonrec)
+                      (termbind (strict) (vardecl c c) (proj 0 p))
+                      (termbind (strict) (vardecl a a) (proj 1 p))
+                      [ [ { { Tuple2 c } b } c ] [ f a ] ]
+                    )
+                  )
                 ]
               )
             )
@@ -108,31 +117,25 @@
                 (lam
                   l
                   [ List a ]
-                  {
+                  [
                     [
-                      [
-                        { [ { Nil_match a } l ] (all dead (type) [ List b ]) }
-                        (abs dead (type) { Nil b })
-                      ]
-                      (lam
-                        x
-                        a
-                        (lam
-                          xs
-                          [ List a ]
-                          (abs
-                            dead
-                            (type)
-                            [
-                              [ { Cons b } [ f x ] ]
-                              [ [ { { fFunctorNil_cfmap a } b } f ] xs ]
-                            ]
-                          )
-                        )
-                      )
+                      { [ { Nil_match a } l ] [ List b ] }
+                      (lam p (prod ) { Nil b })
                     ]
-                    (all dead (type) dead)
-                  }
+                    (lam
+                      p
+                      (prod a [ List a ])
+                      (let
+                        (nonrec)
+                        (termbind (strict) (vardecl x a) (proj 0 p))
+                        (termbind (strict) (vardecl xs [ List a ]) (proj 1 p))
+                        [
+                          [ { Cons b } [ f x ] ]
+                          [ [ { { fFunctorNil_cfmap a } b } f ] xs ]
+                        ]
+                      )
+                    )
+                  ]
                 )
               )
             )

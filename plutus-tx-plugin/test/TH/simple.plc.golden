@@ -13,7 +13,8 @@
       ds
       Bool
       [
-        [ { [ Bool_match ds ] (con integer) } (con integer 1) ] (con integer 2)
+        [ { [ Bool_match ds ] (con integer) } (lam p (prod ) (con integer 1)) ]
+        (lam p (prod ) (con integer 2))
       ]
     )
   )

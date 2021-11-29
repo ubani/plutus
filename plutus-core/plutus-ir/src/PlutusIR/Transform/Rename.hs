@@ -376,6 +376,8 @@ renameTermM = \case
         IWrap x <$> PLC.renameTypeM pat <*> PLC.renameTypeM arg <*> renameTermM term
     Unwrap x term ->
         Unwrap x <$> renameTermM term
+    Prod x es -> Prod x <$> traverse renameTermM es
+    Proj x i p -> Proj x i <$> renameTermM p
 
 -- | Rename a 'Term' in the 'ScopedRenameM' monad.
 renameProgramM

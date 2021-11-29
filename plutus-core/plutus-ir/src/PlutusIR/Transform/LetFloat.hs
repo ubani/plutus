@@ -293,6 +293,8 @@ removeLets marks term = runWriter $ go term
         LamAbs a name ty t -> LamAbs a name ty <$> go t
         IWrap a ty1 ty2 t -> IWrap a ty1 ty2 <$> go t
         Unwrap a t -> Unwrap a <$> go t
+        Prod a es -> Prod a <$> traverse go es
+        Proj a i p -> Proj a i <$> go p
 
         -- no term inside here, nothing to do
         t@Var{} -> pure t

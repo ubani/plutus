@@ -63,9 +63,11 @@ replaceFunTyTarget newTarget t = case t of
     _             -> newTarget
 
 -- | Given the type of a constructor, get the type of the "case" type with the given result type.
--- @constructorCaseType R (A->Maybe A) = (A -> R)@
-constructorCaseType :: Type tyname uni a -> VarDecl tyname name uni fun a -> Type tyname uni a
-constructorCaseType resultType = replaceFunTyTarget resultType . _varDeclType
+-- @constructorCaseType R (A->Maybe A) = ((prod [A]) -> R)@
+constructorCaseType :: a -> Type tyname uni a -> VarDecl tyname name uni fun a -> Type tyname uni a
+constructorCaseType ann resultType vd =
+    let ctype = _varDeclType vd
+    in TyFun ann (TyProd ann (funTyArgs ctype)) resultType
 
 -- | Get recursively all the domains and codomains of a type.
 -- @funTySections (A->B->C) = [A, B, C]@
@@ -263,7 +265,7 @@ mkScottTy :: MonadQuote m => ann -> Datatype TyName Name uni fun ann -> m (Type 
 mkScottTy ann d@(Datatype _ _ _ _ constrs) = do
     resultType <- resultTypeName d
      -- FIXME: normalize datacons' types also here
-    let caseTys = fmap (constructorCaseType (TyVar ann resultType)) constrs
+    let caseTys = fmap (constructorCaseType ann (TyVar ann resultType)) constrs
     pure $
         -- forall resultType
         TyForall ann resultType (Type ann) $
@@ -328,7 +330,7 @@ mkConstructor dty d@(Datatype ann _ tvs _ constrs) index = do
           -- these types appear *outside* the scope of the abstraction for the datatype, so we need to use the concrete datatype here
           -- see note [Abstract data types]
           -- FIXME: normalize datacons' types also here
-          let caseTypes = unveilDatatype (getType dty) d <$> fmap (constructorCaseType (TyVar ann resultType)) constrs
+          let caseTypes = unveilDatatype (getType dty) d <$> fmap (constructorCaseType ann (TyVar ann resultType)) constrs
           caseArgNames <- for constrs (\c -> safeFreshName $ "case_" <> T.pack (varDeclNameString c))
           pure $ zipWith (VarDecl ann) caseArgNames caseTypes
 
@@ -359,8 +361,8 @@ mkConstructor dty d@(Datatype ann _ tvs _ constrs) index = do
         TyAbs ann resultType (Type ann) $
         -- \case_1 .. case_j
         PIR.mkIterLamAbs casesAndTypes $
-        -- c_i arg_1 .. arg_m
-        PIR.mkIterApp ann thisCase (fmap (PIR.mkVar ann) argsAndTypes)
+        -- c_i (prod arg_1 .. arg_m)
+        Apply ann thisCase (Prod ann (fmap (PIR.mkVar ann) argsAndTypes))
 
 -- Destructors
 

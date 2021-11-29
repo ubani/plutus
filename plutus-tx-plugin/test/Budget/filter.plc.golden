@@ -47,28 +47,17 @@
                   (lam
                     l
                     [ List a ]
-                    {
-                      [
+                    [
+                      [ { [ { Nil_match a } l ] b } (lam p (prod ) acc) ]
+                      (lam
+                        p
+                        (prod a [ List a ])
                         [
-                          { [ { Nil_match a } l ] (all dead (type) b) }
-                          (abs dead (type) acc)
+                          [ f (proj 0 p) ]
+                          [ [ [ { { foldr a } b } f ] acc ] (proj 1 p) ]
                         ]
-                        (lam
-                          x
-                          a
-                          (lam
-                            xs
-                            [ List a ]
-                            (abs
-                              dead
-                              (type)
-                              [ [ f x ] [ [ [ { { foldr a } b } f ] acc ] xs ] ]
-                            )
-                          )
-                        )
-                      ]
-                      (all dead (type) dead)
-                    }
+                      )
+                    ]
                   )
                 )
               )
@@ -85,40 +74,36 @@
                 (lam
                   xs
                   [ List (con integer) ]
-                  {
+                  [
                     [
-                      [
-                        {
+                      {
+                        [
+                          Bool_match
                           [
-                            Bool_match
                             [
                               [
+                                { (builtin ifThenElse) Bool }
                                 [
-                                  { (builtin ifThenElse) Bool }
                                   [
+                                    (builtin equalsInteger)
                                     [
-                                      (builtin equalsInteger)
-                                      [
-                                        [ (builtin modInteger) e ]
-                                        (con integer 2)
-                                      ]
+                                      [ (builtin modInteger) e ] (con integer 2)
                                     ]
-                                    (con integer 0)
                                   ]
+                                  (con integer 0)
                                 ]
-                                True
                               ]
-                              False
+                              True
                             ]
+                            False
                           ]
-                          (all dead (type) [ List (con integer) ])
-                        }
-                        (abs dead (type) [ [ { Cons (con integer) } e ] xs ])
-                      ]
-                      (abs dead (type) xs)
+                        ]
+                        [ List (con integer) ]
+                      }
+                      (lam p (prod ) [ [ { Cons (con integer) } e ] xs ])
                     ]
-                    (all dead (type) dead)
-                  }
+                    (lam p (prod ) xs)
+                  ]
                 )
               )
             ]

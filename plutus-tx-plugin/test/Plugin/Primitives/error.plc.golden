@@ -16,7 +16,14 @@
       (abs
         a
         (type)
-        (lam x Unit [ { error a } [ { [ Unit_match x ] (con unit) } unitval ] ])
+        (lam
+          x
+          Unit
+          [
+            { error a }
+            [ { [ Unit_match x ] (con unit) } (lam p (prod ) unitval) ]
+          ]
+        )
       )
     )
     { error (con integer) }

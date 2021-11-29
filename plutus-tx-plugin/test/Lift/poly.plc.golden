@@ -27,7 +27,9 @@
                     case_Plugin_Data_Spec_Poly1_i0
                     (lam
                       case_Plugin_Data_Spec_Poly2_i0
-                      [ [ case_Plugin_Data_Spec_Poly1_i2 arg_0_i4 ] arg_1_i3 ]
+                      [
+                        case_Plugin_Data_Spec_Poly1_i2 (prod arg_0_i4 arg_1_i3)
+                      ]
                     )
                   )
                 )
@@ -45,7 +47,7 @@
                 case_Plugin_Data_Spec_Poly1_i0
                 (lam
                   case_Plugin_Data_Spec_Poly2_i0
-                  [ case_Plugin_Data_Spec_Poly2_i1 arg_0_i3 ]
+                  [ case_Plugin_Data_Spec_Poly2_i1 (prod arg_0_i3) ]
                 )
               )
             )

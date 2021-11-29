@@ -40,6 +40,7 @@ import PlutusPrelude
 import PlutusCore.TypeCheck.Internal hiding (checkTypeM, inferTypeM, runTypeCheckM)
 import PlutusIR.MkPir qualified as PIR
 
+import Data.List.Extra ((!?))
 import Universe
 
 {- Note [PLC Typechecker code reuse]
@@ -203,6 +204,20 @@ inferTypeM (Unwrap ann term)        = do
 inferTypeM (Error ann ty)           = do
     checkKindM ann ty $ Type ()
     normalizeTypeM $ void ty
+
+inferTypeM (Prod _ args) = do
+    tys <- for args $ \t -> do
+        (Normalized ty) <- inferTypeM t
+        pure ty
+    pure $ Normalized $ TyProd () tys
+
+inferTypeM (Proj ann i term) = do
+    vTermTy <- inferTypeM term
+    case unNormalized vTermTy of
+        TyProd _ vTys -> case vTys !? i of
+            Just t  -> pure $ Normalized t
+            Nothing -> throwing _TypeError (TypeMismatch ann (void term) (TyProd () (replicate i dummyType)) vTermTy)
+        _ -> throwing _TypeError (TypeMismatch ann (void term) (TyProd () (replicate i dummyType)) vTermTy)
 -- ##############
 -- ## Port end ##
 -- ##############

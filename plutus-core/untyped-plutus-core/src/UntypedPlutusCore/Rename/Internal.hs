@@ -26,6 +26,8 @@ renameTermM err@Error{}                = pure err
 renameTermM (Var ann name)             = Var ann <$> renameNameM name
 renameTermM (Delay ann term)           = Delay ann <$> renameTermM term
 renameTermM (Force ann term)           = Force ann <$> renameTermM term
+renameTermM (Prod ann es)              = Prod ann <$> traverse renameTermM es
+renameTermM (Proj ann i p)             = Proj ann i <$> renameTermM p
 renameTermM con@Constant{}             = pure con
 renameTermM bi@Builtin{}               = pure bi
 

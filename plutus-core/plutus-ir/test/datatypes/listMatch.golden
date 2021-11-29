@@ -26,9 +26,9 @@
                         out_List_i0
                         (type)
                         (fun
-                          out_List_i1
+                          (fun (prod ) out_List_i1)
                           (fun
-                            (fun a_i2 (fun [ List_i6 a_i2 ] out_List_i1))
+                            (fun (prod a_i2 [ List_i6 a_i2 ]) out_List_i1)
                             out_List_i1
                           )
                         )
@@ -44,16 +44,17 @@
                         ]
                         (all a_i0 (type) (fun a_i1 a_i1))
                       }
-                      (abs a_i0 (type) (lam x_i0 a_i2 x_i1))
+                      (lam
+                        dead_i0 (prod ) (abs a_i0 (type) (lam x_i0 a_i2 x_i1))
+                      )
                     ]
                     (lam
-                      head_i0
-                      (all a_i0 (type) (fun a_i1 a_i1))
-                      (lam
-                        tail_i0
-                        [ List_i6 (all a_i0 (type) (fun a_i1 a_i1)) ]
-                        head_i2
+                      p_i0
+                      (prod
+                        (all a_i0 (type) (fun a_i1 a_i1))
+                        [ List_i5 (all a_i0 (type) (fun a_i1 a_i1)) ]
                       )
+                      (proj 0 p_i1)
                     )
                   ]
                 )
@@ -74,9 +75,9 @@
                     out_List_i0
                     (type)
                     (fun
-                      out_List_i1
+                      (fun (prod ) out_List_i1)
                       (fun
-                        (fun a_i2 (fun [ List_i3 a_i2 ] out_List_i1))
+                        (fun (prod a_i2 [ List_i3 a_i2 ]) out_List_i1)
                         out_List_i1
                       )
                     )
@@ -101,9 +102,9 @@
                   out_List_i0
                   (type)
                   (fun
-                    out_List_i1
+                    (fun (prod ) out_List_i1)
                     (fun
-                      (fun a_i2 (fun [ List_i3 a_i2 ] out_List_i1)) out_List_i1
+                      (fun (prod a_i2 [ List_i3 a_i2 ]) out_List_i1) out_List_i1
                     )
                   )
                 )
@@ -115,12 +116,12 @@
               (type)
               (lam
                 case_Nil_i0
-                out_List_i2
+                (fun (prod ) out_List_i2)
                 (lam
                   case_Cons_i0
                   (fun
-                    a_i4
-                    (fun
+                    (prod
+                      a_i4
                       [
                         (lam
                           a_i0
@@ -136,10 +137,10 @@
                                   out_List_i0
                                   (type)
                                   (fun
-                                    out_List_i1
+                                    (fun (prod ) out_List_i1)
                                     (fun
                                       (fun
-                                        a_i2 (fun [ List_i3 a_i2 ] out_List_i1)
+                                        (prod a_i2 [ List_i3 a_i2 ]) out_List_i1
                                       )
                                       out_List_i1
                                     )
@@ -152,10 +153,10 @@
                         )
                         a_i4
                       ]
-                      out_List_i3
                     )
+                    out_List_i3
                   )
-                  case_Nil_i2
+                  [ case_Nil_i2 (prod ) ]
                 )
               )
             )
@@ -185,9 +186,9 @@
                         out_List_i0
                         (type)
                         (fun
-                          out_List_i1
+                          (fun (prod ) out_List_i1)
                           (fun
-                            (fun a_i2 (fun [ List_i3 a_i2 ] out_List_i1))
+                            (fun (prod a_i2 [ List_i3 a_i2 ]) out_List_i1)
                             out_List_i1
                           )
                         )
@@ -210,9 +211,9 @@
                     out_List_i0
                     (type)
                     (fun
-                      out_List_i1
+                      (fun (prod ) out_List_i1)
                       (fun
-                        (fun a_i2 (fun [ List_i3 a_i2 ] out_List_i1))
+                        (fun (prod a_i2 [ List_i3 a_i2 ]) out_List_i1)
                         out_List_i1
                       )
                     )
@@ -225,12 +226,12 @@
                 (type)
                 (lam
                   case_Nil_i0
-                  out_List_i2
+                  (fun (prod ) out_List_i2)
                   (lam
                     case_Cons_i0
                     (fun
-                      a_i6
-                      (fun
+                      (prod
+                        a_i6
                         [
                           (lam
                             a_i0
@@ -246,11 +247,11 @@
                                     out_List_i0
                                     (type)
                                     (fun
-                                      out_List_i1
+                                      (fun (prod ) out_List_i1)
                                       (fun
                                         (fun
-                                          a_i2
-                                          (fun [ List_i3 a_i2 ] out_List_i1)
+                                          (prod a_i2 [ List_i3 a_i2 ])
+                                          out_List_i1
                                         )
                                         out_List_i1
                                       )
@@ -263,10 +264,10 @@
                           )
                           a_i6
                         ]
-                        out_List_i3
                       )
+                      out_List_i3
                     )
-                    [ [ case_Cons_i1 arg_0_i5 ] arg_1_i4 ]
+                    [ case_Cons_i1 (prod arg_0_i5 arg_1_i4) ]
                   )
                 )
               )
@@ -295,9 +296,9 @@
                     out_List_i0
                     (type)
                     (fun
-                      out_List_i1
+                      (fun (prod ) out_List_i1)
                       (fun
-                        (fun a_i2 (fun [ List_i3 a_i2 ] out_List_i1))
+                        (fun (prod a_i2 [ List_i3 a_i2 ]) out_List_i1)
                         out_List_i1
                       )
                     )

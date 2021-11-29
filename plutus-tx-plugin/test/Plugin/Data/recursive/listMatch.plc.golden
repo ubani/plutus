@@ -14,8 +14,17 @@
       ds
       [ List (con integer) ]
       [
-        [ { [ { Nil_match (con integer) } ds ] (con integer) } (con integer 0) ]
-        (lam x (con integer) (lam ds [ List (con integer) ] x))
+        [
+          { [ { Nil_match (con integer) } ds ] (con integer) }
+          (lam p (prod ) (con integer 0))
+        ]
+        (lam
+          p
+          (prod (con integer) [ List (con integer) ])
+          (let
+            (nonrec) (termbind (strict) (vardecl x (con integer)) (proj 0 p)) x
+          )
+        )
       ]
     )
   )

@@ -59,6 +59,8 @@ deBruijnTermM = \case
     Apply ann t1 t2 -> Apply ann <$> deBruijnTermM t1 <*> deBruijnTermM t2
     Delay ann t -> Delay ann <$> deBruijnTermM t
     Force ann t -> Force ann <$> deBruijnTermM t
+    Prod ann es -> Prod ann <$> traverse deBruijnTermM es
+    Proj ann i p -> Proj ann i <$> deBruijnTermM p
     -- boring non-recursive cases
     Constant ann con -> pure $ Constant ann con
     Builtin ann bn -> pure $ Builtin ann bn
@@ -91,6 +93,8 @@ unDeBruijnTermM = \case
     Apply ann t1 t2 -> Apply ann <$> unDeBruijnTermM t1 <*> unDeBruijnTermM t2
     Delay ann t -> Delay ann <$> unDeBruijnTermM t
     Force ann t -> Force ann <$> unDeBruijnTermM t
+    Prod ann es -> Prod ann <$> traverse unDeBruijnTermM es
+    Proj ann i p -> Proj ann i <$> unDeBruijnTermM p
     -- boring non-recursive cases
     Constant ann con -> pure $ Constant ann con
     Builtin ann bn -> pure $ Builtin ann bn

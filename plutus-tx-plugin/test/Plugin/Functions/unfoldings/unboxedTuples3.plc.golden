@@ -42,12 +42,14 @@
             (con integer)
           }
           (lam
-            i
-            (con integer)
-            (lam
-              j
-              (con integer)
-              (lam k (con integer) [ [ addInteger [ [ addInteger i ] j ] ] k ])
+            p
+            (prod (con integer) (con integer) (con integer))
+            (let
+              (nonrec)
+              (termbind (strict) (vardecl i (con integer)) (proj 0 p))
+              (termbind (strict) (vardecl j (con integer)) (proj 1 p))
+              (termbind (strict) (vardecl k (con integer)) (proj 2 p))
+              [ [ addInteger [ [ addInteger i ] j ] ] k ]
             )
           )
         ]

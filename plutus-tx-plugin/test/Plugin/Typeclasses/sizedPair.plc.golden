@@ -52,7 +52,14 @@
                 [
                   { [ { { Tuple2_match a } b } ds ] (con integer) }
                   (lam
-                    a a (lam b b [ [ addInteger [ dSized a ] ] [ dSized b ] ])
+                    p
+                    (prod a b)
+                    (let
+                      (nonrec)
+                      (termbind (strict) (vardecl a a) (proj 0 p))
+                      (termbind (strict) (vardecl b b) (proj 1 p))
+                      [ [ addInteger [ dSized a ] ] [ dSized b ] ]
+                    )
                   )
                 ]
               )

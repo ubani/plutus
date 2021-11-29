@@ -19,9 +19,17 @@
             [ { { MyPolyData_match (con integer) } (con integer) } ds ]
             (con integer)
           }
-          (lam a (con integer) (lam ds (con integer) a))
+          (lam
+            p
+            (prod (con integer) (con integer))
+            (let
+              (nonrec)
+              (termbind (strict) (vardecl a (con integer)) (proj 0 p))
+              a
+            )
+          )
         ]
-        (lam ipv (con integer) (con integer 2))
+        (lam p (prod (con integer)) (con integer 2))
       ]
     )
   )

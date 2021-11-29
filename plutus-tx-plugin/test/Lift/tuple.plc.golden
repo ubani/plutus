@@ -21,7 +21,7 @@
               (delay
                 (lam
                   case_GHC_Tuple_Tuple2_i0
-                  [ [ case_GHC_Tuple_Tuple2_i1 arg_0_i3 ] arg_1_i2 ]
+                  [ case_GHC_Tuple_Tuple2_i1 (prod arg_0_i3 arg_1_i2) ]
                 )
               )
             )

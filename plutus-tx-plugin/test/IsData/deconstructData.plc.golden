@@ -137,60 +137,52 @@
                   (termbind
                     (nonstrict)
                     (vardecl nilCase [ Maybe [ [ Tuple2 a ] b ] ])
-                    {
+                    [
                       [
-                        [
-                          {
+                        {
+                          [
+                            { Maybe_match a }
+                            [ dFromData [ { head (con data) } l ] ]
+                          ]
+                          [ Maybe [ [ Tuple2 a ] b ] ]
+                        }
+                        (lam
+                          p
+                          (prod a)
+                          (let
+                            (nonrec)
+                            (termbind (strict) (vardecl ipv a) (proj 0 p))
                             [
-                              { Maybe_match a }
-                              [ dFromData [ { head (con data) } l ] ]
-                            ]
-                            (all dead (type) [ Maybe [ [ Tuple2 a ] b ] ])
-                          }
-                          (lam
-                            ipv
-                            a
-                            (abs
-                              dead
-                              (type)
-                              {
-                                [
+                              [
+                                {
                                   [
-                                    {
-                                      [
-                                        { Maybe_match b }
-                                        [ dFromData [ { head (con data) } l ] ]
-                                      ]
-                                      (all
-                                        dead (type) [ Maybe [ [ Tuple2 a ] b ] ]
-                                      )
-                                    }
-                                    (lam
-                                      ipv
-                                      b
-                                      (abs
-                                        dead
-                                        (type)
-                                        [
-                                          { Just [ [ Tuple2 a ] b ] }
-                                          [ [ { { Tuple2 a } b } ipv ] ipv ]
-                                        ]
-                                      )
-                                    )
+                                    { Maybe_match b }
+                                    [ dFromData [ { head (con data) } l ] ]
                                   ]
-                                  (abs
-                                    dead (type) { Nothing [ [ Tuple2 a ] b ] }
+                                  [ Maybe [ [ Tuple2 a ] b ] ]
+                                }
+                                (lam
+                                  p
+                                  (prod b)
+                                  (let
+                                    (nonrec)
+                                    (termbind
+                                      (strict) (vardecl ipv b) (proj 0 p)
+                                    )
+                                    [
+                                      { Just [ [ Tuple2 a ] b ] }
+                                      [ [ { { Tuple2 a } b } ipv ] ipv ]
+                                    ]
                                   )
-                                ]
-                                (all dead (type) dead)
-                              }
-                            )
+                                )
+                              ]
+                              (lam p (prod ) { Nothing [ [ Tuple2 a ] b ] })
+                            ]
                           )
-                        ]
-                        (abs dead (type) { Nothing [ [ Tuple2 a ] b ] })
+                        )
                       ]
-                      (all dead (type) dead)
-                    }
+                      (lam p (prod ) { Nothing [ [ Tuple2 a ] b ] })
+                    ]
                   )
                   (termbind
                     (nonstrict)

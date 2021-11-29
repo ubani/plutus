@@ -18,11 +18,33 @@
         [
           [
             { [ MyMonoData_match ds ] (con integer) }
-            (lam ds (con integer) (lam b (con integer) b))
+            (lam
+              p
+              (prod (con integer) (con integer))
+              (let
+                (nonrec)
+                (termbind (strict) (vardecl b (con integer)) (proj 1 p))
+                b
+              )
+            )
           ]
-          (lam a (con integer) a)
+          (lam
+            p
+            (prod (con integer))
+            (let
+              (nonrec)
+              (termbind (strict) (vardecl a (con integer)) (proj 0 p))
+              a
+            )
+          )
         ]
-        (lam a (con integer) a)
+        (lam
+          p
+          (prod (con integer))
+          (let
+            (nonrec) (termbind (strict) (vardecl a (con integer)) (proj 0 p)) a
+          )
+        )
       ]
     )
   )

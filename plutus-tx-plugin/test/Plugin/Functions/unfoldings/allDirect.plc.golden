@@ -18,29 +18,17 @@
         (lam
           ds
           Bool
-          {
-            [
+          [
+            [ { [ Bool_match ds ] Bool } (lam p (prod ) False) ]
+            (lam
+              p
+              (prod )
               [
-                { [ Bool_match ds ] (all dead (type) Bool) }
-                (abs dead (type) False)
+                [ { [ Bool_match ds ] Bool } (lam p (prod ) False) ]
+                (lam p (prod ) True)
               ]
-              (abs
-                dead
-                (type)
-                {
-                  [
-                    [
-                      { [ Bool_match ds ] (all dead (type) Bool) }
-                      (abs dead (type) False)
-                    ]
-                    (abs dead (type) True)
-                  ]
-                  (all dead (type) dead)
-                }
-              )
-            ]
-            (all dead (type) dead)
-          }
+            )
+          ]
         )
       )
     )
@@ -84,28 +72,19 @@
               (lam
                 l
                 [ List a ]
-                {
-                  [
-                    [
-                      { [ { Nil_match a } l ] (all dead (type) Bool) }
-                      (abs dead (type) True)
-                    ]
-                    (lam
-                      h
-                      a
-                      (lam
-                        t
-                        [ List a ]
-                        (abs
-                          dead
-                          (type)
-                          [ [ andDirect [ p h ] ] [ [ { allDirect a } p ] t ] ]
-                        )
-                      )
+                [
+                  [ { [ { Nil_match a } l ] Bool } (lam p (prod ) True) ]
+                  (lam
+                    p
+                    (prod a [ List a ])
+                    (let
+                      (nonrec)
+                      (termbind (strict) (vardecl h a) (proj 0 p))
+                      (termbind (strict) (vardecl t [ List a ]) (proj 1 p))
+                      [ [ andDirect [ p h ] ] [ [ { allDirect a } p ] t ] ]
                     )
-                  ]
-                  (all dead (type) dead)
-                }
+                  )
+                ]
               )
             )
           )

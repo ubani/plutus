@@ -18,15 +18,10 @@
         (lam
           r
           Bool
-          {
-            [
-              [
-                { [ Bool_match l ] (all dead (type) Bool) } (abs dead (type) r)
-              ]
-              (abs dead (type) False)
-            ]
-            (all dead (type) dead)
-          }
+          [
+            [ { [ Bool_match l ] Bool } (lam p (prod ) r) ]
+            (lam p (prod ) False)
+          ]
         )
       )
     )
@@ -63,7 +58,15 @@
           [ PersonLike a ]
           [
             { [ { PersonLike_match a } v ] (fun a (con integer)) }
-            (lam v (fun a (con integer)) (lam v (fun a (fun Animal Bool)) v))
+            (lam
+              p
+              (prod (fun a (con integer)) (fun a (fun Animal Bool)))
+              (let
+                (nonrec)
+                (termbind (strict) (vardecl v (fun a (con integer))) (proj 0 p))
+                v
+              )
+            )
           ]
         )
       )
@@ -107,7 +110,17 @@
           [ PersonLike a ]
           [
             { [ { PersonLike_match a } v ] (fun a (fun Animal Bool)) }
-            (lam v (fun a (con integer)) (lam v (fun a (fun Animal Bool)) v))
+            (lam
+              p
+              (prod (fun a (con integer)) (fun a (fun Animal Bool)))
+              (let
+                (nonrec)
+                (termbind
+                  (strict) (vardecl v (fun a (fun Animal Bool))) (proj 1 p)
+                )
+                v
+              )
+            )
           ]
         )
       )
@@ -150,8 +163,11 @@
         ds
         Person
         [
-          [ { [ Person_match ds ] (con integer) } (con integer 35) ]
-          (con integer 30)
+          [
+            { [ Person_match ds ] (con integer) }
+            (lam p (prod ) (con integer 35))
+          ]
+          (lam p (prod ) (con integer 30))
         ]
       )
     )
@@ -164,29 +180,20 @@
         (lam
           ds
           Animal
-          {
+          [
             [
-              [
-                { [ Person_match ds ] (all dead (type) Bool) }
-                (abs
-                  dead
-                  (type)
-                  {
-                    [
-                      [
-                        { [ Animal_match ds ] (all dead (type) Bool) }
-                        (abs dead (type) True)
-                      ]
-                      (abs dead (type) False)
-                    ]
-                    (all dead (type) dead)
-                  }
-                )
-              ]
-              (abs dead (type) False)
+              { [ Person_match ds ] Bool }
+              (lam
+                p
+                (prod )
+                [
+                  [ { [ Animal_match ds ] Bool } (lam p (prod ) True) ]
+                  (lam p (prod ) False)
+                ]
+              )
             ]
-            (all dead (type) dead)
-          }
+            (lam p (prod ) False)
+          ]
         )
       )
     )

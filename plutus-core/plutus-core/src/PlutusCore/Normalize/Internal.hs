@@ -191,6 +191,9 @@ normalizeTypeM var@(TyVar _ name)            = do
         Just ty -> liftDupable ty
 normalizeTypeM (TyBuiltin ann (SomeTypeIn uni)) =
     pure . Normalized $ ann <$ normalizeUni uni
+normalizeTypeM (TyProd ann tys) = do
+    tys' <- traverse (fmap unNormalized . normalizeTypeM) tys
+    pure $ Normalized $ TyProd ann tys'
 
 {- Note [Normalizing substitution]
 @substituteNormalize[M]@ is only ever used as normalizing substitution that receives two already

@@ -18,29 +18,17 @@
         (lam
           ds
           Bool
-          {
-            [
+          [
+            [ { [ Bool_match ds ] Bool } (lam p (prod ) False) ]
+            (lam
+              p
+              (prod )
               [
-                { [ Bool_match ds ] (all dead (type) Bool) }
-                (abs dead (type) False)
+                [ { [ Bool_match ds ] Bool } (lam p (prod ) False) ]
+                (lam p (prod ) True)
               ]
-              (abs
-                dead
-                (type)
-                {
-                  [
-                    [
-                      { [ Bool_match ds ] (all dead (type) Bool) }
-                      (abs dead (type) False)
-                    ]
-                    (abs dead (type) True)
-                  ]
-                  (all dead (type) dead)
-                }
-              )
-            ]
-            (all dead (type) dead)
-          }
+            )
+          ]
         )
       )
     )

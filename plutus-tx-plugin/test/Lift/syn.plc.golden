@@ -20,7 +20,7 @@
                 (delay
                   (lam
                     case_Lift_Spec_SynExample_i0
-                    [ case_Lift_Spec_SynExample_i1 arg_0_i2 ]
+                    [ case_Lift_Spec_SynExample_i1 (prod arg_0_i2) ]
                   )
                 )
               )
@@ -31,7 +31,9 @@
       )
       (lam
         arg_0_i0
-        (delay (lam case_Lift_Spec_Z_i0 [ case_Lift_Spec_Z_i1 arg_0_i2 ]))
+        (delay
+          (lam case_Lift_Spec_Z_i0 [ case_Lift_Spec_Z_i1 (prod arg_0_i2) ])
+        )
       )
     ]
     (lam x_i0 x_i1)

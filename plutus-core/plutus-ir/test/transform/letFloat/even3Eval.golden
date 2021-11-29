@@ -26,7 +26,10 @@
         (lam
           n
           Nat
-          [ [ { [ match_Nat n ] Bool } True ] (lam pred Nat [ odd pred ]) ]
+          [
+            [ { [ match_Nat n ] Bool } (lam p (prod ) True) ]
+            (lam p (prod Nat) [ odd (proj 0 p) ])
+          ]
         )
       )
       (termbind
@@ -35,7 +38,10 @@
         (lam
           n
           Nat
-          [ [ { [ match_Nat n ] Bool } False ] (lam pred Nat [ even pred ]) ]
+          [
+            [ { [ match_Nat n ] Bool } (lam p (prod ) False) ]
+            (lam p (prod Nat) [ even (proj 0 p) ])
+          ]
         )
       )
       (let

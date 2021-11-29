@@ -24,8 +24,8 @@
                         out_Maybe_i0
                         (type)
                         (fun
-                          out_Maybe_i1
-                          (fun (fun a_i2 out_Maybe_i1) out_Maybe_i1)
+                          (fun (prod ) out_Maybe_i1)
+                          (fun (fun (prod a_i2) out_Maybe_i1) out_Maybe_i1)
                         )
                       )
                     )
@@ -44,7 +44,10 @@
             (all
               out_Maybe_i0
               (type)
-              (fun out_Maybe_i1 (fun (fun a_i2 out_Maybe_i1) out_Maybe_i1))
+              (fun
+                (fun (prod ) out_Maybe_i1)
+                (fun (fun (prod a_i2) out_Maybe_i1) out_Maybe_i1)
+              )
             )
           )
         }
@@ -56,8 +59,12 @@
             (type)
             (lam
               case_Nothing_i0
-              out_Maybe_i2
-              (lam case_Just_i0 (fun a_i4 out_Maybe_i3) case_Nothing_i2)
+              (fun (prod ) out_Maybe_i2)
+              (lam
+                case_Just_i0
+                (fun (prod a_i4) out_Maybe_i3)
+                [ case_Nothing_i2 (prod ) ]
+              )
             )
           )
         )
@@ -73,9 +80,11 @@
             (type)
             (lam
               case_Nothing_i0
-              out_Maybe_i2
+              (fun (prod ) out_Maybe_i2)
               (lam
-                case_Just_i0 (fun a_i5 out_Maybe_i3) [ case_Just_i1 arg_0_i4 ]
+                case_Just_i0
+                (fun (prod a_i5) out_Maybe_i3)
+                [ case_Just_i1 (prod arg_0_i4) ]
               )
             )
           )
@@ -94,7 +103,10 @@
             (all
               out_Maybe_i0
               (type)
-              (fun out_Maybe_i1 (fun (fun a_i2 out_Maybe_i1) out_Maybe_i1))
+              (fun
+                (fun (prod ) out_Maybe_i1)
+                (fun (fun (prod a_i2) out_Maybe_i1) out_Maybe_i1)
+              )
             )
           )
           a_i2

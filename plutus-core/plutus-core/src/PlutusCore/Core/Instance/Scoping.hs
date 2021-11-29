@@ -47,6 +47,8 @@ instance tyname ~ TyName => EstablishScoping (Type tyname uni) where
         name <- freshenTyName nameDup
         pure $ TyVar (registerFree name) name
     establishScoping (TyBuiltin _ fun) = pure $ TyBuiltin NotAName fun
+    establishScoping (TyProd _ tys) =
+        TyProd NotAName <$> traverse establishScoping tys
 
 instance (tyname ~ TyName, name ~ Name) => EstablishScoping (Term tyname name uni fun) where
     establishScoping (LamAbs _ nameDup ty body)  = do
@@ -68,6 +70,8 @@ instance (tyname ~ TyName, name ~ Name) => EstablishScoping (Term tyname name un
         pure $ Var (registerFree name) name
     establishScoping (Constant _ con) = pure $ Constant NotAName con
     establishScoping (Builtin _ bi) = pure $ Builtin NotAName bi
+    establishScoping (Prod _ es) = Prod NotAName <$> traverse establishScoping es
+    establishScoping (Proj _ i p) = Proj NotAName i <$> establishScoping p
 
 instance (tyname ~ TyName, name ~ Name) => EstablishScoping (Program tyname name uni fun) where
     establishScoping (Program _ ver term) =
@@ -83,6 +87,7 @@ instance tyname ~ TyName => CollectScopeInfo (Type tyname uni) where
     collectScopeInfo (TyFun _ dom cod) = collectScopeInfo dom <> collectScopeInfo cod
     collectScopeInfo (TyVar ann name) = handleSname ann name
     collectScopeInfo (TyBuiltin _ _) = mempty
+    collectScopeInfo (TyProd _ tys) = foldMap collectScopeInfo tys
 
 instance (tyname ~ TyName, name ~ Name) => CollectScopeInfo (Term tyname name uni fun) where
     collectScopeInfo (LamAbs ann name ty body)  =
@@ -98,6 +103,8 @@ instance (tyname ~ TyName, name ~ Name) => CollectScopeInfo (Term tyname name un
     collectScopeInfo (Var ann name) = handleSname ann name
     collectScopeInfo (Constant _ _) = mempty
     collectScopeInfo (Builtin _ _) = mempty
+    collectScopeInfo (Prod _ es) = foldMap collectScopeInfo es
+    collectScopeInfo (Proj _ _ p) = collectScopeInfo p
 
 instance (tyname ~ TyName, name ~ Name) => CollectScopeInfo (Program tyname name uni fun) where
     collectScopeInfo (Program _ _ term) = collectScopeInfo term

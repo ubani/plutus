@@ -56,7 +56,13 @@
                                                           x_i1
                                                         ]
                                                       )
-                                                      (lam x_i0 x_i1)
+                                                      (lam
+                                                        p_i0
+                                                        [
+                                                          (lam x_i0 x_i1)
+                                                          (proj 0 p_i1)
+                                                        ]
+                                                      )
                                                     ]
                                                   ]
                                                 ]
@@ -84,31 +90,38 @@
                                         ds_i0
                                         (lam
                                           ds_i0
-                                          (force
+                                          [
                                             [
-                                              [
-                                                (force
-                                                  [ (force Nil_match_i7) ds_i1 ]
-                                                )
-                                                (delay (force Nil_i9))
-                                              ]
-                                              (lam
-                                                x_i0
-                                                (lam
-                                                  xs_i0
-                                                  (delay
-                                                    [
-                                                      [
-                                                        (force Cons_i10)
-                                                        [ ds_i4 x_i2 ]
-                                                      ]
-                                                      [ [ map_i5 ds_i4 ] xs_i1 ]
-                                                    ]
-                                                  )
-                                                )
+                                              (force
+                                                [ (force Nil_match_i7) ds_i1 ]
                                               )
+                                              (lam p_i0 (force Nil_i10))
                                             ]
-                                          )
+                                            (lam
+                                              p_i0
+                                              [
+                                                (lam
+                                                  x_i0
+                                                  [
+                                                    (lam
+                                                      xs_i0
+                                                      [
+                                                        [
+                                                          (force Cons_i11)
+                                                          [ ds_i5 x_i2 ]
+                                                        ]
+                                                        [
+                                                          [ map_i6 ds_i5 ] xs_i1
+                                                        ]
+                                                      ]
+                                                    )
+                                                    (proj 1 p_i2)
+                                                  ]
+                                                )
+                                                (proj 0 p_i1)
+                                              ]
+                                            )
+                                          ]
                                         )
                                       )
                                     )
@@ -122,7 +135,10 @@
                       (lam
                         arg_0_i0
                         (delay
-                          (lam case_EmptyRose_i0 [ case_EmptyRose_i1 arg_0_i2 ])
+                          (lam
+                            case_EmptyRose_i0
+                            [ case_EmptyRose_i1 (prod arg_0_i2) ]
+                          )
                         )
                       )
                     ]
@@ -131,7 +147,11 @@
                 )
               )
             )
-            (delay (delay (lam case_Nil_i0 (lam case_Cons_i0 case_Nil_i2))))
+            (delay
+              (delay
+                (lam case_Nil_i0 (lam case_Cons_i0 [ case_Nil_i2 (prod ) ]))
+              )
+            )
           ]
           (delay
             (lam
@@ -141,7 +161,7 @@
                 (delay
                   (lam
                     case_Nil_i0
-                    (lam case_Cons_i0 [ [ case_Cons_i1 arg_0_i4 ] arg_1_i3 ])
+                    (lam case_Cons_i0 [ case_Cons_i1 (prod arg_0_i4 arg_1_i3) ])
                   )
                 )
               )

@@ -11,7 +11,7 @@
 (let (rec)
   (termbind (strict) (vardecl stupidZero (fun Nat Nat))
       (lam n Nat
-        [{[match_Nat n] Nat} Zero (lam pred Nat [stupidZero pred])]))
+        [{[match_Nat n] Nat} (lam p (prod) Zero) (lam p (prod Nat) [stupidZero (proj 0 p)])]))
   [stupidZero three]
 )
 )

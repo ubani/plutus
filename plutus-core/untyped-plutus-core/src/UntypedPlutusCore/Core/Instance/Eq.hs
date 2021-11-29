@@ -13,6 +13,7 @@ import PlutusCore.Eq
 import PlutusCore.Name
 import PlutusCore.Rename.Monad
 
+import Data.Foldable (for_)
 import Universe
 
 instance (GEq uni, Closed uni, uni `Everywhere` Eq, Eq fun, HasUnique name TermUnique, Eq ann) =>
@@ -46,6 +47,14 @@ eqTermM (Force ann1 term1) (Force ann2 term2) = do
     eqM ann1 ann2
     eqTermM term1 term2
 eqTermM (Error ann1) (Error ann2) = eqM ann1 ann2
+eqTermM (Prod ann1 args1) (Prod ann2 args2) = do
+    eqM ann1 ann2
+    -- TODO: need to fail if they're not the same length
+    for_ (zip args1 args2) $ \(t1, t2) -> eqTermM t1 t2
+eqTermM (Proj ann1 i1 p1) (Proj ann2 i2 p2) = do
+    eqM ann1 ann2
+    eqM i1 i2
+    eqTermM p1 p2
 eqTermM Constant{} _ = empty
 eqTermM Builtin{}  _ = empty
 eqTermM Var{}      _ = empty
@@ -54,3 +63,5 @@ eqTermM Apply{}    _ = empty
 eqTermM Delay{}    _ = empty
 eqTermM Force{}    _ = empty
 eqTermM Error{}    _ = empty
+eqTermM Prod{}    _ = empty
+eqTermM Proj{}    _ = empty

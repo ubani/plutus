@@ -16,7 +16,9 @@ import UntypedPlutusCore.Core.Type
 
 import PlutusCore.Core.Instance.Pretty.Common ()
 import PlutusCore.Pretty.PrettyConst
-import PlutusCore.Pretty.Readable
+import PlutusCore.Pretty.Readable (Direction (ToTheRight), PrettyConfigReadable, PrettyReadableBy, binderFixity,
+                                   botFixity, compoundDocM, inContextM, juxtFixity, juxtPrettyM, prettyM, sequenceDocM,
+                                   unitDocM)
 
 import Prettyprinter
 import Universe
@@ -41,6 +43,8 @@ instance
             sequenceDocM ToTheRight juxtFixity $ \prettyEl ->
                 "force" <+> prettyEl term
         Error _ -> unitDocM "error"
+        Prod _ es -> unitDocM "prod"
+        Proj _ i p -> unitDocM "proj"
 
 instance PrettyReadableBy configName (Term name uni fun a) =>
         PrettyBy (PrettyConfigReadable configName) (Program name uni fun a) where

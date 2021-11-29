@@ -86,36 +86,30 @@
             (con integer)
           }
           (lam
-            i
-            (con integer)
-            (lam
-              j
+            p
+            (prod
               (con integer)
-              (lam
-                k
-                (con integer)
-                (lam
-                  l
-                  (con integer)
-                  (lam
-                    m
-                    (con integer)
-                    [
-                      [
-                        addInteger
-                        [
-                          [
-                            addInteger
-                            [ [ addInteger [ [ addInteger i ] j ] ] k ]
-                          ]
-                          l
-                        ]
-                      ]
-                      m
-                    ]
-                  )
-                )
-              )
+              (con integer)
+              (con integer)
+              (con integer)
+              (con integer)
+            )
+            (let
+              (nonrec)
+              (termbind (strict) (vardecl i (con integer)) (proj 0 p))
+              (termbind (strict) (vardecl j (con integer)) (proj 1 p))
+              (termbind (strict) (vardecl k (con integer)) (proj 2 p))
+              (termbind (strict) (vardecl l (con integer)) (proj 3 p))
+              (termbind (strict) (vardecl m (con integer)) (proj 4 p))
+              [
+                [
+                  addInteger
+                  [
+                    [ addInteger [ [ addInteger [ [ addInteger i ] j ] ] k ] ] l
+                  ]
+                ]
+                m
+              ]
             )
           )
         ]
@@ -201,16 +195,8 @@
             (con integer)
           }
           (lam
-            i
-            [
-              [
-                [ [ [ UTuple5 (con integer) ] (con integer) ] (con integer) ]
-                (con integer)
-              ]
-              (con integer)
-            ]
-            (lam
-              j
+            p
+            (prod
               [
                 [
                   [ [ [ UTuple5 (con integer) ] (con integer) ] (con integer) ]
@@ -218,6 +204,50 @@
                 ]
                 (con integer)
               ]
+              [
+                [
+                  [ [ [ UTuple5 (con integer) ] (con integer) ] (con integer) ]
+                  (con integer)
+                ]
+                (con integer)
+              ]
+            )
+            (let
+              (nonrec)
+              (termbind
+                (strict)
+                (vardecl
+                  i
+                  [
+                    [
+                      [
+                        [ [ UTuple5 (con integer) ] (con integer) ]
+                        (con integer)
+                      ]
+                      (con integer)
+                    ]
+                    (con integer)
+                  ]
+                )
+                (proj 0 p)
+              )
+              (termbind
+                (strict)
+                (vardecl
+                  j
+                  [
+                    [
+                      [
+                        [ [ UTuple5 (con integer) ] (con integer) ]
+                        (con integer)
+                      ]
+                      (con integer)
+                    ]
+                    (con integer)
+                  ]
+                )
+                (proj 1 p)
+              )
               [ [ addInteger [ unboxedTuple i ] ] [ unboxedTuple j ] ]
             )
           )

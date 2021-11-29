@@ -121,6 +121,8 @@ encodeTerm = \case
     Force    ann t    -> encodeTermTag 5 <> encode ann <> encode t
     Error    ann      -> encodeTermTag 6 <> encode ann
     Builtin  ann bn   -> encodeTermTag 7 <> encode ann <> encode bn
+    Prod     ann es   -> encodeTermTag 8 <> encode ann <> encode es
+    Proj     ann i p  -> encodeTermTag 9 <> encode ann <> encode i <> encode p
 
 data SizeLimit = NoLimit | Limit Integer
 
@@ -165,6 +167,8 @@ decodeTerm sizeLimit = go =<< decodeTermTag
           go 5 = Force    <$> decode <*> decode
           go 6 = Error    <$> decode
           go 7 = Builtin  <$> decode <*> decode
+          go 8 = Prod     <$> decode <*> decode
+          go 9 = Proj     <$> decode <*> decode <*> decode
           go t = fail $ "Unknown term constructor tag: " ++ show t
 
 sizeTerm
@@ -189,6 +193,8 @@ sizeTerm tm sz = termTagWidth + sz + case tm of
     Force    ann t    -> getSize ann + getSize t
     Error    ann      -> getSize ann
     Builtin  ann bn   -> getSize ann + getSize bn
+    Prod     ann es   -> getSize ann + getSize es
+    Proj     ann i p  -> getSize ann + getSize i + getSize p
 
 -- | A newtype to indicate that the program should be serialized with size checks
 -- for constants.

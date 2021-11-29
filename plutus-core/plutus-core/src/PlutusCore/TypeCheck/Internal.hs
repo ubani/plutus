@@ -30,6 +30,8 @@ import Control.Monad.Error.Lens
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Array
+import Data.Foldable (for_)
+import Data.List.Extra ((!?))
 import Universe
 
 {- Note [Global uniqueness]
@@ -266,6 +268,10 @@ inferKindM (TyIFix ann pat arg)    = do
     checkKindOfPatternFunctorM ann pat k
     pure $ Type ()
 
+inferKindM (TyProd ann tys)        = do
+    for_ tys $ \ty -> checkKindM ann ty (Type ())
+    pure $ Type ()
+
 -- | Check a 'Type' against a 'Kind'.
 checkKindM
     :: (AsTypeError err term uni fun ann, ToKind uni)
@@ -414,6 +420,20 @@ inferTypeM (Unwrap ann term) = do
 inferTypeM (Error ann ty) = do
     checkKindM ann ty $ Type ()
     normalizeTypeM $ void ty
+
+inferTypeM (Prod _ args) = do
+    tys <- for args $ \t -> do
+        (Normalized ty) <- inferTypeM t
+        pure ty
+    pure $ Normalized $ TyProd () tys
+
+inferTypeM (Proj ann i term) = do
+    vTermTy <- inferTypeM term
+    case unNormalized vTermTy of
+        TyProd _ vTys -> case vTys !? i of
+            Just t  -> pure $ Normalized t
+            Nothing -> throwing _TypeError (TypeMismatch ann (void term) (TyProd () (replicate i dummyType)) vTermTy)
+        _ -> throwing _TypeError (TypeMismatch ann (void term) (TyProd () (replicate i dummyType)) vTermTy)
 
 -- See the [Global uniqueness] and [Type rules] notes.
 -- | Check a 'Term' against a 'NormalizedType'.

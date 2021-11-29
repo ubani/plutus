@@ -21,6 +21,8 @@ termSize = \case
     Constant{}   -> 1
     Builtin{}    -> 1
     Force _ t    -> 1 + termSize t
+    Prod _ es    -> 1 + sum (fmap termSize es)
+    Proj _ _ p   -> 1 + termSize p
     Error _      -> 1
 
 -- | Count the number of AST nodes in a program.

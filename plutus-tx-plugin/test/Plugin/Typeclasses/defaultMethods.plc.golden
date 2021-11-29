@@ -28,7 +28,15 @@
           [ DefaultMethods a ]
           [
             { [ { DefaultMethods_match a } v ] (fun a (con integer)) }
-            (lam v (fun a (con integer)) (lam v (fun a (con integer)) v))
+            (lam
+              p
+              (prod (fun a (con integer)) (fun a (con integer)))
+              (let
+                (nonrec)
+                (termbind (strict) (vardecl v (fun a (con integer))) (proj 1 p))
+                v
+              )
+            )
           ]
         )
       )

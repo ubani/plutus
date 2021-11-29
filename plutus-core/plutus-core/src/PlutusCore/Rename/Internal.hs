@@ -53,6 +53,7 @@ renameTypeM (TyIFix ann pat arg)        = TyIFix ann <$> renameTypeM pat <*> ren
 renameTypeM (TyApp ann fun arg)         = TyApp ann <$> renameTypeM fun <*> renameTypeM arg
 renameTypeM (TyFun ann dom cod)         = TyFun ann <$> renameTypeM dom <*> renameTypeM cod
 renameTypeM (TyVar ann name)            = TyVar ann <$> renameNameM name
+renameTypeM (TyProd ann tys)            = TyProd ann <$> traverse renameTypeM tys
 renameTypeM ty@TyBuiltin{}              = pure ty
 
 -- | Rename a 'Term' in the 'RenameM' monad.
@@ -70,6 +71,8 @@ renameTermM (Unwrap ann term)          = Unwrap ann <$> renameTermM term
 renameTermM (Error ann ty)             = Error ann <$> renameTypeM ty
 renameTermM (TyInst ann term ty)       = TyInst ann <$> renameTermM term <*> renameTypeM ty
 renameTermM (Var ann name)             = Var ann <$> renameNameM name
+renameTermM (Prod ann es)              = Prod ann <$> traverse renameTermM es
+renameTermM (Proj ann i p)             = Proj ann i <$> renameTermM p
 renameTermM con@Constant{}             = pure con
 renameTermM bi@Builtin{}               = pure bi
 

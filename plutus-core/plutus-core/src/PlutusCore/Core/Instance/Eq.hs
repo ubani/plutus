@@ -20,6 +20,7 @@ import PlutusCore.Eq
 import PlutusCore.Name
 import PlutusCore.Rename.Monad
 
+import Data.Foldable (for_)
 import Universe
 
 instance (HasUniques (Type tyname uni ann), GEq uni, Eq ann) => Eq (Type tyname uni ann) where
@@ -65,6 +66,8 @@ eqTypeM (TyFun ann1 dom1 cod1) (TyFun ann2 dom2 cod2) = do
 eqTypeM (TyBuiltin ann1 bi1) (TyBuiltin ann2 bi2) = do
     eqM ann1 ann2
     eqM bi1 bi2
+eqTypeM (TyProd _ tys1) (TyProd _ tys2) =
+    for_ (zip tys1 tys2) $ \(t1, t2) -> eqTypeM t1 t2
 eqTypeM TyVar{}     _ = empty
 eqTypeM TyLam{}     _ = empty
 eqTypeM TyForall{}  _ = empty
@@ -72,6 +75,7 @@ eqTypeM TyIFix{}    _ = empty
 eqTypeM TyApp{}     _ = empty
 eqTypeM TyFun{}     _ = empty
 eqTypeM TyBuiltin{} _ = empty
+eqTypeM TyProd{} _ = empty
 
 -- See Note [Modulo alpha].
 -- See Note [Scope tracking]
@@ -117,6 +121,12 @@ eqTermM (Constant ann1 con1) (Constant ann2 con2) = do
 eqTermM (Builtin ann1 bi1) (Builtin ann2 bi2) = do
     eqM ann1 ann2
     eqM bi1 bi2
+eqTermM (Prod _ args1) (Prod _ args2) = do
+    -- TODO: need to fail if they're not the same length
+    for_ (zip args1 args2) $ \(t1, t2) -> eqTermM t1 t2
+eqTermM (Proj _ i1 p1) (Proj _ i2 p2) = do
+    eqM i1 i2
+    eqTermM p1 p2
 eqTermM LamAbs{}   _ = empty
 eqTermM TyAbs{}    _ = empty
 eqTermM IWrap{}    _ = empty
@@ -127,6 +137,8 @@ eqTermM TyInst{}   _ = empty
 eqTermM Var{}      _ = empty
 eqTermM Constant{} _ = empty
 eqTermM Builtin{}  _ = empty
+eqTermM Prod{}  _ = empty
+eqTermM Proj{}  _ = empty
 
 deriving instance (HasUniques (Term tyname name uni fun ann)
                   , GEq uni, Closed uni, uni `Everywhere` Eq, Eq fun, Eq ann

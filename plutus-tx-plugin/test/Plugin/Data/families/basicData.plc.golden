@@ -14,7 +14,13 @@
       RBasicDataBool
       [
         { [ RConsBasicDataBool_match ds ] (con integer) }
-        (lam i (con integer) i)
+        (lam
+          p
+          (prod (con integer))
+          (let
+            (nonrec) (termbind (strict) (vardecl i (con integer)) (proj 0 p)) i
+          )
+        )
       ]
     )
   )

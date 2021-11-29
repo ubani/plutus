@@ -58,6 +58,7 @@ typeTyBinds f ty0 = case ty0 of
     TyFun{}              -> pure ty0
     TyBuiltin{}          -> pure ty0
     TyVar{}              -> pure ty0
+    TyProd{}             -> pure ty0
 
 -- | Get all the direct child 'tyname a's of the given 'Type' from 'TyVar's.
 typeTyVars :: Traversal' (Type tyname uni ann) tyname
@@ -69,6 +70,7 @@ typeTyVars f ty0 = case ty0 of
     TyIFix{}    -> pure ty0
     TyFun{}     -> pure ty0
     TyBuiltin{} -> pure ty0
+    TyProd{}    -> pure ty0
 
 -- | Get all the direct child 'Unique's of the given 'Type' from binders 'TyVar's.
 typeUniques :: HasUniques (Type tyname uni ann) => Traversal' (Type tyname uni ann) Unique
@@ -80,6 +82,7 @@ typeUniques f ty0 = case ty0 of
     TyIFix{}             -> pure ty0
     TyFun{}              -> pure ty0
     TyBuiltin{}          -> pure ty0
+    TyProd{}             -> pure ty0
 
 {-# INLINE typeSubkinds #-}
 -- | Get all the direct child 'Kind's of the given 'Type'.
@@ -92,6 +95,7 @@ typeSubkinds f ty0 = case ty0 of
     TyFun{}              -> pure ty0
     TyBuiltin{}          -> pure ty0
     TyVar{}              -> pure ty0
+    TyProd{}             -> pure ty0
 
 {-# INLINE typeSubtypes #-}
 -- | Get all the direct child 'Type's of the given 'Type'.
@@ -102,6 +106,7 @@ typeSubtypes f ty0 = case ty0 of
     TyForall ann tn k ty -> TyForall ann tn k <$> f ty
     TyLam ann tn k ty    -> TyLam ann tn k <$> f ty
     TyApp ann ty1 ty2    -> TyApp ann <$> f ty1 <*> f ty2
+    TyProd ann tys       -> TyProd ann <$> traverse f tys
     TyBuiltin{}          -> pure ty0
     TyVar{}              -> pure ty0
 
@@ -127,6 +132,8 @@ termTyBinds f term0 = case term0 of
     Unwrap{}         -> pure term0
     Constant{}       -> pure term0
     Builtin{}        -> pure term0
+    Prod{}           -> pure term0
+    Proj{}           -> pure term0
 
 -- | Get all the direct child 'name a's of the given 'Term' from 'LamAbs'es.
 termBinds :: Traversal' (Term tyname name uni fun ann) name
@@ -141,6 +148,8 @@ termBinds f term0 = case term0 of
     Unwrap{}          -> pure term0
     Constant{}        -> pure term0
     Builtin{}         -> pure term0
+    Prod{}            -> pure term0
+    Proj{}            -> pure term0
 
 -- | Get all the direct child 'name a's of the given 'Term' from 'Var's.
 termVars :: Traversal' (Term tyname name uni fun ann) name
@@ -155,6 +164,8 @@ termVars f term0 = case term0 of
     Unwrap{}   -> pure term0
     Constant{} -> pure term0
     Builtin{}  -> pure term0
+    Prod{}     -> pure term0
+    Proj{}     -> pure term0
 
 -- | Get all the direct child 'Unique's of the given 'Term' (including the type-level ones).
 termUniques :: HasUniques (Term tyname name uni fun ann) => Traversal' (Term tyname name uni fun ann) Unique
@@ -169,6 +180,8 @@ termUniques f term0 = case term0 of
     Unwrap{}          -> pure term0
     Constant{}        -> pure term0
     Builtin{}         -> pure term0
+    Prod{}            -> pure term0
+    Proj{}            -> pure term0
 
 {-# INLINE termSubkinds #-}
 -- | Get all the direct child 'Kind's of the given 'Term'.
@@ -184,6 +197,8 @@ termSubkinds f term0 = case term0 of
     Unwrap{}        -> pure term0
     Constant{}      -> pure term0
     Builtin{}       -> pure term0
+    Prod{}          -> pure term0
+    Proj{}          -> pure term0
 
 {-# INLINE termSubtypes #-}
 -- | Get all the direct child 'Type's of the given 'Term'.
@@ -199,6 +214,8 @@ termSubtypes f term0 = case term0 of
     Var{}               -> pure term0
     Constant{}          -> pure term0
     Builtin{}           -> pure term0
+    Prod{}              -> pure term0
+    Proj{}              -> pure term0
 
 -- | Get all the transitive child 'Type's of the given 'Term'.
 termSubtypesDeep :: Fold (Term tyname name uni fun ann) (Type tyname uni ann)
@@ -218,6 +235,8 @@ termSubterms f term0 = case term0 of
     Var{}               -> pure term0
     Constant{}          -> pure term0
     Builtin{}           -> pure term0
+    Prod{}              -> pure term0
+    Proj{}              -> pure term0
 
 -- | Get all the transitive child 'Term's of the given 'Term'.
 termSubtermsDeep :: Fold (Term tyname name uni fun ann) (Term tyname name uni fun ann)

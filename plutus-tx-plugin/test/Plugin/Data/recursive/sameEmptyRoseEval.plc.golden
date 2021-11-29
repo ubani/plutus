@@ -1,52 +1,73 @@
 (delay
   (lam
-    case_EmptyRose_23
+    case_EmptyRose_26
     [
-      case_EmptyRose_23
-      (delay
-        (lam
-          case_Nil_29
+      case_EmptyRose_26
+      (prod
+        (delay
           (lam
-            case_Cons_30
-            [
+            case_Nil_32
+            (lam
+              case_Cons_33
               [
-                case_Cons_30
-                (delay
-                  (lam
-                    case_EmptyRose_23
-                    [
-                      case_EmptyRose_23
-                      (delay (lam case_Nil_25 (lam case_Cons_26 case_Nil_25)))
-                    ]
-                  )
-                )
-              ]
-              (delay
-                (lam
-                  case_Nil_29
-                  (lam
-                    case_Cons_30
-                    [
+                case_Cons_33
+                (prod
+                  (delay
+                    (lam
+                      case_EmptyRose_26
                       [
-                        case_Cons_30
-                        (delay
-                          (lam
-                            case_EmptyRose_23
-                            [
-                              case_EmptyRose_23
-                              (delay
-                                (lam case_Nil_25 (lam case_Cons_26 case_Nil_25))
-                              )
-                            ]
+                        case_EmptyRose_26
+                        (prod
+                          (delay
+                            (lam
+                              case_Nil_28
+                              (lam case_Cons_29 [ case_Nil_28 (prod ) ])
+                            )
                           )
                         )
                       ]
-                      (delay (lam case_Nil_25 (lam case_Cons_26 case_Nil_25)))
-                    ]
+                    )
+                  )
+                  (delay
+                    (lam
+                      case_Nil_32
+                      (lam
+                        case_Cons_33
+                        [
+                          case_Cons_33
+                          (prod
+                            (delay
+                              (lam
+                                case_EmptyRose_26
+                                [
+                                  case_EmptyRose_26
+                                  (prod
+                                    (delay
+                                      (lam
+                                        case_Nil_28
+                                        (lam
+                                          case_Cons_29 [ case_Nil_28 (prod ) ]
+                                        )
+                                      )
+                                    )
+                                  )
+                                ]
+                              )
+                            )
+                            (delay
+                              (lam
+                                case_Nil_28
+                                (lam case_Cons_29 [ case_Nil_28 (prod ) ])
+                              )
+                            )
+                          )
+                        ]
+                      )
+                    )
                   )
                 )
-              )
-            ]
+              ]
+            )
           )
         )
       )

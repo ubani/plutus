@@ -73,6 +73,8 @@ data Term name uni fun ann
     -- This is the cutoff at which constructors won't get pointer tags
     -- See Note [Term constructor ordering and numbers]
     | Error !ann
+    | Prod !ann ![Term name uni fun ann]
+    | Proj !ann Int !(Term name uni fun ann)
     deriving stock (Show, Functor, Generic)
     deriving anyclass (NFData)
 
@@ -94,6 +96,8 @@ instance TermLike (Term name uni fun) TPLC.TyName name uni fun where
     unwrap   = const id
     iWrap    = \_ _ _ -> id
     error    = \ann _ -> Error ann
+    prod     = Prod
+    proj     = Proj
 
 instance TPLC.AsConstant (Term name uni fun ann) where
     asConstant _        (Constant _ val) = pure val
@@ -118,6 +122,8 @@ termAnn (Apply ann _ _)  = ann
 termAnn (Delay ann _)    = ann
 termAnn (Force ann _)    = ann
 termAnn (Error ann)      = ann
+termAnn (Prod ann _)     = ann
+termAnn (Proj ann _ _)   = ann
 
 bindFunM
     :: Monad m
@@ -133,6 +139,8 @@ bindFunM f = go where
     go (Delay ann term)       = Delay ann <$> go term
     go (Force ann term)       = Force ann <$> go term
     go (Error ann)            = pure $ Error ann
+    go (Prod ann args)        = Prod ann <$> traverse go args
+    go (Proj ann i term)      = Proj ann i <$> go term
 
 bindFun
     :: (ann -> fun -> Term name uni fun' ann)
@@ -155,6 +163,8 @@ erase (TPLC.TyInst ann term _)      = Force ann (erase term)
 erase (TPLC.Unwrap _ term)          = erase term
 erase (TPLC.IWrap _ _ _ term)       = erase term
 erase (TPLC.Error ann _)            = Error ann
+erase (TPLC.Prod ann args)          = Prod ann (fmap erase args)
+erase (TPLC.Proj ann i term)        = Proj ann i (erase term)
 
 -- | Erase a Typed Plutus Core Program to its untyped counterpart.
 eraseProgram :: TPLC.Program tyname name uni fun ann -> Program name uni fun ann

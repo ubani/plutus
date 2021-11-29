@@ -52,63 +52,47 @@
                   (lam
                     ds
                     [ List a ]
-                    {
+                    [
                       [
-                        [
-                          { [ { Nil_match a } ds ] (all dead (type) m) }
-                          (abs
-                            dead
-                            (type)
-                            [
-                              { [ { Monoid_match m } dMonoid ] m }
-                              (lam
-                                v
-                                [ (lam a (type) (fun a (fun a a))) m ]
-                                (lam v m v)
-                              )
-                            ]
-                          )
-                        ]
+                        { [ { Nil_match a } ds ] m }
                         (lam
-                          x
-                          a
-                          (lam
-                            xs
-                            [ List a ]
-                            (abs
-                              dead
-                              (type)
-                              [
-                                [
-                                  [
-                                    {
-                                      [ { Monoid_match m } dMonoid ]
-                                      [ (lam a (type) (fun a (fun a a))) m ]
-                                    }
-                                    (lam
-                                      v
-                                      [ (lam a (type) (fun a (fun a a))) m ]
-                                      (lam v m v)
-                                    )
-                                  ]
-                                  [ ds x ]
-                                ]
-                                [
-                                  [
-                                    [
-                                      { { fFoldableNil_cfoldMap m } a } dMonoid
-                                    ]
-                                    ds
-                                  ]
-                                  xs
-                                ]
-                              ]
+                          p
+                          (prod )
+                          [
+                            { [ { Monoid_match m } dMonoid ] m }
+                            (lam
+                              p
+                              (prod [ (lam a (type) (fun a (fun a a))) m ] m)
+                              (proj 1 p)
                             )
-                          )
+                          ]
                         )
                       ]
-                      (all dead (type) dead)
-                    }
+                      (lam
+                        p
+                        (prod a [ List a ])
+                        [
+                          [
+                            [
+                              {
+                                [ { Monoid_match m } dMonoid ]
+                                [ (lam a (type) (fun a (fun a a))) m ]
+                              }
+                              (lam
+                                p
+                                (prod [ (lam a (type) (fun a (fun a a))) m ] m)
+                                (proj 0 p)
+                              )
+                            ]
+                            [ ds (proj 0 p) ]
+                          ]
+                          [
+                            [ [ { { fFoldableNil_cfoldMap m } a } dMonoid ] ds ]
+                            (proj 1 p)
+                          ]
+                        ]
+                      )
+                    ]
                   )
                 )
               )
@@ -160,16 +144,10 @@
                           (lam
                             r
                             Bool
-                            {
-                              [
-                                [
-                                  { [ Bool_match l ] (all dead (type) Bool) }
-                                  (abs dead (type) True)
-                                ]
-                                (abs dead (type) r)
-                              ]
-                              (all dead (type) dead)
-                            }
+                            [
+                              [ { [ Bool_match l ] Bool } (lam p (prod ) True) ]
+                              (lam p (prod ) r)
+                            ]
                           )
                         )
                       ]
@@ -193,9 +171,12 @@
                                   [ (lam a (type) (fun a (fun a a))) Bool ]
                                 }
                                 (lam
-                                  v
-                                  [ (lam a (type) (fun a (fun a a))) Bool ]
-                                  (lam v Bool v)
+                                  p
+                                  (prod
+                                    [ (lam a (type) (fun a (fun a a))) Bool ]
+                                    Bool
+                                  )
+                                  (proj 0 p)
                                 )
                               ]
                               eta
@@ -208,9 +189,9 @@
                     [
                       { [ { AdditiveMonoid_match Bool } v ] Bool }
                       (lam
-                        v
-                        [ (lam a (type) (fun a (fun a a))) Bool ]
-                        (lam v Bool v)
+                        p
+                        (prod [ (lam a (type) (fun a (fun a a))) Bool ] Bool)
+                        (proj 1 p)
                       )
                     ]
                   ]

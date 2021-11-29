@@ -26,3 +26,5 @@ lowerTerm = \case
     Error x ty      -> pure $ PLC.Error x ty
     IWrap x tn ty t -> PLC.IWrap x tn ty <$> lowerTerm t
     Unwrap x t      -> PLC.Unwrap x <$> lowerTerm t
+    Prod x es       -> PLC.Prod x <$> traverse lowerTerm es
+    Proj x i p      -> PLC.Proj x i <$> lowerTerm p

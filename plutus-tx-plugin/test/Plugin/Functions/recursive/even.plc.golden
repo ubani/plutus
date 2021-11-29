@@ -61,39 +61,28 @@
               (vardecl n (con integer))
               [ [ subtractInteger n ] (con integer 1) ]
             )
-            {
+            [
               [
-                [
-                  {
-                    [ Bool_match [ [ equalsInteger n ] (con integer 0) ] ]
-                    (all dead (type) Bool)
-                  }
-                  (abs dead (type) True)
-                ]
-                (abs
-                  dead
-                  (type)
-                  {
-                    [
-                      [
-                        {
-                          [ Bool_match [ [ equalsInteger n ] (con integer 0) ] ]
-                          (all dead (type) Bool)
-                        }
-                        (abs dead (type) False)
-                      ]
-                      (abs
-                        dead
-                        (type)
-                        [ even [ [ subtractInteger n ] (con integer 1) ] ]
-                      )
-                    ]
-                    (all dead (type) dead)
-                  }
-                )
+                { [ Bool_match [ [ equalsInteger n ] (con integer 0) ] ] Bool }
+                (lam p (prod ) True)
               ]
-              (all dead (type) dead)
-            }
+              (lam
+                p
+                (prod )
+                [
+                  [
+                    {
+                      [ Bool_match [ [ equalsInteger n ] (con integer 0) ] ]
+                      Bool
+                    }
+                    (lam p (prod ) False)
+                  ]
+                  (lam
+                    p (prod ) [ even [ [ subtractInteger n ] (con integer 1) ] ]
+                  )
+                ]
+              )
+            ]
           )
         )
       )

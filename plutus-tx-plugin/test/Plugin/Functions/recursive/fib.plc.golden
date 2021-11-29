@@ -64,45 +64,39 @@
         (lam
           n
           (con integer)
-          {
+          [
             [
+              {
+                [ Bool_match [ [ equalsInteger n ] (con integer 0) ] ]
+                (con integer)
+              }
+              (lam p (prod ) (con integer 0))
+            ]
+            (lam
+              p
+              (prod )
               [
-                {
-                  [ Bool_match [ [ equalsInteger n ] (con integer 0) ] ]
-                  (all dead (type) (con integer))
-                }
-                (abs dead (type) (con integer 0))
-              ]
-              (abs
-                dead
-                (type)
-                {
+                [
+                  {
+                    [ Bool_match [ [ equalsInteger n ] (con integer 1) ] ]
+                    (con integer)
+                  }
+                  (lam p (prod ) (con integer 1))
+                ]
+                (lam
+                  p
+                  (prod )
                   [
                     [
-                      {
-                        [ Bool_match [ [ equalsInteger n ] (con integer 1) ] ]
-                        (all dead (type) (con integer))
-                      }
-                      (abs dead (type) (con integer 1))
+                      addInteger
+                      [ fib [ [ subtractInteger n ] (con integer 1) ] ]
                     ]
-                    (abs
-                      dead
-                      (type)
-                      [
-                        [
-                          addInteger
-                          [ fib [ [ subtractInteger n ] (con integer 1) ] ]
-                        ]
-                        [ fib [ [ subtractInteger n ] (con integer 2) ] ]
-                      ]
-                    )
+                    [ fib [ [ subtractInteger n ] (con integer 2) ] ]
                   ]
-                  (all dead (type) dead)
-                }
-              )
-            ]
-            (all dead (type) dead)
-          }
+                )
+              ]
+            )
+          ]
         )
       )
       fib

@@ -37,12 +37,19 @@
             [
               [
                 { [ { Nil_match (con integer) } ds ] (con integer) }
-                (con integer 0)
+                (lam p (prod ) (con integer 0))
               ]
               (lam
-                x
-                (con integer)
-                (lam xs [ List (con integer) ] [ [ addInteger x ] [ sum xs ] ])
+                p
+                (prod (con integer) [ List (con integer) ])
+                (let
+                  (nonrec)
+                  (termbind (strict) (vardecl x (con integer)) (proj 0 p))
+                  (termbind
+                    (strict) (vardecl xs [ List (con integer) ]) (proj 1 p)
+                  )
+                  [ [ addInteger x ] [ sum xs ] ]
+                )
               )
             ]
           )

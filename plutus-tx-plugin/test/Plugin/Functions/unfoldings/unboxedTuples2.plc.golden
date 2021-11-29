@@ -33,7 +33,16 @@
             [ { { UTuple2_match (con integer) } (con integer) } ds ]
             (con integer)
           }
-          (lam i (con integer) (lam j (con integer) [ [ addInteger i ] j ]))
+          (lam
+            p
+            (prod (con integer) (con integer))
+            (let
+              (nonrec)
+              (termbind (strict) (vardecl i (con integer)) (proj 0 p))
+              (termbind (strict) (vardecl j (con integer)) (proj 1 p))
+              [ [ addInteger i ] j ]
+            )
+          )
         ]
       )
     )

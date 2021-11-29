@@ -76,6 +76,11 @@ isPure varStrictness = go
             LamAbs {} -> True
             TyAbs {} -> True
             Constant {} -> True
+            -- Projections can fail in principle, but typechecking guarantees that they won't, so
+            -- we can ignore that effect and just look at the body.
+            Proj _ _ t -> go t
+            -- Dubious?
+            Prod _ es -> all go es
             IWrap _ _ _ t -> go t
 
             x | Just bapp@(BuiltinApp _ args) <- asBuiltinApp x ->

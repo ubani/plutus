@@ -50,7 +50,6 @@ import Control.Monad.Reader (MonadReader (ask))
 
 import Data.Array qualified as Array
 import Data.ByteString qualified as BS
-import Data.Functor ((<&>))
 import Data.List (elemIndex)
 import Data.List.NonEmpty qualified as NE
 import Data.Map qualified as Map
@@ -168,7 +167,7 @@ compileAlt
     :: CompilingDefault uni fun m
     => GHC.CoreAlt -- ^ The 'CoreAlt' representing the branch itself.
     -> [GHC.Type] -- ^ The instantiated type arguments for the data constructor.
-    -> m (PIRTerm uni fun, PIRTerm uni fun) -- ^ Non-delayed and delayed
+    -> m (PIRTerm uni fun) -- ^ Non-delayed and delayed
 compileAlt (alt, vars, body) instArgTys = withContextM 3 (sdToTxt $ "Creating alternative:" GHC.<+> GHC.ppr alt) $ case alt of
     GHC.LitAlt _  -> throwPlain $ UnsupportedError "Literal case"
     -- We just package it up as a lambda bringing all the
@@ -177,20 +176,15 @@ compileAlt (alt, vars, body) instArgTys = withContextM 3 (sdToTxt $ "Creating al
     -- See Note [Case expressions and laziness]
     GHC.DataAlt _ -> withVarsScoped vars $ \vars' -> do
         b <- compileExpr body
-        delayed <- delay b
-        return (PLC.mkIterLamAbs vars' b, PLC.mkIterLamAbs vars' delayed)
+        n <- PLC.freshName "p"
+        pure $ PLC.mkProdLamAbs () n vars' b
     GHC.DEFAULT   -> do
-        compiledBody <- compileExpr body
-        nonDelayed <- wrapDefaultAlt compiledBody
-        delayed <- delay compiledBody >>= wrapDefaultAlt
-        return (nonDelayed, delayed)
-    where
-        wrapDefaultAlt :: CompilingDefault uni fun m => PIRTerm uni fun -> m (PIRTerm uni fun)
-        wrapDefaultAlt body' = do
-            -- need to consume the args
-            argTypes <- mapM compileTypeNorm instArgTys
-            argNames <- forM [0..(length argTypes -1)] (\i -> safeFreshName $ "default_arg" <> (T.pack $ show i))
-            pure $ PIR.mkIterLamAbs (zipWith (PIR.VarDecl ()) argNames argTypes) body'
+        body' <- compileExpr body
+        -- need to consume the args
+        argTypes <- mapM compileTypeNorm instArgTys
+        argNames <- forM [0..(length argTypes -1)] (\i -> safeFreshName $ "default_arg" <> (T.pack $ show i))
+        n <- PLC.freshName "p"
+        pure $ PIR.mkProdLamAbs () n (zipWith (PIR.VarDecl ()) argNames argTypes) body'
 
 -- See Note [GHC runtime errors]
 isErrorId :: GHC.Id -> Bool
@@ -792,31 +786,23 @@ compileExpr e = withContextM 2 (sdToTxt $ "Compiling expr:" GHC.<+> GHC.ppr e) $
                 let matched = PIR.Apply () match scrutinee'
 
                 -- See Note [Case expressions and laziness]
-                compiledAlts <- forM dcs $ \dc -> do
+                branches <- forM dcs $ \dc -> do
                     let alt = findAlt dc alts t
                         -- these are the instantiated type arguments, e.g. for the data constructor Just when
                         -- matching on Maybe Int it is [Int] (crucially, not [a])
                         instArgTys = GHC.dataConInstOrigArgTys dc argTys
-                    (nonDelayedAlt, delayedAlt) <- compileAlt alt instArgTys
-                    return (nonDelayedAlt, delayedAlt)
-                let
-                    isPureAlt = compiledAlts <&> \(nonDelayed, _) -> PIR.isPure (const PIR.NonStrict) nonDelayed
-                    lazyCase = not (and isPureAlt || length dcs == 1)
-                    branches = compiledAlts <&> \(nonDelayedAlt, delayedAlt) ->
-                        if lazyCase then delayedAlt else nonDelayedAlt
+                    compileAlt alt instArgTys
 
                 -- See Note [Scott encoding of datatypes]
                 -- we're going to delay the body, so the scrutinee needs to be instantiated the delayed type
-                resultType <- compileTypeNorm t >>= maybeDelayType lazyCase
+                resultType <- compileTypeNorm t
                 let instantiated = PIR.TyInst () matched resultType
 
                 let applied = PIR.mkIterApp () instantiated branches
-                -- See Note [Case expressions and laziness]
-                mainCase <- maybeForce lazyCase applied
 
                 -- See Note [At patterns]
                 let binds = pure $ PIR.TermBind () PIR.NonStrict v scrutinee'
-                pure $ PIR.Let () PIR.NonRec binds mainCase
+                pure $ PIR.Let () PIR.NonRec binds applied
 
         -- See Note [Tick-unfloating]
         GHC.Tick tick (GHC.Case scrutinee b t alts) -> compileExpr (GHC.Case (GHC.Tick tick scrutinee) b t alts)

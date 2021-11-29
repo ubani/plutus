@@ -38,19 +38,13 @@
       (lam
         ds
         (con integer)
-        {
+        [
           [
-            [
-              {
-                [ Bool_match [ [ equalsInteger ds ] ds ] ]
-                (all dead (type) (con integer))
-              }
-              (abs dead (type) ds)
-            ]
-            (abs dead (type) ds)
+            { [ Bool_match [ [ equalsInteger ds ] ds ] ] (con integer) }
+            (lam p (prod ) ds)
           ]
-          (all dead (type) dead)
-        }
+          (lam p (prod ) ds)
+        ]
       )
     )
   )

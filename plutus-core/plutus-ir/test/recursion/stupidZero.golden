@@ -20,7 +20,10 @@
                     (all
                       out_Nat_i0
                       (type)
-                      (fun out_Nat_i1 (fun (fun Nat_i5 out_Nat_i1) out_Nat_i1))
+                      (fun
+                        (fun (prod ) out_Nat_i1)
+                        (fun (fun (prod Nat_i5) out_Nat_i1) out_Nat_i1)
+                      )
                     )
                   )
                   [
@@ -94,12 +97,12 @@
                                       [
                                         [
                                           { [ match_Nat_i5 n_i1 ] Nat_i8 }
-                                          Zero_i7
+                                          (lam p_i0 (prod ) Zero_i8)
                                         ]
                                         (lam
-                                          pred_i0
-                                          Nat_i9
-                                          [ stupidZero_i3 pred_i1 ]
+                                          p_i0
+                                          (prod Nat_i9)
+                                          [ stupidZero_i3 (proj 0 p_i1) ]
                                         )
                                       ]
                                     )
@@ -130,7 +133,10 @@
               (all
                 out_Nat_i0
                 (type)
-                (fun out_Nat_i1 (fun (fun Nat_i2 out_Nat_i1) out_Nat_i1))
+                (fun
+                  (fun (prod ) out_Nat_i1)
+                  (fun (fun (prod Nat_i2) out_Nat_i1) out_Nat_i1)
+                )
               )
             )
           )
@@ -147,7 +153,10 @@
             (all
               out_Nat_i0
               (type)
-              (fun out_Nat_i1 (fun (fun Nat_i2 out_Nat_i1) out_Nat_i1))
+              (fun
+                (fun (prod ) out_Nat_i1)
+                (fun (fun (prod Nat_i2) out_Nat_i1) out_Nat_i1)
+              )
             )
           )
           (abs
@@ -155,31 +164,34 @@
             (type)
             (lam
               case_Zero_i0
-              out_Nat_i2
+              (fun (prod ) out_Nat_i2)
               (lam
                 case_Suc_i0
                 (fun
-                  (ifix
-                    (lam
-                      rec_i0
-                      (fun (fun (type) (type)) (type))
-                      (lam f_i0 (fun (type) (type)) [ f_i1 [ rec_i2 f_i1 ] ])
-                    )
-                    (lam
-                      Nat_i0
-                      (type)
-                      (all
-                        out_Nat_i0
+                  (prod
+                    (ifix
+                      (lam
+                        rec_i0
+                        (fun (fun (type) (type)) (type))
+                        (lam f_i0 (fun (type) (type)) [ f_i1 [ rec_i2 f_i1 ] ])
+                      )
+                      (lam
+                        Nat_i0
                         (type)
-                        (fun
-                          out_Nat_i1 (fun (fun Nat_i2 out_Nat_i1) out_Nat_i1)
+                        (all
+                          out_Nat_i0
+                          (type)
+                          (fun
+                            (fun (prod ) out_Nat_i1)
+                            (fun (fun (prod Nat_i2) out_Nat_i1) out_Nat_i1)
+                          )
                         )
                       )
                     )
                   )
                   out_Nat_i3
                 )
-                case_Zero_i2
+                [ case_Zero_i2 (prod ) ]
               )
             )
           )
@@ -199,7 +211,10 @@
             (all
               out_Nat_i0
               (type)
-              (fun out_Nat_i1 (fun (fun Nat_i2 out_Nat_i1) out_Nat_i1))
+              (fun
+                (fun (prod ) out_Nat_i1)
+                (fun (fun (prod Nat_i2) out_Nat_i1) out_Nat_i1)
+              )
             )
           )
         )
@@ -215,7 +230,10 @@
             (all
               out_Nat_i0
               (type)
-              (fun out_Nat_i1 (fun (fun Nat_i2 out_Nat_i1) out_Nat_i1))
+              (fun
+                (fun (prod ) out_Nat_i1)
+                (fun (fun (prod Nat_i2) out_Nat_i1) out_Nat_i1)
+              )
             )
           )
           (abs
@@ -223,31 +241,34 @@
             (type)
             (lam
               case_Zero_i0
-              out_Nat_i2
+              (fun (prod ) out_Nat_i2)
               (lam
                 case_Suc_i0
                 (fun
-                  (ifix
-                    (lam
-                      rec_i0
-                      (fun (fun (type) (type)) (type))
-                      (lam f_i0 (fun (type) (type)) [ f_i1 [ rec_i2 f_i1 ] ])
-                    )
-                    (lam
-                      Nat_i0
-                      (type)
-                      (all
-                        out_Nat_i0
+                  (prod
+                    (ifix
+                      (lam
+                        rec_i0
+                        (fun (fun (type) (type)) (type))
+                        (lam f_i0 (fun (type) (type)) [ f_i1 [ rec_i2 f_i1 ] ])
+                      )
+                      (lam
+                        Nat_i0
                         (type)
-                        (fun
-                          out_Nat_i1 (fun (fun Nat_i2 out_Nat_i1) out_Nat_i1)
+                        (all
+                          out_Nat_i0
+                          (type)
+                          (fun
+                            (fun (prod ) out_Nat_i1)
+                            (fun (fun (prod Nat_i2) out_Nat_i1) out_Nat_i1)
+                          )
                         )
                       )
                     )
                   )
                   out_Nat_i3
                 )
-                [ case_Suc_i1 arg_0_i4 ]
+                [ case_Suc_i1 (prod arg_0_i4) ]
               )
             )
           )
@@ -268,7 +289,10 @@
           (all
             out_Nat_i0
             (type)
-            (fun out_Nat_i1 (fun (fun Nat_i2 out_Nat_i1) out_Nat_i1))
+            (fun
+              (fun (prod ) out_Nat_i1)
+              (fun (fun (prod Nat_i2) out_Nat_i1) out_Nat_i1)
+            )
           )
         )
       )

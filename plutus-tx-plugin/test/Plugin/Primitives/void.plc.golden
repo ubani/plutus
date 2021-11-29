@@ -41,35 +41,23 @@
       (lam
         ds
         (con integer)
-        {
+        [
           [
-            [
-              {
-                [ Bool_match [ [ equalsInteger ds ] ds ] ]
-                (all dead (type) Bool)
-              }
-              (abs
-                dead
-                (type)
-                {
-                  [
-                    [
-                      {
-                        [ Bool_match [ [ equalsInteger ds ] ds ] ]
-                        (all dead (type) Bool)
-                      }
-                      (abs dead (type) True)
-                    ]
-                    (abs dead (type) [ fail (con unit ()) ])
-                  ]
-                  (all dead (type) dead)
-                }
-              )
-            ]
-            (abs dead (type) [ fail (con unit ()) ])
+            { [ Bool_match [ [ equalsInteger ds ] ds ] ] Bool }
+            (lam
+              p
+              (prod )
+              [
+                [
+                  { [ Bool_match [ [ equalsInteger ds ] ds ] ] Bool }
+                  (lam p (prod ) True)
+                ]
+                (lam p (prod ) [ fail (con unit ()) ])
+              ]
+            )
           ]
-          (all dead (type) dead)
-        }
+          (lam p (prod ) [ fail (con unit ()) ])
+        ]
       )
     )
   )

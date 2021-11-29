@@ -28,7 +28,7 @@
             { error a }
             [
               { [ Unit_match [ [ { trace Unit } str ] Unit ] ] (con unit) }
-              unitval
+              (lam p (prod ) unitval)
             ]
           ]
         )

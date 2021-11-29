@@ -13,7 +13,8 @@
         arg_0_i0
         (delay
           (lam
-            case_Lift_Spec_WrappedBS_i0 [ case_Lift_Spec_WrappedBS_i1 arg_0_i2 ]
+            case_Lift_Spec_WrappedBS_i0
+            [ case_Lift_Spec_WrappedBS_i1 (prod arg_0_i2) ]
           )
         )
       )
