@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
 module UntypedPlutusCore.Core.Type
@@ -55,7 +54,7 @@ once per program, so it's not too big a deal if it doesn't get a tag.
 
 The latter two are due to the fact that we don't have value restriction in Typed Plutus Core
 and hence a computation can be stuck expecting only a single type argument for the computation
-to become unstuck. Therefore we can't just silently remove type abstractions and instantions and
+to become unstuck. Therefore we can't just silently remove type abstractions and instantiations and
 need to replace them with something else that also blocks evaluation (in order for the semantics
 of an erased program to match with the semantics of the original typed one). 'Delay' and 'Force'
 serve exactly this purpose.
