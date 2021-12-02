@@ -137,6 +137,7 @@
           "PlutusCore/Generators/Internal/TypeEvalCheck"
           "PlutusCore/Generators/Internal/TypedBuiltinGen"
           "PlutusCore/Generators/Internal/Utils"
+          "PlutusCore/Lexer/Lexer"
           "PlutusCore/Lexer/Type"
           "PlutusCore/Parsable"
           "PlutusCore/Parser/Internal"
