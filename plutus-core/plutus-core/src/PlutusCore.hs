@@ -54,7 +54,6 @@ module PlutusCore
     , UniqueMap (..)
     , Normalized (..)
     , defaultVersion
-    , allKeywords
     , toTerm
     , termAnn
     , typeAnn
