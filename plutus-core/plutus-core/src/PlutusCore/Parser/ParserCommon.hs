@@ -28,14 +28,11 @@ newtype ParserState = ParserState { identifiers :: M.Map T.Text PLC.Unique }
     deriving (Show)
 
 type Parser =
-    ParsecT (PLC.ParseError SourcePos) T.Text (StateT ParserState PLC.Quote)
+    ParsecT PLC.ParseError T.Text (StateT ParserState PLC.Quote)
 
 instance (Stream s, PLC.MonadQuote m) => PLC.MonadQuote (ParsecT e s m)
 instance (Ord ann, Pretty ann) => ShowErrorComponent (PLC.ParseError ann) where
     showErrorComponent err = show $ pretty err
-
-topSourcePos :: SourcePos
-topSourcePos = initialPos "top"
 
 initial :: ParserState
 initial = ParserState M.empty
@@ -55,18 +52,18 @@ intern n = do
             put $ ParserState identifiers'
             return fresh
 
-parse :: Parser a -> String -> T.Text -> Either (ParseErrorBundle T.Text (PLC.ParseError SourcePos)) a
+parse :: Parser a -> String -> T.Text -> Either (ParseErrorBundle T.Text PLC.ParseError) a
 parse p file str = PLC.runQuote $ parseQuoted p file str
 
 parseQuoted :: Parser a -> String -> T.Text -> PLC.Quote
-                   (Either (ParseErrorBundle T.Text (PLC.ParseError SourcePos)) a)
+                   (Either (ParseErrorBundle T.Text PLC.ParseError) a)
 parseQuoted p file str = flip evalStateT initial $ runParserT p file str
 
-charLiteral :: Parser LiteralConst
-charLiteral = between (char '\'') (char '\'') L.charLiteral
+-- charLiteral :: Parser LiteralConst
+-- charLiteral = between (char '\'') (char '\'') Lex.charLiteral
 
-stringLiteral :: Parser LiteralConst
-stringLiteral = char '\"' *> takeWhileP L.charLiteral (char '\"')
+-- stringLiteral :: Parser LiteralConst
+-- stringLiteral = char '\"' *> takeWhileP Lex.charLiteral (char '\"')
 
 -- | Space consumer.
 whitespace :: Parser ()
@@ -165,7 +162,7 @@ builtinTypeTag = do
     case PLC.parse uniText of
         Nothing  -> do
             ann <- wordPos uniText
-            customFailure $ PLC.UnknownBuiltinType ann uniText
+            customFailure $ PLC.UnknownBuiltinType uniText ann
         Just uni -> pure uni
 
 -- | Parse a constant by parsing a type tag first and using the type-specific parser of constants.
@@ -191,12 +188,12 @@ constant = do
     case PLC.checkStar @uni uni of
         Nothing -> do
             ann <- wordPos uniText
-            customFailure $ PLC.BuiltinTypeNotAStar ann uniText
+            customFailure $ PLC.BuiltinTypeNotAStar uniText ann
         Just PLC.Refl -> do
             conText <- closedChunk
             case PLC.bring (Proxy @PLC.Parsable) uni $ PLC.parse conText of
                 Nothing  -> do
                     ann <- wordPos uniText
-                    customFailure $ PLC.InvalidBuiltinConstant ann uniText conText
+                    customFailure $ PLC.InvalidBuiltinConstant uniText conText ann
                 Just con -> pure . PLC.Some $ PLC.ValueOf uni con
 

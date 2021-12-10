@@ -201,7 +201,6 @@ library
         PlutusCore.Generators.Internal.TypedBuiltinGen
         PlutusCore.Generators.Internal.Utils
         PlutusCore.Parsable
-        PlutusCore.Parser.Internal
         PlutusCore.Parser.Type
         PlutusCore.Parser.ParserCommon
         PlutusCore.Pretty.Classic

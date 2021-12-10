@@ -1,4 +1,4 @@
-module NewUntypedPlutusCore (
+module UntypedPlutusCore (
     Term (..)
     , Program (..)
     , toTerm
