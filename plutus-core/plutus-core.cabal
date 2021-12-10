@@ -139,6 +139,7 @@ library
         PlutusIR.Transform.LetMerge
         PlutusIR.Transform.RecSplit
         PlutusIR.Transform.NonStrict
+        PlutusIR.Transform.Project
         PlutusIR.Transform.Rename
         PlutusIR.Transform.Substitute
         PlutusIR.Transform.ThunkRecursions

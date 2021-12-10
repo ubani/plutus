@@ -45,6 +45,7 @@ import PlutusIR.Transform.Inline qualified as Inline
 import PlutusIR.Transform.LetFloat qualified as LetFloat
 import PlutusIR.Transform.LetMerge qualified as LetMerge
 import PlutusIR.Transform.NonStrict qualified as NonStrict
+import PlutusIR.Transform.Project qualified as Project
 import PlutusIR.Transform.RecSplit qualified as RecSplit
 import PlutusIR.Transform.Rename ()
 import PlutusIR.Transform.ThunkRecursions qualified as ThunkRec
@@ -94,6 +95,8 @@ applyPass pass = runIf (_shouldRun pass) $ through check <=< \term -> do
 availablePasses :: [Pass uni fun]
 availablePasses =
     [ Pass "unwrap cancel"        (onOption coDoSimplifierUnwrapCancel)       (pure . Unwrap.unwrapCancel)
+    -- TODO: proper option
+    , Pass "proj cancel"          (onOption coDoSimplifierUnwrapCancel)       (pure . Project.projectCancel)
     , Pass "beta"                 (onOption coDoSimplifierBeta)               (pure . Beta.beta)
     , Pass "inline"               (onOption coDoSimplifierInline)             Inline.inline
     ]
