@@ -42,9 +42,7 @@ import PlutusCore.Parser.ParserCommon
 
 -- Parsers for UPLC terms
 
-conTerm
-    :: (PLC.Closed uni, uni `PLC.Everywhere` PLC.Parsable, PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni)))
-    => Parser (UPLC.Term PLC.Name uni fun SourcePos)
+conTerm :: Parser (UPLC.Term PLC.Name PLC.DefaultUni PLC.DefaultFun SourcePos)
 conTerm = inParens $ UPLC.Constant <$> wordPos "con" <*> constant
 
 builtinTerm :: (Bounded fun, Enum fun, Pretty fun)
