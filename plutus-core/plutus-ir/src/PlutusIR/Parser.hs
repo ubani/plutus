@@ -25,7 +25,6 @@ import Control.Monad.Combinators.Expr
 import Control.Monad.Combinators.NonEmpty qualified as NE
 import Data.Text (Text)
 import Text.Megaparsec hiding (ParseError, State, many, parse, some)
-import Text.Megaparsec.Char (string)
 
 recursivity :: Parser Recursivity
 recursivity = inParens $ (wordPos "rec" >> return Rec) <|> (wordPos "nonrec" >> return NonRec)
@@ -54,7 +53,7 @@ ifixType :: Parser PType
 ifixType = TyIFix <$> wordPos "ifix" <*> typ <*> typ
 
 builtinType :: Parser PType
-builtinType = TyBuiltin <$> wordPos "con" <*> defaultUniType
+builtinType = TyBuiltin <$> wordPos "builtinType" <*> defaultUniType
 
 appType :: Parser PType
 appType = do
@@ -85,15 +84,15 @@ typ = choice
 defaultUniType :: Parser (PLC.SomeTypeIn PLC.DefaultUni)
 defaultUniType = choice
   [ inParens defaultUniType
-  , PLC.SomeTypeIn PLC.DefaultUniInteger <$ string "integer"
-  , PLC.SomeTypeIn PLC.DefaultUniByteString <$ string "bytestring"
-  , PLC.SomeTypeIn PLC.DefaultUniString <$ string "string"
-  , PLC.SomeTypeIn PLC.DefaultUniUnit <$ string "unit"
-  , PLC.SomeTypeIn PLC.DefaultUniBool <$ string "bool"
-  , PLC.SomeTypeIn PLC.DefaultUniProtoList <$ string "list"
-  , PLC.SomeTypeIn PLC.DefaultUniProtoPair <$ string "pair"
-  -- , PLC.SomeTypeIn DefaultUniApply <$ string "?" TODO need to make this an operator
-  , PLC.SomeTypeIn PLC.DefaultUniData <$ string "data" ]
+  , PLC.SomeTypeIn PLC.DefaultUniInteger <$ symbol "integer"
+  , PLC.SomeTypeIn PLC.DefaultUniByteString <$ symbol "bytestring"
+  , PLC.SomeTypeIn PLC.DefaultUniString <$ symbol "symbol"
+  , PLC.SomeTypeIn PLC.DefaultUniUnit <$ symbol "unit"
+  , PLC.SomeTypeIn PLC.DefaultUniBool <$ symbol "bool"
+  , PLC.SomeTypeIn PLC.DefaultUniProtoList <$ symbol "list"
+  , PLC.SomeTypeIn PLC.DefaultUniProtoPair <$ symbol "pair"
+  -- , PLC.SomeTypeIn DefaultUniApply <$ symbol "?" TODO need to make this an operator
+  , PLC.SomeTypeIn PLC.DefaultUniData <$ symbol "data" ]
 
 varDecl :: Parser (VarDecl TyName Name PLC.DefaultUni PLC.DefaultFun SourcePos)
 varDecl = inParens $ VarDecl <$> wordPos "vardecl" <*> name <*> typ

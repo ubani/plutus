@@ -85,10 +85,7 @@ errorTerm
 errorTerm = inParens $ UPLC.Error <$> wordPos "error"
 
 -- | Parser for all UPLC terms.
-term
-    :: ( PLC.Parsable (PLC.Some uni), PLC.Closed uni, uni `PLC.Everywhere` PLC.Parsable
-       , Bounded fun, Enum fun, Pretty fun, PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni)))
-        => Parser (UPLC.Term PLC.Name uni fun SourcePos)
+term :: Parser (UPLC.Term PLC.Name PLC.DefaultUni PLC.DefaultFun SourcePos)
 term = conTerm
     <|> builtinTerm
     <|> varTerm
@@ -100,10 +97,7 @@ term = conTerm
     where self = term
 
 -- | Parser for UPLC programs.
-program
-    :: ( PLC.Parsable (PLC.Some uni), PLC.Closed uni, uni `PLC.Everywhere` PLC.Parsable
-       , Bounded fun, Enum fun, Pretty fun, PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni)))
-    => Parser (UPLC.Program PLC.Name uni fun SourcePos)
+program :: Parser (UPLC.Program PLC.Name PLC.DefaultUni PLC.DefaultFun SourcePos)
 program = whitespace >> do
     prog <- inParens $ UPLC.Program <$> wordPos "program" <*> version <*> term
     notFollowedBy anySingle
@@ -115,26 +109,19 @@ parseGen stuff bs = parse stuff "test" $ (T.pack . unpackChars) bs
 
 -- | Parse a PLC term. The resulting program will have fresh names. The underlying monad must be capable
 -- of handling any parse errors.
-parseTerm ::
-    (PLC.Parsable (PLC.Some uni), PLC.Closed uni, uni `PLC.Everywhere` PLC.Parsable
-    , Bounded fun, Enum fun, Pretty fun, PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni))) =>
-    ByteString ->
-    Either (ParseErrorBundle T.Text PLC.ParseError) (UPLC.Term PLC.Name uni fun SourcePos)
+parseTerm :: ByteString ->
+    Either (ParseErrorBundle T.Text PLC.ParseError) (UPLC.Term PLC.Name PLC.DefaultUni PLC.DefaultFun SourcePos)
 parseTerm = parseGen term
 
 -- | Parse a PLC program. The resulting program will have fresh names. The underlying monad must be capable
 -- of handling any parse errors.
-parseProgram :: (PLC.Parsable (PLC.Some uni), PLC.Closed uni, uni `PLC.Everywhere` PLC.Parsable
-       , Bounded fun, Enum fun, Pretty fun, PLC.Parsable (PLC.SomeTypeIn (PLC.Kinded uni))) => ByteString -> Either (ParseErrorBundle T.Text PLC.ParseError) (UPLC.Program PLC.Name uni fun SourcePos)
+parseProgram :: ByteString ->
+    Either (ParseErrorBundle T.Text PLC.ParseError) (UPLC.Program PLC.Name PLC.DefaultUni PLC.DefaultFun SourcePos)
 parseProgram = parseGen program
 
 -- | Parse and rewrite so that names are globally unique, not just unique within
 -- their scope.
-parseScoped
-    :: (PLC.MonadQuote (Either (ParseErrorBundle T.Text PLC.ParseError))
-        , PLC.AsUniqueError (ParseErrorBundle T.Text PLC.ParseError) SourcePos
-        , PLC.Parsable (PLC.Some PLC.DefaultUni))
-    => ByteString
+parseScoped :: ByteString
     -> Either (ParseErrorBundle T.Text PLC.ParseError) (UPLC.Program PLC.Name PLC.DefaultUni PLC.DefaultFun SourcePos)
 -- don't require there to be no free variables at this point, we might be parsing an open term
 parseScoped = through (checkProgram (const True)) <=< rename <=< parseProgram
