@@ -157,12 +157,13 @@ conBool = choose
     , someValue False <$ symbol "False"
     ]
 
---TODO
--- conPair :: Parser (PLC.Some (PLC.ValueOf PLC.DefaultUni))
--- conPair = someValue (,) <$ symbol "pair"
-
--- conList :: Parser (PLC.Some (PLC.ValueOf PLC.DefaultUni))
--- conList = someValue [] <$ symbol "list"
+--TODO fix these:
+conPair :: Parser (PLC.Some (PLC.ValueOf PLC.DefaultUni))
+conPair = someValue (,) <$ symbol "pair"
+conList :: Parser (PLC.Some (PLC.ValueOf PLC.DefaultUni))
+conList = someValue [] <$ symbol "list"
+conData :: Parser (PLC.Some (PLC.ValueOf PLC.DefaultUni))
+conData = someValue Data <$ symbol "data"
 
 constant :: Parser (PLC.Some (PLC.ValueOf PLC.DefaultUni))
 constant = choose
@@ -171,10 +172,15 @@ constant = choose
     , conChar
     , conText
     , conUnit
-    , conBool]
+    , conBool
+    , conPair
+    , conList
+    , conData]
 
+-- | Parser for a constant term. Currently the syntax is "con defaultUniType val".
 constantTerm :: Parser (PLC.Term PLC.TyName PLC.Name PLC.DefaultUni PLC.DefaultFun SourcePos)
 constantTerm = do
-    p <- getSourcePos
+    p <- WordPos "con"
+    _conTy <- defaultUniType -- TODO: do case of for each ty?
     con <- constant
     pure $ Constant p con
