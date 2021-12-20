@@ -14,26 +14,23 @@ module PlutusCore.DeBruijn
     , AsFreeVariableError (..)
     , deBruijnTy
     , deBruijnTerm
-    , deBruijnProgram
     , unDeBruijnTy
     , unDeBruijnTerm
-    , unDeBruijnProgram
     , unNameDeBruijn
     , unNameTyDeBruijn
     , fakeNameDeBruijn
+    , deBruijnInitIndex
     ) where
 
 import PlutusCore.DeBruijn.Internal
 
-import PlutusCore.Core
+import PlutusCore.Core.Type
 import PlutusCore.Name
 import PlutusCore.Quote
 
 import Control.Lens hiding (Index, index)
 import Control.Monad.Except
 import Control.Monad.Reader
-
-import Data.Bimap qualified as BM
 
 {- NOTE: [DeBruijn indices of Binders]
 In a debruijnijfied Term AST, the Binders have a debruijn index
@@ -47,19 +44,25 @@ a fixed debruijn index '0' at their introduction.
 deBruijnTy
     :: (AsFreeVariableError e, MonadError e m)
     => Type TyName uni ann -> m (Type NamedTyDeBruijn uni ann)
-deBruijnTy = flip runReaderT (Levels 0 BM.empty) . deBruijnTyM
+deBruijnTy = runDeBruijnT . deBruijnTyM
 
 -- | Convert a 'Term' with 'TyName's and 'Name's into a 'Term' with 'NamedTyDeBruijn's and 'NamedDeBruijn's.
 deBruijnTerm
     :: (AsFreeVariableError e, MonadError e m)
     => Term TyName Name uni fun ann -> m (Term NamedTyDeBruijn NamedDeBruijn uni fun ann)
-deBruijnTerm = flip runReaderT (Levels 0 BM.empty) . deBruijnTermM
+deBruijnTerm = runDeBruijnT . deBruijnTermM
 
--- | Convert a 'Program' with 'TyName's and 'Name's into a 'Program' with 'NamedTyDeBruijn's and 'NamedDeBruijn's.
-deBruijnProgram
-    :: (AsFreeVariableError e, MonadError e m)
-    => Program TyName Name uni fun ann -> m (Program NamedTyDeBruijn NamedDeBruijn uni fun ann)
-deBruijnProgram (Program ann ver term) = Program ann ver <$> deBruijnTerm term
+-- | Convert a 'Type' with 'NamedTyDeBruijn's into a 'Type' with 'TyName's.
+unDeBruijnTy
+    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
+    => Type NamedTyDeBruijn uni ann -> m (Type TyName uni ann)
+unDeBruijnTy = runDeBruijnT .  unDeBruijnTyM
+
+-- | Convert a 'Term' with 'NamedTyDeBruijn's and 'NamedDeBruijn's into a 'Term' with 'TyName's and 'Name's.
+unDeBruijnTerm
+    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
+    => Term NamedTyDeBruijn NamedDeBruijn uni fun ann -> m (Term TyName Name uni fun ann)
+unDeBruijnTerm = runDeBruijnT . unDeBruijnTermM
 
 {- Note [De Bruijn conversion and recursion schemes]
 These are quite repetitive, but we can't use a catamorphism for this, because
@@ -112,23 +115,6 @@ deBruijnTermM = \case
     Builtin ann bn -> pure $ Builtin ann bn
 
 -- | Convert a 'Type' with 'NamedTyDeBruijn's into a 'Type' with 'TyName's.
-unDeBruijnTy
-    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
-    => Type NamedTyDeBruijn uni ann -> m (Type TyName uni ann)
-unDeBruijnTy = flip runReaderT (Levels 0 BM.empty) . unDeBruijnTyM
-
--- | Convert a 'Term' with 'NamedTyDeBruijn's and 'NamedDeBruijn's into a 'Term' with 'TyName's and 'Name's.
-unDeBruijnTerm
-    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
-    => Term NamedTyDeBruijn NamedDeBruijn uni fun ann -> m (Term TyName Name uni fun ann)
-unDeBruijnTerm = flip runReaderT (Levels 0 BM.empty) . unDeBruijnTermM
-
--- | Convert a 'Program' with 'NamedTyDeBruijn's and 'NamedDeBruijn's into a 'Program' with 'TyName's and 'Name's.
-unDeBruijnProgram
-    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
-    => Program NamedTyDeBruijn NamedDeBruijn uni fun ann -> m (Program TyName Name uni fun ann)
-unDeBruijnProgram (Program ann ver term) = Program ann ver <$> unDeBruijnTerm term
-
 unDeBruijnTyM
     :: (MonadReader Levels m, MonadQuote m, AsFreeVariableError e, MonadError e m)
     => Type NamedTyDeBruijn uni ann

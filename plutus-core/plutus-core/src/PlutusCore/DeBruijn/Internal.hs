@@ -7,6 +7,7 @@
 -- | Support for using de Bruijn indices for term and type names.
 module PlutusCore.DeBruijn.Internal
     ( Index (..)
+    , HasIndex (..)
     , DeBruijn (..)
     , NamedDeBruijn (..)
     , TyDeBruijn (..)
@@ -27,7 +28,8 @@ module PlutusCore.DeBruijn.Internal
     , tyNameToDeBruijn
     , deBruijnToName
     , deBruijnToTyName
-    , HasIndex (..)
+    , runDeBruijnT
+    , deBruijnInitIndex
     ) where
 
 import PlutusCore.Name
@@ -56,20 +58,30 @@ newtype Index = Index Natural
     deriving newtype (Show, Num, Enum, Real, Integral, Eq, Ord, Pretty)
     deriving anyclass NFData
 
+-- | The LamAbs index (for debruijn indices) and the starting level of DeBruijn monad
+deBruijnInitIndex :: Index
+deBruijnInitIndex = 0
+
 -- | A term name as a de Bruijn index.
 data NamedDeBruijn = NamedDeBruijn { ndbnString :: T.Text, ndbnIndex :: Index }
     deriving (Show, Generic)
     deriving anyclass NFData
 
+instance Eq NamedDeBruijn where
+    -- ignoring actual names and only relying solely on debruijn indices
+    (NamedDeBruijn _ ix1) == (NamedDeBruijn _ ix2) = ix1 == ix2
+
 -- | A term name as a de Bruijn index, without the name string.
 newtype DeBruijn = DeBruijn { dbnIndex :: Index }
-    deriving (Show, Generic)
+    deriving (Show, Generic, Eq)
     deriving anyclass NFData
 
 -- | A type name as a de Bruijn index.
 newtype NamedTyDeBruijn = NamedTyDeBruijn NamedDeBruijn
     deriving stock (Show, Generic)
     deriving newtype (PrettyBy config)
+    -- ignoring actual names and only relying solely on debruijn indices
+    deriving Eq via NamedDeBruijn
     deriving anyclass NFData
 instance Wrapped NamedTyDeBruijn
 
@@ -77,6 +89,7 @@ instance Wrapped NamedTyDeBruijn
 newtype TyDeBruijn = TyDeBruijn DeBruijn
     deriving stock (Show, Generic)
     deriving newtype (PrettyBy config)
+    deriving Eq via DeBruijn
     deriving anyclass NFData
 instance Wrapped TyDeBruijn
 
@@ -244,3 +257,6 @@ deBruijnToTyName
     :: (MonadReader Levels m, AsFreeVariableError e, MonadError e m)
     => NamedTyDeBruijn -> m TyName
 deBruijnToTyName (NamedTyDeBruijn n) = TyName <$> deBruijnToName n
+
+runDeBruijnT :: ReaderT Levels m a -> m a
+runDeBruijnT = flip runReaderT (Levels (Level $ fromIntegral deBruijnInitIndex) BM.empty)
