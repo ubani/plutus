@@ -200,8 +200,6 @@ library
         PlutusCore.Generators.Internal.TypeEvalCheck
         PlutusCore.Generators.Internal.TypedBuiltinGen
         PlutusCore.Generators.Internal.Utils
-        PlutusCore.Parsable
-        PlutusCore.Parser.Type
         PlutusCore.Parser.ParserCommon
         PlutusCore.Pretty.Classic
         PlutusCore.Pretty.ConfigName
