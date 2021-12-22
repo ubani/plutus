@@ -2,6 +2,7 @@
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE PatternSynonyms    #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module PlutusCore
     (
@@ -163,8 +164,7 @@ import UntypedPlutusCore.Evaluation.Machine.Cek.CekMachineCosts
 import Control.Monad.Except
 import Data.ByteString.Lazy qualified as BSL
 import Data.Text qualified as T
-import Text.Megaparsec (ParseErrorBundle, SourcePos, initialPos)
-
+import Text.Megaparsec (ParseErrorBundle, SourcePos, errorBundlePretty, initialPos)
 
 topSourcePos :: SourcePos
 topSourcePos = initialPos "top"
@@ -172,25 +172,21 @@ topSourcePos = initialPos "top"
 -- | Given a file at @fibonacci.plc@, @fileType "fibonacci.plc"@ will display
 -- its type or an error message.
 fileType :: FilePath -> IO T.Text
-fileType = fmap (either prettyErr id . printType) . BSL.readFile
-    where
-        prettyErr :: Error DefaultUni DefaultFun SourcePos -> T.Text
-        prettyErr = displayPlcDef
+fileType = fmap (either (T.pack . errorBundlePretty) id . printType) . BSL.readFile
+
 
 -- | Given a file, display
 -- its type or an error message, optionally dumping annotations and debug
 -- information.
-fileTypeCfg :: PrettyConfigPlc -> FilePath -> IO T.Text
-fileTypeCfg cfg = fmap (either prettyErr id . printType) . BSL.readFile
-    where
-        prettyErr :: Error DefaultUni DefaultFun SourcePos -> T.Text
-        prettyErr = displayBy cfg
+fileTypeCfg :: FilePath -> IO T.Text
+fileTypeCfg = fmap (either (T.pack . errorBundlePretty) id . printType) . BSL.readFile
+
 
 -- | Print the type of a program contained in a 'ByteString'
 printType
     :: BSL.ByteString
     -> Either (ParseErrorBundle T.Text ParseError) T.Text
-printType bs = runQuoteT $ T.pack . show . pretty <$> do
+printType bs = T.pack . show . pretty <$> do
     scoped <- parseScoped bs
     config <- getDefTypeCheckConfig topSourcePos
     inferTypeOfProgram config scoped
@@ -220,20 +216,17 @@ typecheckPipeline
     -> m (Normalized (Type TyName DefaultUni ()))
 typecheckPipeline = inferTypeOfProgram
 
-parseProgramDef
-    :: BSL.ByteString -> Either (ParseErrorBundle T.Text ParseError) (Program TyName Name DefaultUni DefaultFun SourcePos)
-parseProgramDef = parseProgram
-
 formatDoc ::
     PrettyConfigPlc -> BSL.ByteString ->
         Either (ParseErrorBundle T.Text ParseError) (Doc a)
 -- don't use parseScoped since we don't bother running sanity checks when we format
-formatDoc cfg = runQuoteT . fmap (prettyBy cfg) . (rename <=< parseProgramDef)
+formatDoc cfg = fmap (prettyBy cfg) . (rename <=< parseProgram)
 
 format
-    :: PrettyConfigPlc -> BSL.ByteString -> m T.Text
+    :: PrettyConfigPlc -> BSL.ByteString ->
+        Either (ParseErrorBundle T.Text ParseError) T.Text
 -- don't use parseScoped since we don't bother running sanity checks when we format
-format cfg = runQuoteT . fmap (displayBy cfg) . (rename <=< parseProgramDef)
+format cfg = fmap (displayBy cfg) . (rename <=< parseProgram)
 
 -- | Take one PLC program and apply it to another.
 applyProgram
