@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
@@ -102,8 +101,8 @@ propFlat = property $ do
 type DefaultTerm  a = Term TyName Name DefaultUni DefaultFun a
 type DefaultError a = Error DefaultUni DefaultFun a
 
-parseTm :: BSL.ByteString -> Either (DefaultError SourcePos) (DefaultTerm SourcePos)
-parseTm = runQuote . runExceptT . parseTerm @(DefaultError SourcePos)
+-- parseTm :: BSL.ByteString -> Either (DefaultError SourcePos) (DefaultTerm SourcePos)
+parseTm = runQuote . runExceptT . parseTerm -- . encodeUtf8 . T.pack
 
 reprint :: PrettyPlc a => a -> BSL.ByteString
 reprint = BSL.fromStrict . encodeUtf8 . displayPlcDef
@@ -164,7 +163,7 @@ propParser :: Property
 propParser = property $ do
     prog <- TextualProgram <$> forAllPretty (runAstGen genProgram)
     Hedgehog.tripping prog (reprint . unTextualProgram)
-                (\p -> fmap (TextualProgram . void) $ runQuote $ runExceptT $ parseProgram @(DefaultError SourcePos) p)
+                (\p -> fmap (TextualProgram . void) $ runQuote $ runExceptT $ parseProgram p)
 
 type TestFunction a = BSL.ByteString -> Either (DefaultError a) T.Text
 
@@ -200,7 +199,6 @@ tests = testCase "example programs" $ fold
     , fmt "{- program " @?= Left (LexErr "Error in nested comment at line 1, column 12")
     ]
     where
-        fmt :: BSL.ByteString -> Either ParseError T.Text
         fmt = format cfg
         cfg = defPrettyConfigPlcClassic defPrettyConfigPlcOptions
 

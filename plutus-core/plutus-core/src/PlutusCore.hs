@@ -77,7 +77,7 @@ module PlutusCore
     -- * Lexer
     , SourcePos
     -- * Formatting
-    -- , format
+    , format
     , formatDoc
     -- * Processing
     , HasUniques
@@ -262,15 +262,16 @@ formatDoc cfg bs = do
             renamed <- runQuoteT $ rename p
             fmap (prettyBy cfg) . rename renamed
 
--- format
---     :: PrettyConfigPlc -> BSL.ByteString ->
---         Either (Error DefaultUni DefaultFun SourcePos) T.Text
--- don't use parseScoped since we don't bother running sanity checks when we format
--- format cfg = do
---     parsed <- parseProgram
---     case parsed of
---        Left err -> pure $ error $ errorBundlePretty err
---        Right prog -> fmap (displayBy cfg) . rename prog
+format cfg bs = do
+    case parseProgram bs of
+        -- when fail, pretty print the parse errors.
+        Left err ->
+            errorWithoutStackTrace $ errorBundlePretty err
+        -- otherwise,
+        Right p -> do
+            -- run @rename@ through the program
+            renamed <- runQuoteT $ rename p
+            fmap (displayBy cfg) . rename renamed
 
 
 -- | Take one PLC program and apply it to another.
