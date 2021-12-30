@@ -180,6 +180,14 @@ topSourcePos = initialPos "top"
 -- printType
 --     :: BSL.ByteString
 --     -> Either (ParseErrorBundle T.Text ParseError) T.Text
+-- printType :: (AsTypeError
+--    err
+--    (Term TyName Name DefaultUni DefaultFun ())
+--    DefaultUni
+--    DefaultFun
+--    SourcePos,
+--  MonadQuote f, MonadError err f) =>
+    -- BSL.ByteString -> f (Normalized (Type TyName DefaultUni ()))
 printType :: (AsTypeError
    err
    (Term TyName Name DefaultUni DefaultFun ())
@@ -187,13 +195,14 @@ printType :: (AsTypeError
    DefaultFun
    SourcePos,
  MonadQuote f, MonadError err f) =>
-    BSL.ByteString -> f (Normalized (Type TyName DefaultUni ()))
+ BSL.ByteString -> f (Doc ann)
 printType bs = do
     case runQuoteT $ parseScoped bs of
       Left peb -> pure $ error $ "errorBundlePretty peb"
       Right pro -> do
         config <- getDefTypeCheckConfig topSourcePos
-        inferTypeOfProgram config pro
+        ty <- inferTypeOfProgram config pro
+        pure $ pretty ty
 
 
 -- | Parse and rewrite so that names are globally unique, not just unique within

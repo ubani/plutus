@@ -26,9 +26,7 @@ import PlutusCore.Generators.NEAT.Spec qualified as NEAT
 import PlutusCore.MkPlc
 import PlutusCore.Pretty
 
-import Control.Monad.Except
 import Data.ByteString.Lazy qualified as BSL
-import Data.ByteString.Lazy.Char8 (unpack)
 import Data.Text qualified as T
 import Data.Text.Encoding (encodeUtf8)
 import Flat (flat)
@@ -99,11 +97,7 @@ propFlat = property $ do
     prog <- forAllPretty $ runAstGen genProgram
     Hedgehog.tripping prog Flat.flat Flat.unflat
 
-type DefaultTerm  a = Term TyName Name DefaultUni DefaultFun a
-type DefaultError a = Error DefaultUni DefaultFun a
-
--- parseTerm :: BSL.ByteString -> Either (DefaultError SourcePos) (DefaultTerm SourcePos)
--- parseTerm = parseTerm -- . encodeUtf8 . T.pack
+type DefaultError = Error DefaultUni DefaultFun SourcePos
 
 reprint :: PrettyPlc a => a -> BSL.ByteString
 reprint = BSL.fromStrict . encodeUtf8 . displayPlcDef
@@ -115,7 +109,7 @@ testLexConstant :: Assertion
 testLexConstant =
     mapM_ (\t -> (fmap void . parseTerm . reprint $ t) @?= Right t) smallConsts
         where
-          smallConsts :: [DefaultTerm ()]
+          smallConsts :: [Term TyName Name DefaultUni DefaultFun ()]
           smallConsts =
               [ mkConstant () ()
               , mkConstant () False
@@ -166,15 +160,15 @@ propParser = property $ do
     Hedgehog.tripping prog (reprint . unTextualProgram)
                 (\p -> fmap (TextualProgram . void) $ parseProgram p)
 
-type TestFunction a = BSL.ByteString -> Either (DefaultError a) T.Text
+type TestFunction = BSL.ByteString -> Either DefaultError T.Text
 
-asIO :: Pretty a => TestFunction a -> FilePath -> IO BSL.ByteString
+asIO :: TestFunction -> FilePath -> IO BSL.ByteString
 asIO f = fmap (either errorgen (BSL.fromStrict . encodeUtf8) . f) . BSL.readFile
 
 errorgen :: PrettyPlc a => a -> BSL.ByteString
 errorgen = BSL.fromStrict . encodeUtf8 . displayPlcDef
 
-asGolden :: TestFunction SourcePos -> TestName -> TestTree
+asGolden :: TestFunction -> TestName -> TestTree
 asGolden f file = goldenVsString file (file ++ ".golden") (asIO f file)
 
 -- TODO: evaluation tests should go under the 'Evaluation' module,
