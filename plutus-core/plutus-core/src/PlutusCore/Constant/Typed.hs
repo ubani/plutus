@@ -2,26 +2,25 @@
 -- See the @plutus/plutus-core/docs/Constant application.md@
 -- article for how this emerged.
 
-{-# LANGUAGE BlockArguments           #-}
-{-# LANGUAGE ConstraintKinds          #-}
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE DefaultSignatures        #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE LambdaCase               #-}
-{-# LANGUAGE MultiParamTypeClasses    #-}
-{-# LANGUAGE OverloadedStrings        #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE QuantifiedConstraints    #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeApplications         #-}
-{-# LANGUAGE TypeFamilies             #-}
-{-# LANGUAGE TypeOperators            #-}
-{-# LANGUAGE UndecidableInstances     #-}
-{-# LANGUAGE UndecidableSuperClasses  #-}
+{-# LANGUAGE BlockArguments          #-}
+{-# LANGUAGE ConstraintKinds         #-}
+{-# LANGUAGE DataKinds               #-}
+{-# LANGUAGE DefaultSignatures       #-}
+{-# LANGUAGE FlexibleInstances       #-}
+{-# LANGUAGE GADTs                   #-}
+{-# LANGUAGE LambdaCase              #-}
+{-# LANGUAGE MultiParamTypeClasses   #-}
+{-# LANGUAGE OverloadedStrings       #-}
+{-# LANGUAGE PolyKinds               #-}
+{-# LANGUAGE QuantifiedConstraints   #-}
+{-# LANGUAGE RankNTypes              #-}
+{-# LANGUAGE TypeApplications        #-}
+{-# LANGUAGE TypeFamilies            #-}
+{-# LANGUAGE TypeOperators           #-}
+{-# LANGUAGE UndecidableInstances    #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 
-{-# LANGUAGE StrictData               #-}
+{-# LANGUAGE StrictData              #-}
 
 module PlutusCore.Constant.Typed
     ( TypeScheme (..)
@@ -231,7 +230,7 @@ to ditch 'KnownTypeAst' (but keep 'KnownType') and provide PLC types manually. B
 to give rise to a terribly nice API. And we'd lose all the static guarantees, which is not a big
 deal, but losing the automatic inference of type schemes would suck, given that it's quite handy.
 
-Representing contructors as poly-kinded data families and handling those with open type families
+Representing constructors as poly-kinded data families and handling those with open type families
 and/or type classes is a way of solving the expression problem for indexed data types at the type
 level, if you are into these things.
 -}
@@ -366,7 +365,7 @@ Finally,
 is representable (because we can require arguments to be constants carrying universes with them,
 which we can use to construct the resulting universe), but is still a lie, because instantiating
 that builtin with non-built-in types is possible and so the PLC type checker won't throw on such
-an instantiation, which will become 'EvalutionFailure' at runtime the moment unlifting of a
+an instantiation, which will become 'EvaluationFailure' at runtime the moment unlifting of a
 non-constant is attempted when a constant is expected.
 
 So could we still get @nil@ or a safe version of @comma@ somehow? Well, we could have this
