@@ -82,10 +82,15 @@ test_debruijn :: TestTree
 test_debruijn = runTestNestedIn ["untyped-plutus-core","test"] $
                   testNested "DeBruijn"
                     [testNested "Golden" $
-                      fmap (\ (n,t) -> nestedGoldenVsDoc n $ act t) tests
+                      fmap (\ (n,t) -> nestedGoldenVsDoc n $ actThrow t) tests
+                    ,testNested "GoldenRepair" $
+                      fmap (\ (n,t) -> nestedGoldenVsDoc n $ actGrace t) testsRepair
                     ]
   where
-    act = prettyPlcClassicDebug . runExcept @(Error DefaultUni DefaultFun ()) . runQuoteT . unDeBruijnProgram . mkProg
+    actThrow = prettyPlcClassicDebug . runExcept @(Error DefaultUni DefaultFun ()) . runQuoteT . unDeBruijnProgram . mkProg
+
+    actGrace = prettyPlcClassicDebug . runExcept @(Error DefaultUni DefaultFun ()) . runQuoteT . unDeBruijnProgramRepair . mkProg
+
 
     mkProg = programMapNames fakeNameDeBruijn . Program () (Version () 1 0 0)
 
@@ -105,7 +110,30 @@ test_debruijn = runTestNestedIn ["untyped-plutus-core","test"] $
             ,("failMix", failMix 10)
             ]
 
+    testsRepair = [("repairDeep", failDeep 5)
+                  ,("repairTop", failTop)
+                  ,("repairConst", failConst)
+                  ,("repairElaborate", repairElaborate)
+                  ]
 
+
+-- (lam0 [2 1 4 (lam99 [1 4 3 5])])
+repairElaborate :: UPLC.Term DeBruijn DefaultUni DefaultFun ()
+repairElaborate = lamAbs0 $
+    mkIterApp () (d 2)
+      [
+        d 1
+      , d 4
+      , lamAbs99 (mkIterApp () (d 1)
+                 [
+                   d 4
+                 , d 3
+                 , d 5
+                 ]
+                 )
+      ]
+ where
+   d = Var () . DeBruijn
 
 -- HELPERS
 

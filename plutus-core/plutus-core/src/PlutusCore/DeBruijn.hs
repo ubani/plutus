@@ -18,6 +18,9 @@ module PlutusCore.DeBruijn
     , unDeBruijnTy
     , unDeBruijnTerm
     , unDeBruijnProgram
+    , unDeBruijnTyRepair
+    , unDeBruijnTermRepair
+    , unDeBruijnProgramRepair
     , unNameDeBruijn
     , unNameTyDeBruijn
     , fakeNameDeBruijn
@@ -29,9 +32,10 @@ import PlutusCore.Core
 import PlutusCore.Name
 import PlutusCore.Quote
 
-import Control.Lens hiding (Index, index)
+import Control.Lens hiding (Index, Level, index)
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.Bimap qualified as BM
 
@@ -129,6 +133,26 @@ unDeBruijnProgram
     => Program NamedTyDeBruijn NamedDeBruijn uni fun ann -> m (Program TyName Name uni fun ann)
 unDeBruijnProgram (Program ann ver term) = Program ann ver <$> unDeBruijnTerm term
 
+
+-- | Convert a 'Type' with 'NamedTyDeBruijn's into a 'Type' with 'TyName's.
+unDeBruijnTyRepair
+    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
+    => Type NamedTyDeBruijn uni ann -> m (Type TyName uni ann)
+unDeBruijnTyRepair = flip evalStateT BM.empty . flip runReaderT (Levels 0 BM.empty) . unDeBruijnTyRepairM
+
+-- | Convert a 'Term' with 'NamedTyDeBruijn's and 'NamedDeBruijn's into a 'Term' with 'TyName's and 'Name's.
+unDeBruijnTermRepair
+    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
+    => Term NamedTyDeBruijn NamedDeBruijn uni fun ann -> m (Term TyName Name uni fun ann)
+unDeBruijnTermRepair = flip evalStateT BM.empty . flip runReaderT (Levels 0 BM.empty) . unDeBruijnTermRepairM
+
+-- | Convert a 'Program' with 'NamedTyDeBruijn's and 'NamedDeBruijn's into a 'Program' with 'TyName's and 'Name's.
+unDeBruijnProgramRepair
+    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
+    => Program NamedTyDeBruijn NamedDeBruijn uni fun ann -> m (Program TyName Name uni fun ann)
+unDeBruijnProgramRepair (Program ann ver term) = Program ann ver <$> unDeBruijnTermRepair term
+
+
 unDeBruijnTyM
     :: (MonadReader Levels m, MonadQuote m, AsFreeVariableError e, MonadError e m)
     => Type NamedTyDeBruijn uni ann
@@ -178,6 +202,62 @@ unDeBruijnTermM = \case
     Unwrap ann t -> Unwrap ann <$> unDeBruijnTermM t
     IWrap ann pat arg t -> IWrap ann <$> unDeBruijnTyM pat <*> unDeBruijnTyM arg <*> unDeBruijnTermM t
     Error ann ty -> Error ann <$> unDeBruijnTyM ty
+    -- boring non-recursive cases
+    Constant ann con -> pure $ Constant ann con
+    Builtin ann bn -> pure $ Builtin ann bn
+
+unDeBruijnTyRepairM
+    :: (MonadReader Levels m, MonadQuote m, AsFreeVariableError e, MonadError e m
+      , MonadState (BM.Bimap Unique Level) m
+      )
+    => Type NamedTyDeBruijn uni ann
+    -> m (Type TyName uni ann)
+unDeBruijnTyRepairM = \case
+    -- variable case
+    TyVar ann n -> TyVar ann <$> deBruijnToTyNameRepair n
+    -- binder cases
+    TyForall ann tn k ty ->
+        -- See NOTE: [DeBruijn indices of Binders]
+        declareBinder $ do
+            tn' <- deBruijnToTyNameRepair $ set index 0 tn
+            withScope $ TyForall ann tn' k <$> unDeBruijnTyRepairM ty
+    TyLam ann tn k ty ->
+        -- See NOTE: [DeBruijn indices of Binders]
+        declareBinder $ do
+            tn' <- deBruijnToTyNameRepair $ set index 0 tn
+            withScope $ TyLam ann tn' k <$> unDeBruijnTyRepairM ty
+    -- boring recursive cases
+    TyFun ann i o -> TyFun ann <$> unDeBruijnTyRepairM i <*> unDeBruijnTyRepairM o
+    TyApp ann fun arg -> TyApp ann <$> unDeBruijnTyRepairM fun <*> unDeBruijnTyRepairM arg
+    TyIFix ann pat arg -> TyIFix ann <$> unDeBruijnTyRepairM pat <*> unDeBruijnTyRepairM arg
+    -- boring non-recursive cases
+    TyBuiltin ann con -> pure $ TyBuiltin ann con
+
+unDeBruijnTermRepairM
+    :: (MonadReader Levels m, MonadQuote m, AsFreeVariableError e, MonadError e m
+      , MonadState (BM.Bimap Unique Level) m)
+    => Term NamedTyDeBruijn NamedDeBruijn uni fun ann
+    -> m (Term TyName Name uni fun ann)
+unDeBruijnTermRepairM = \case
+    -- variable case
+    Var ann n -> Var ann <$> deBruijnToNameRepair n
+    -- binder cases
+    TyAbs ann tn k t ->
+        -- See NOTE: [DeBruijn indices of Binders]
+        declareBinder $ do
+            tn' <- deBruijnToTyName $ set index 0 tn
+            withScope $ TyAbs ann tn' k <$> unDeBruijnTermRepairM t
+    LamAbs ann n ty t ->
+        -- See NOTE: [DeBruijn indices of Binders]
+        declareBinder $ do
+            n' <- deBruijnToNameRepair $ set index 0 n
+            withScope $ LamAbs ann n' <$> unDeBruijnTyRepairM ty <*> unDeBruijnTermRepairM t
+    -- boring recursive cases
+    Apply ann t1 t2 -> Apply ann <$> unDeBruijnTermRepairM t1 <*> unDeBruijnTermRepairM t2
+    TyInst ann t ty -> TyInst ann <$> unDeBruijnTermRepairM t <*> unDeBruijnTyRepairM ty
+    Unwrap ann t -> Unwrap ann <$> unDeBruijnTermRepairM t
+    IWrap ann pat arg t -> IWrap ann <$> unDeBruijnTyRepairM pat <*> unDeBruijnTyRepairM arg <*> unDeBruijnTermRepairM t
+    Error ann ty -> Error ann <$> unDeBruijnTyRepairM ty
     -- boring non-recursive cases
     Constant ann con -> pure $ Constant ann con
     Builtin ann bn -> pure $ Builtin ann bn

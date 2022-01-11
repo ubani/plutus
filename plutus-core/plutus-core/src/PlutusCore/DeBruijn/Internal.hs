@@ -27,6 +27,8 @@ module PlutusCore.DeBruijn.Internal
     , tyNameToDeBruijn
     , deBruijnToName
     , deBruijnToTyName
+    , deBruijnToNameRepair
+    , deBruijnToTyNameRepair
     , HasIndex (..)
     ) where
 
@@ -39,6 +41,7 @@ import Control.Lens hiding (Index, Level, index, ix)
 import Control.Monad.Error.Lens
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.Bimap qualified as BM
 import Data.Text qualified as T
@@ -133,7 +136,7 @@ We use a newtype to keep these separate, since getting it wrong will lead to ann
 -}
 
 -- | An absolute level in the program.
-newtype Level = Level Integer deriving newtype (Eq, Ord, Num)
+newtype Level = Level Integer deriving newtype (Eq, Ord, Num, Real, Enum, Integral)
 
 -- | During visiting the AST we hold a reader "state" of current level and a current scoping (levelMapping).
 -- Invariant-A: the current level is positive and greater than all levels in the levelMapping.
@@ -182,12 +185,15 @@ instance HasErrorCode FreeVariableError where
     errorCode  FreeUnique {} = ErrorCode 22
 
 -- | Get the 'Index' corresponding to a given 'Unique'.
-getIndex :: (MonadReader Levels m, AsFreeVariableError e, MonadError e m) => Unique -> m Index
-getIndex u = do
+getIndex :: (MonadReader Levels m) => Unique -> m Level -> m Index
+getIndex u h = do
     Levels current ls <- ask
     case BM.lookup u ls of
         Just foundlvl -> pure $ levelToIx current foundlvl
-        Nothing       -> throwing _FreeVariableError $ FreeUnique u
+        Nothing       -> do
+            -- the resulting level should be negative (no check for that)
+            resLevel <- h
+            pure $ Index $ fromIntegral resLevel
   where
     -- Compute the relative 'Index' of a absolute 'Level' relative to the current 'Level'.
     levelToIx :: Level -> Level -> Index
@@ -197,14 +203,14 @@ getIndex u = do
         fromIntegral $ current - foundLvl
 
 -- | Get the 'Unique' corresponding to a given 'Index'.
-getUnique :: (MonadReader Levels m, AsFreeVariableError e, MonadError e m) => Index -> m Unique
-getUnique ix = do
+getUnique :: (MonadReader Levels m) => Index -> m Unique -> m Unique
+getUnique ix h = do
     Levels current ls <- ask
     case BM.lookupR (ixToLevel current ix) ls of
         Just u  -> pure u
         -- Because of invariant-B, the levelMapping contains only positive levels;
         -- the lookup(negativeLvl) will fail by throwing a free variable error.
-        Nothing -> throwing _FreeVariableError $ FreeIndex ix
+        Nothing -> h
   where
     -- Compute the absolute 'Level' of a relative 'Index' relative to the current 'Level'.
     -- The index `ixAST` may be malformed or point to a free variable because it comes straight from the AST;
@@ -225,22 +231,35 @@ fakeNameDeBruijn
     :: DeBruijn -> NamedDeBruijn
 fakeNameDeBruijn (DeBruijn ix) = NamedDeBruijn "i" ix
 
-nameToDeBruijn
-    :: (MonadReader Levels m, AsFreeVariableError e, MonadError e m)
-    => Name -> m NamedDeBruijn
-nameToDeBruijn (Name str u) = NamedDeBruijn str <$> getIndex u
+nameToDeBruijn :: (MonadReader Levels m, MonadError e m, AsFreeVariableError e) => Name -> m NamedDeBruijn
+nameToDeBruijn (Name str u) = NamedDeBruijn str <$> getIndex u (throwing _FreeVariableError $ FreeUnique u)
 
-tyNameToDeBruijn
-    :: (MonadReader Levels m, AsFreeVariableError e, MonadError e m)
-    => TyName -> m NamedTyDeBruijn
+tyNameToDeBruijn :: (MonadReader Levels m, MonadError e m,  AsFreeVariableError e) => TyName -> m NamedTyDeBruijn
 tyNameToDeBruijn (TyName n) = NamedTyDeBruijn <$> nameToDeBruijn n
 
 deBruijnToName
     :: (MonadReader Levels m, AsFreeVariableError e, MonadError e m)
     => NamedDeBruijn -> m Name
-deBruijnToName (NamedDeBruijn str ix) = Name str <$> getUnique ix
+deBruijnToName (NamedDeBruijn str ix) = Name str <$> getUnique ix (throwing _FreeVariableError $ FreeIndex ix)
 
 deBruijnToTyName
     :: (MonadReader Levels m, AsFreeVariableError e, MonadError e m)
     => NamedTyDeBruijn -> m TyName
 deBruijnToTyName (NamedTyDeBruijn n) = TyName <$> deBruijnToName n
+
+deBruijnToNameRepair :: (MonadState (BM.Bimap Unique Level) m, MonadReader Levels m, MonadQuote m) => NamedDeBruijn -> m Name
+deBruijnToNameRepair (NamedDeBruijn str ix) = Name str <$> getUnique ix h
+    where
+      h = do
+          cache <- get
+          Levels current _ <- ask
+          let absoluteLevel =  Level (fromIntegral ix) - current
+          case BM.lookupR absoluteLevel cache of
+              Nothing -> do
+                  u <- freshUnique
+                  put (BM.insert u absoluteLevel cache)
+                  pure u
+              Just u -> pure u
+
+deBruijnToTyNameRepair :: (MonadState (BM.Bimap Unique Level) m, MonadReader Levels m, MonadQuote m) => NamedTyDeBruijn -> m TyName
+deBruijnToTyNameRepair (NamedTyDeBruijn n) = TyName <$> deBruijnToNameRepair n

@@ -14,6 +14,8 @@ module UntypedPlutusCore.DeBruijn
     , deBruijnProgram
     , unDeBruijnTerm
     , unDeBruijnProgram
+    , unDeBruijnTermRepair
+    , unDeBruijnProgramRepair
     , unNameDeBruijn
     , fakeNameDeBruijn
     ) where
@@ -24,9 +26,10 @@ import PlutusCore.Name
 import PlutusCore.Quote
 import UntypedPlutusCore.Core
 
-import Control.Lens hiding (Index, index)
+import Control.Lens hiding (Index, Level, index)
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.Bimap qualified as BM
 
@@ -78,6 +81,17 @@ unDeBruijnProgram
     => Program NamedDeBruijn uni fun ann -> m (Program Name uni fun ann)
 unDeBruijnProgram (Program ann ver term) = Program ann ver <$> unDeBruijnTerm term
 
+unDeBruijnTermRepair
+    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
+    => Term NamedDeBruijn uni fun ann -> m (Term Name uni fun ann)
+unDeBruijnTermRepair = flip evalStateT BM.empty . flip runReaderT (Levels 0 BM.empty) . unDeBruijnTermRepairM
+
+-- | Convert a 'Program' with 'TyDeBruijn's and 'DeBruijn's into a 'Program' with 'TyName's and 'Name's.
+unDeBruijnProgramRepair
+    :: (MonadQuote m, AsFreeVariableError e, MonadError e m)
+    => Program NamedDeBruijn uni fun ann -> m (Program Name uni fun ann)
+unDeBruijnProgramRepair (Program ann ver term) =  Program ann ver <$> unDeBruijnTermRepair term
+
 unDeBruijnTermM
     :: (MonadReader Levels m, MonadQuote m, AsFreeVariableError e, MonadError e m)
     => Term NamedDeBruijn uni fun ann
@@ -95,6 +109,29 @@ unDeBruijnTermM = \case
     Apply ann t1 t2 -> Apply ann <$> unDeBruijnTermM t1 <*> unDeBruijnTermM t2
     Delay ann t -> Delay ann <$> unDeBruijnTermM t
     Force ann t -> Force ann <$> unDeBruijnTermM t
+    -- boring non-recursive cases
+    Constant ann con -> pure $ Constant ann con
+    Builtin ann bn -> pure $ Builtin ann bn
+    Error ann -> pure $ Error ann
+
+unDeBruijnTermRepairM
+    :: (MonadReader Levels m, MonadQuote m, AsFreeVariableError e, MonadError e m
+      , MonadState (BM.Bimap Unique Level) m)
+    => Term NamedDeBruijn uni fun ann
+    -> m (Term Name uni fun ann)
+unDeBruijnTermRepairM = \case
+    -- variable case
+    Var ann n -> Var ann <$> deBruijnToNameRepair n
+    -- binder cases
+    LamAbs ann n t ->
+        -- See NOTE: [DeBruijn indices of Binders]
+        declareBinder $ do
+            n' <- deBruijnToNameRepair $ set index 0 n
+            withScope $ LamAbs ann n' <$> unDeBruijnTermRepairM t
+    -- boring recursive cases
+    Apply ann t1 t2 -> Apply ann <$> unDeBruijnTermRepairM t1 <*> unDeBruijnTermRepairM t2
+    Delay ann t -> Delay ann <$> unDeBruijnTermRepairM t
+    Force ann t -> Force ann <$> unDeBruijnTermRepairM t
     -- boring non-recursive cases
     Constant ann con -> pure $ Constant ann con
     Builtin ann bn -> pure $ Builtin ann bn
